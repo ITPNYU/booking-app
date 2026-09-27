@@ -69,6 +69,7 @@ import {
   getOtherDisplayFields,
   toSendHTMLEmailContents,
 } from "./shared";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -502,9 +503,11 @@ export async function POST(request: NextRequest) {
     email,
     selectedRooms,
     bookingCalendarInfo,
-    data: rawData,
+    data: postedData,
     isAutoApproval,
   } = await request.json();
+  // memo is written only through PUT /api/bookings/memo.
+  const rawData = omitStaffOnlyBookingFieldWrites(postedData);
 
   // Students cannot request auxiliary spaces — strip even if posted directly.
   const data =

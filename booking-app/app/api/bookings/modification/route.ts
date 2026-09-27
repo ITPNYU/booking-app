@@ -43,6 +43,7 @@ import {
   getTenantFlags,
   getTenantRooms,
 } from "../shared";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 
 type BookingWithId = Booking & { id?: string };
 
@@ -122,11 +123,13 @@ export async function PUT(request: NextRequest) {
     selectedRooms,
     allRooms,
     bookingCalendarInfo,
-    data,
+    data: rawData,
     calendarEventId,
   } = await request.json();
   // Never trust a client-supplied actor; the session is the source of truth.
   const modifiedBy = session.email;
+  // memo is written only through PUT /api/bookings/memo.
+  const data = omitStaffOnlyBookingFieldWrites(rawData);
   const { isMediaCommons } = getTenantFlags(tenant);
 
   console.log(

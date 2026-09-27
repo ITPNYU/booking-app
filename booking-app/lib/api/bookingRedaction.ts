@@ -1,39 +1,39 @@
 import { TableNames } from "@/components/src/policy";
 import type { PagePermission } from "@/components/src/types";
-import type { BookingDetailConfig } from "@/components/src/client/routes/components/schemaTypes";
+import type { DetailsModalConfig } from "@/components/src/client/routes/components/schemaTypes";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
 import { canAccessMemo } from "@/components/src/utils/bookingMemoAccess";
 import { resolveCallerRole } from "@/lib/api/authz";
 import type { SessionContext } from "@/lib/api/requireSession";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import { STAFF_ONLY_BOOKING_FIELDS } from "@/lib/api/staffOnlyBookingFields";
+
+export {
+  STAFF_ONLY_BOOKING_FIELDS,
+  findStaffOnlyBookingFieldWrite,
+  omitStaffOnlyBookingFieldWrites,
+} from "@/lib/api/staffOnlyBookingFields";
 
 /**
- * Booking fields that only the roles in the tenant schema's
- * `detail.memoRoles` may read (and only while `detail.showMemo` is on).
- * The `/api/firestore/*` read routes strip them from `{tenant}-bookings`
- * documents for everyone else, so hiding them in the UI is not the only line
- * of defense.
- */
-export const STAFF_ONLY_BOOKING_FIELDS = ["memo"] as const;
-
-/**
- * Load the tenant's booking detail config, falling back to the defaults
+ * Load the tenant's booking detail modal config, falling back to the defaults
  * (memo hidden) when the tenant has no schema.
  */
-export async function getBookingDetailConfig(
+export async function getDetailsModalConfig(
   tenant: string | undefined,
-): Promise<BookingDetailConfig> {
+): Promise<DetailsModalConfig> {
   const schema = tenant ? await getCachedTenantSchema(tenant) : null;
-  return schema?.detail ?? generateDefaultSchema(tenant ?? "").detail;
+  return (
+    schema?.detailsModal ?? generateDefaultSchema(tenant ?? "").detailsModal
+  );
 }
 
-/** Whether `role` may read or write staff-only booking fields for `tenant`. */
+/** Whether `role` may read staff-only booking fields for `tenant`. */
 export async function canReadStaffOnlyBookingFields(
   tenant: string | undefined,
   role: PagePermission,
 ): Promise<boolean> {
-  const detail = await getBookingDetailConfig(tenant);
-  return canAccessMemo(detail, role);
+  const detailsModal = await getDetailsModalConfig(tenant);
+  return canAccessMemo(detailsModal, role, "view");
 }
 
 export function stripStaffOnlyBookingFields<T extends Record<string, unknown>>(
@@ -52,31 +52,6 @@ export function stripStaffOnlyBookingFields<T extends Record<string, unknown>>(
     delete copy[field];
   }
   return copy as T;
-}
-
-/**
- * Return the first staff-only booking field that `data` would write, or null.
- * Matches a top-level key or a dotted field path rooted at it (`memo.x`).
- * The generic `/api/firestore/mutate` route refuses such writes to
- * `{tenant}-bookings` regardless of role, so the dedicated
- * `PUT /api/bookings/memo` route is the only path that can set them and its
- * role, trimming, and length rules cannot be skipped.
- */
-export function findStaffOnlyBookingFieldWrite(
-  collection: string,
-  data: Record<string, unknown> | undefined | null,
-): string | null {
-  if (collection !== TableNames.BOOKING || !data || typeof data !== "object") {
-    return null;
-  }
-  for (const key of Object.keys(data)) {
-    for (const field of STAFF_ONLY_BOOKING_FIELDS) {
-      if (key === field || key.startsWith(`${field}.`)) {
-        return field;
-      }
-    }
-  }
-  return null;
 }
 
 /**

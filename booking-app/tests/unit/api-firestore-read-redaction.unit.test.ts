@@ -91,7 +91,7 @@ describe("/api/firestore read routes redact staff-only booking fields", () => {
     const base = generateDefaultSchema("mc");
     mocks.mockGetCachedTenantSchema.mockResolvedValue({
       ...base,
-      detail: { ...base.detail, showMemo: true },
+      detailsModal: { ...base.detailsModal, showMemo: true },
     });
   });
 

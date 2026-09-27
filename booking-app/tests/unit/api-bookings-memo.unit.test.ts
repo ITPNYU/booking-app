@@ -49,10 +49,13 @@ import { BOOKING_MEMO_MAX_LEN } from "@/components/src/constants/bookingMemo";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
 
 const schemaWith = (
-  detail: Partial<ReturnType<typeof generateDefaultSchema>["detail"]>,
+  detailsModal: Partial<ReturnType<typeof generateDefaultSchema>["detailsModal"]>,
 ) => {
   const base = generateDefaultSchema("mc");
-  return { ...base, detail: { ...base.detail, showMemo: true, ...detail } };
+  return {
+    ...base,
+    detailsModal: { ...base.detailsModal, showMemo: true, ...detailsModal },
+  };
 };
 
 const createRequest = (body: unknown, tenant?: string) =>
@@ -190,9 +193,9 @@ describe("PUT /api/bookings/memo", () => {
     expect(res.status).toBe(403);
   });
 
-  it("honors a tenant memoRoles list that includes PA", async () => {
+  it("honors a tenant memoEditRoles list that includes PA", async () => {
     mocks.mockGetCachedTenantSchema.mockResolvedValue(
-      schemaWith({ memoRoles: ["PA", "ADMIN"] }),
+      schemaWith({ memoEditRoles: ["PA", "ADMIN"] }),
     );
     mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.PA);
     const res = await PUT(
@@ -202,9 +205,21 @@ describe("PUT /api/bookings/memo", () => {
     expect(mocks.mockUpdate).toHaveBeenCalledWith({ memo: "WO-123" });
   });
 
-  it("rejects a Services caller when memoRoles is ADMIN only", async () => {
+  it("rejects a view-only role", async () => {
     mocks.mockGetCachedTenantSchema.mockResolvedValue(
-      schemaWith({ memoRoles: ["ADMIN"] }),
+      schemaWith({ memoViewRoles: ["PA"], memoEditRoles: ["ADMIN"] }),
+    );
+    mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.PA);
+    const res = await PUT(
+      createRequest({ calendarEventId: "evt-1", memo: "WO-123" }, "mc"),
+    );
+    expect(res.status).toBe(403);
+    expect(mocks.mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Services caller when memoEditRoles is ADMIN only", async () => {
+    mocks.mockGetCachedTenantSchema.mockResolvedValue(
+      schemaWith({ memoEditRoles: ["ADMIN"] }),
     );
     mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.SERVICES);
     const res = await PUT(

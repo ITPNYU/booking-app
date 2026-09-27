@@ -29,77 +29,121 @@ describe("normalizeMemoRoles", () => {
 });
 
 describe("canAccessMemo", () => {
-  const detail = (memoRoles: any[], showMemo = true) => ({
-    showMemo,
-    memoRoles,
-  });
+  const config = (
+    memoViewRoles: any[],
+    memoEditRoles: any[] = memoViewRoles,
+    showMemo = true,
+  ) => ({ showMemo, memoViewRoles, memoEditRoles });
 
   it("is false when showMemo is off", () => {
-    expect(
-      canAccessMemo(detail(["SUPER_ADMIN"], false), PagePermission.SUPER_ADMIN),
-    ).toBe(false);
+    const off = config(["SUPER_ADMIN"], ["SUPER_ADMIN"], false);
+    expect(canAccessMemo(off, PagePermission.SUPER_ADMIN, "view")).toBe(false);
+    expect(canAccessMemo(off, PagePermission.SUPER_ADMIN, "edit")).toBe(false);
   });
 
   it("uses the permission hierarchy", () => {
-    expect(canAccessMemo(detail(["PA"]), PagePermission.ADMIN)).toBe(true);
-    expect(canAccessMemo(detail(["PA"]), PagePermission.LIAISON)).toBe(false);
-    expect(canAccessMemo(detail(["ADMIN"]), PagePermission.SERVICES)).toBe(
-      false,
-    );
-    expect(canAccessMemo(detail(["ADMIN"]), PagePermission.SUPER_ADMIN)).toBe(
+    expect(canAccessMemo(config(["PA"]), PagePermission.ADMIN, "edit")).toBe(
       true,
     );
-    expect(canAccessMemo(detail(["SERVICES"]), PagePermission.BOOKING)).toBe(
+    expect(canAccessMemo(config(["PA"]), PagePermission.LIAISON, "edit")).toBe(
       false,
     );
+    expect(
+      canAccessMemo(config(["ADMIN"]), PagePermission.SERVICES, "edit"),
+    ).toBe(false);
+    expect(
+      canAccessMemo(config(["ADMIN"]), PagePermission.SUPER_ADMIN, "edit"),
+    ).toBe(true);
+    expect(
+      canAccessMemo(config(["SERVICES"]), PagePermission.BOOKING, "view"),
+    ).toBe(false);
+  });
+
+  it("separates view roles from edit roles", () => {
+    const c = config(["PA", "SERVICES"], ["SERVICES"]);
+    expect(canAccessMemo(c, PagePermission.PA, "view")).toBe(true);
+    expect(canAccessMemo(c, PagePermission.PA, "edit")).toBe(false);
+    expect(canAccessMemo(c, PagePermission.SERVICES, "edit")).toBe(true);
+  });
+
+  it("lets edit roles view even when they are not listed as view roles", () => {
+    const c = config(["ADMIN"], ["LIAISON"]);
+    expect(canAccessMemo(c, PagePermission.LIAISON, "view")).toBe(true);
+    expect(canAccessMemo(c, PagePermission.LIAISON, "edit")).toBe(true);
+    expect(canAccessMemo(c, PagePermission.PA, "view")).toBe(false);
   });
 });
 
 describe("isMemoContextAllowed", () => {
   it("maps each staff context to its role", () => {
-    const d = (memoRoles: any[]) => ({ memoRoles });
-    expect(isMemoContextAllowed(d(["PA"]), PageContextLevel.PA)).toBe(true);
-    expect(isMemoContextAllowed(d(["PA"]), PageContextLevel.ADMIN)).toBe(false);
-    expect(isMemoContextAllowed(d(["LIAISON"]), PageContextLevel.LIAISON)).toBe(
+    const d = (roles: any[]) => ({ memoViewRoles: roles, memoEditRoles: roles });
+    expect(isMemoContextAllowed(d(["PA"]), PageContextLevel.PA, "edit")).toBe(
       true,
     );
     expect(
-      isMemoContextAllowed(d(["SERVICES"]), PageContextLevel.SERVICES),
-    ).toBe(true);
-    expect(isMemoContextAllowed(d(["ADMIN"]), PageContextLevel.ADMIN)).toBe(
-      true,
-    );
+      isMemoContextAllowed(d(["PA"]), PageContextLevel.ADMIN, "edit"),
+    ).toBe(false);
     expect(
-      isMemoContextAllowed(d(["SUPER_ADMIN"]), PageContextLevel.ADMIN),
+      isMemoContextAllowed(d(["LIAISON"]), PageContextLevel.LIAISON, "edit"),
     ).toBe(true);
+    expect(
+      isMemoContextAllowed(d(["SERVICES"]), PageContextLevel.SERVICES, "edit"),
+    ).toBe(true);
+    expect(
+      isMemoContextAllowed(d(["ADMIN"]), PageContextLevel.ADMIN, "edit"),
+    ).toBe(true);
+    expect(
+      isMemoContextAllowed(d(["SUPER_ADMIN"]), PageContextLevel.ADMIN, "edit"),
+    ).toBe(true);
+  });
+
+  it("grants view but not edit to a view-only context", () => {
+    const c = { memoViewRoles: ["PA"] as any, memoEditRoles: ["ADMIN"] as any };
+    expect(isMemoContextAllowed(c, PageContextLevel.PA, "view")).toBe(true);
+    expect(isMemoContextAllowed(c, PageContextLevel.PA, "edit")).toBe(false);
+    expect(isMemoContextAllowed(c, PageContextLevel.ADMIN, "view")).toBe(true);
+    expect(isMemoContextAllowed(c, PageContextLevel.ADMIN, "edit")).toBe(true);
   });
 
   it("never allows the USER context or a missing context", () => {
-    const all = {
-      memoRoles: ["PA", "LIAISON", "SERVICES", "ADMIN", "SUPER_ADMIN"] as any,
-    };
-    expect(isMemoContextAllowed(all, PageContextLevel.USER)).toBe(false);
-    expect(isMemoContextAllowed(all, undefined)).toBe(false);
+    const roles = ["PA", "LIAISON", "SERVICES", "ADMIN", "SUPER_ADMIN"] as any;
+    const all = { memoViewRoles: roles, memoEditRoles: roles };
+    for (const access of ["view", "edit"] as const) {
+      expect(isMemoContextAllowed(all, PageContextLevel.USER, access)).toBe(
+        false,
+      );
+      expect(isMemoContextAllowed(all, undefined, access)).toBe(false);
+    }
   });
 });
 
-describe("coerceTenantSchema detail", () => {
-  it("defaults detail when the stored document has none", () => {
+describe("coerceTenantSchema detailsModal", () => {
+  it("defaults detailsModal when the stored document has none", () => {
     const out = coerceTenantSchema({ tenantId: "mc" }, "mc");
-    expect(out.detail).toEqual(generateDefaultSchema("mc").detail);
-    expect(out.detail.showWebCheckout).toBe(true);
-    expect(out.detail.showMemo).toBe(false);
+    expect(out.detailsModal).toEqual(
+      generateDefaultSchema("mc").detailsModal,
+    );
+    expect(out.detailsModal.showWebCheckout).toBe(true);
+    expect(out.detailsModal.showMemo).toBe(false);
+    expect(out.detailsModal.memoEditRoles).toEqual([...DEFAULT_MEMO_ROLES]);
   });
 
-  it("merges a partial stored detail over the defaults and normalizes roles", () => {
+  it("merges a partial stored detailsModal over the defaults and normalizes roles", () => {
     const out = coerceTenantSchema(
-      { detail: { showMemo: true, memoRoles: ["PA", "bogus"] } },
+      {
+        detailsModal: {
+          showMemo: true,
+          memoViewRoles: ["PA", "bogus"],
+          memoEditRoles: ["ADMIN", "ADMIN"],
+        },
+      },
       "mc",
     );
-    expect(out.detail).toEqual({
+    expect(out.detailsModal).toEqual({
       showWebCheckout: true,
       showMemo: true,
-      memoRoles: ["PA"],
+      memoViewRoles: ["PA"],
+      memoEditRoles: ["ADMIN"],
     });
   });
 

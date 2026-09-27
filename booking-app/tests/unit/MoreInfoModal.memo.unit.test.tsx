@@ -81,6 +81,8 @@ const renderModal = ({
   pageContext,
   showMemo = true,
   memoRoles,
+  memoViewRoles = memoRoles,
+  memoEditRoles = memoRoles,
   showWebCheckout = true,
   updateBooking,
 }: {
@@ -88,18 +90,22 @@ const renderModal = ({
   permission: PagePermission;
   pageContext?: PageContextLevel;
   showMemo?: boolean;
+  /** Shorthand that sets both memoViewRoles and memoEditRoles. */
   memoRoles?: BookingDetailRole[];
+  memoViewRoles?: BookingDetailRole[];
+  memoEditRoles?: BookingDetailRole[];
   showWebCheckout?: boolean;
   updateBooking?: (b: BookingRow) => void;
 }) => {
   const base = generateDefaultSchema("mc");
   const schema = {
     ...base,
-    detail: {
-      ...base.detail,
+    detailsModal: {
+      ...base.detailsModal,
       showMemo,
       showWebCheckout,
-      ...(memoRoles ? { memoRoles } : {}),
+      ...(memoViewRoles ? { memoViewRoles } : {}),
+      ...(memoEditRoles ? { memoEditRoles } : {}),
     },
   };
   return render(
@@ -256,6 +262,41 @@ describe("MoreInfoModal - Memo section", () => {
       expect(screen.queryByLabelText("Edit memo")).not.toBeInTheDocument();
     });
 
+    it("shows a view-only role the memo without the edit icon", () => {
+      renderModal({
+        booking: createMockBooking({ memo: "WO-77" }),
+        permission: PagePermission.PA,
+        pageContext: PageContextLevel.PA,
+        memoViewRoles: ["PA"],
+        memoEditRoles: ["SERVICES", "ADMIN", "SUPER_ADMIN"],
+      });
+      expect(memoSection()).toBeInTheDocument();
+      expect(screen.getByText("WO-77")).toBeInTheDocument();
+      expect(screen.queryByLabelText("Edit memo")).not.toBeInTheDocument();
+    });
+
+    it("hides the edit icon on a page outside memoEditRoles even for an admin", () => {
+      renderModal({
+        permission: PagePermission.ADMIN,
+        pageContext: PageContextLevel.SERVICES,
+        memoViewRoles: ["SERVICES", "ADMIN"],
+        memoEditRoles: ["ADMIN"],
+      });
+      expect(memoSection()).toBeInTheDocument();
+      expect(screen.queryByLabelText("Edit memo")).not.toBeInTheDocument();
+    });
+
+    it("lets an edit role see and edit the memo when it is not in memoViewRoles", () => {
+      renderModal({
+        permission: PagePermission.LIAISON,
+        pageContext: PageContextLevel.LIAISON,
+        memoViewRoles: ["ADMIN"],
+        memoEditRoles: ["LIAISON"],
+      });
+      expect(memoSection()).toBeInTheDocument();
+      expect(screen.getByLabelText("Edit memo")).toBeInTheDocument();
+    });
+
     it("never shows on the My Bookings page regardless of roles", () => {
       renderModal({
         permission: PagePermission.SUPER_ADMIN,
@@ -267,7 +308,7 @@ describe("MoreInfoModal - Memo section", () => {
   });
 
   describe("WebCheckout toggle", () => {
-    it("hides the WebCheckout section when detail.showWebCheckout is false", () => {
+    it("hides the WebCheckout section when detailsModal.showWebCheckout is false", () => {
       renderModal({
         booking: createMockBooking({ webcheckoutCartNumber: "CK-1" }),
         permission: PagePermission.ADMIN,
@@ -287,6 +328,35 @@ describe("MoreInfoModal - Memo section", () => {
         pageContext: PageContextLevel.ADMIN,
       });
       expect(screen.getByText("Cart Number")).toBeInTheDocument();
+    });
+  });
+
+  describe("edit icon placement", () => {
+    it.each([
+      ["Edit cart number", "WebCheckout"],
+      ["Edit memo", "Memo"],
+    ])("puts %s inline with the %s section title", (label, title) => {
+      renderModal({
+        booking: createMockBooking({ webcheckoutCartNumber: "CK-1" }),
+        permission: PagePermission.ADMIN,
+        pageContext: PageContextLevel.ADMIN,
+      });
+      const button = screen.getByLabelText(label);
+      expect(button.closest("td")).toBeNull();
+      const heading = button.parentElement!.querySelector("h6");
+      expect(heading?.textContent).toBe(title);
+    });
+
+    it("hides the cart edit icon while the cart number is being edited", () => {
+      renderModal({
+        permission: PagePermission.ADMIN,
+        pageContext: PageContextLevel.ADMIN,
+      });
+      fireEvent.click(screen.getByLabelText("Edit cart number"));
+      expect(screen.getByLabelText("Save cart number")).toBeInTheDocument();
+      expect(
+        screen.queryByLabelText("Edit cart number"),
+      ).not.toBeInTheDocument();
     });
   });
 

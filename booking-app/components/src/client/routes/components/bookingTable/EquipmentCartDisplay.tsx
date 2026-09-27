@@ -6,7 +6,7 @@ interface Props {
   booking: BookingRow;
   onCartClick: () => void;
   pageContext: PageContextLevel;
-  /** Tenant schema `detail.showWebCheckout`; when false only the toggle shows. */
+  /** Tenant schema `detailsModal.showWebCheckout`; when false only the toggle shows. */
   showCartNumber?: boolean;
 }
 

@@ -1,26 +1,46 @@
 import {
   normalizeMemoRoles,
-  type BookingDetailConfig,
   type BookingDetailRole,
+  type DetailsModalConfig,
 } from "@/components/src/client/routes/components/schemaTypes";
 import { PageContextLevel, PagePermission } from "@/components/src/types";
 import { hasAnyPermission } from "@/components/src/utils/permissions";
 
 export { normalizeMemoRoles };
 
+/** Reading the memo, or editing it. */
+export type MemoAccess = "view" | "edit";
+
+type MemoRoleConfig = Pick<
+  DetailsModalConfig,
+  "memoViewRoles" | "memoEditRoles"
+>;
+
+/** Roles granted `access`. Editing implies viewing, so view includes the edit roles. */
+function memoRolesFor(
+  config: MemoRoleConfig,
+  access: MemoAccess,
+): BookingDetailRole[] {
+  if (access === "edit") return config.memoEditRoles;
+  return Array.from(
+    new Set([...config.memoViewRoles, ...config.memoEditRoles]),
+  );
+}
+
 /**
- * Whether a caller with `userPermission` may read or write the memo under
- * `detail`. Uses the permission hierarchy, so ADMIN satisfies a role list
+ * Whether a caller with `userPermission` has `access` to the memo under
+ * `config`. Uses the permission hierarchy, so ADMIN satisfies a role list
  * that names only SERVICES.
  */
 export function canAccessMemo(
-  detail: Pick<BookingDetailConfig, "showMemo" | "memoRoles">,
+  config: Pick<DetailsModalConfig, "showMemo"> & MemoRoleConfig,
   userPermission: PagePermission,
+  access: MemoAccess,
 ): boolean {
-  if (!detail.showMemo) return false;
+  if (!config.showMemo) return false;
   return hasAnyPermission(
     userPermission,
-    detail.memoRoles.map((r) => PagePermission[r]),
+    memoRolesFor(config, access).map((r) => PagePermission[r]),
   );
 }
 
@@ -43,15 +63,17 @@ function rolesForContext(
 }
 
 /**
- * Whether the Memo section may appear on the page rendered for
- * `pageContext`. The USER context (My Bookings) never shows it.
+ * Whether the page rendered for `pageContext` grants `access` to the memo.
+ * The USER context (My Bookings) never does.
  */
 export function isMemoContextAllowed(
-  detail: Pick<BookingDetailConfig, "memoRoles">,
+  config: MemoRoleConfig,
   pageContext: PageContextLevel | undefined,
+  access: MemoAccess,
 ): boolean {
   if (pageContext === undefined) return false;
   const roles = rolesForContext(pageContext);
   if (!roles) return false;
-  return roles.some((r) => detail.memoRoles.includes(r));
+  const allowed = memoRolesFor(config, access);
+  return roles.some((r) => allowed.includes(r));
 }
