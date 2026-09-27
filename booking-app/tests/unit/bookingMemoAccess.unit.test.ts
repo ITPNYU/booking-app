@@ -12,9 +12,9 @@ import {
 import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 
 describe("normalizeMemoRoles", () => {
-  it("returns the defaults for a non-array", () => {
+  it("returns the defaults only when the list is unset", () => {
     expect(normalizeMemoRoles(undefined)).toEqual([...DEFAULT_MEMO_ROLES]);
-    expect(normalizeMemoRoles("ADMIN")).toEqual([...DEFAULT_MEMO_ROLES]);
+    expect(normalizeMemoRoles(null)).toEqual([...DEFAULT_MEMO_ROLES]);
   });
 
   it("drops unknown roles and duplicates", () => {
@@ -23,8 +23,17 @@ describe("normalizeMemoRoles", () => {
     ).toEqual(["PA", "ADMIN"]);
   });
 
-  it("falls back to the defaults when nothing valid remains", () => {
-    expect(normalizeMemoRoles(["BOOKING", 3])).toEqual([...DEFAULT_MEMO_ROLES]);
+  it("respects an explicitly empty list", () => {
+    expect(normalizeMemoRoles([])).toEqual([]);
+  });
+
+  it("fails closed when nothing valid remains", () => {
+    expect(normalizeMemoRoles(["BOOKING", 3, "Admin"])).toEqual([]);
+  });
+
+  it("fails closed on a malformed non-array value", () => {
+    expect(normalizeMemoRoles("ADMIN")).toEqual([]);
+    expect(normalizeMemoRoles({ ADMIN: true })).toEqual([]);
   });
 });
 
@@ -145,6 +154,39 @@ describe("coerceTenantSchema detailsModal", () => {
       memoViewRoles: ["PA"],
       memoEditRoles: ["ADMIN"],
     });
+  });
+
+  it("lets a tenant lock memo editing down to nobody", () => {
+    const out = coerceTenantSchema(
+      { detailsModal: { showMemo: true, memoEditRoles: [] } },
+      "mc",
+    );
+    expect(out.detailsModal.memoEditRoles).toEqual([]);
+    expect(out.detailsModal.memoViewRoles).toEqual([...DEFAULT_MEMO_ROLES]);
+    expect(
+      canAccessMemo(out.detailsModal, PagePermission.SUPER_ADMIN, "edit"),
+    ).toBe(false);
+    expect(
+      canAccessMemo(out.detailsModal, PagePermission.SUPER_ADMIN, "view"),
+    ).toBe(true);
+  });
+
+  it("grants nobody when a stored list has only typo'd roles", () => {
+    const out = coerceTenantSchema(
+      {
+        detailsModal: {
+          showMemo: true,
+          memoViewRoles: ["Admin"],
+          memoEditRoles: ["SERVICE"],
+        },
+      },
+      "mc",
+    );
+    expect(out.detailsModal.memoViewRoles).toEqual([]);
+    expect(out.detailsModal.memoEditRoles).toEqual([]);
+    expect(
+      canAccessMemo(out.detailsModal, PagePermission.SUPER_ADMIN, "view"),
+    ).toBe(false);
   });
 
   it("keeps form free of memo settings", () => {

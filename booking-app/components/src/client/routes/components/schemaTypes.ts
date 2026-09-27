@@ -301,17 +301,21 @@ export const DEFAULT_MEMO_ROLES: readonly BookingDetailRole[] = [
   "SUPER_ADMIN",
 ];
 
-/** Drop unknown entries and duplicates; fall back to the defaults when empty. */
+/**
+ * Normalize a stored memo role list, failing closed. Only an unset list
+ * (undefined or null) gets the defaults; unknown entries and duplicates are
+ * dropped, so an explicit `[]` or a list of only unknown roles grants nobody,
+ * and a malformed non-array value grants nobody too.
+ */
 export function normalizeMemoRoles(raw: unknown): BookingDetailRole[] {
-  if (!Array.isArray(raw)) return [...DEFAULT_MEMO_ROLES];
+  if (raw === undefined || raw === null) return [...DEFAULT_MEMO_ROLES];
+  if (!Array.isArray(raw)) return [];
   const roles = raw.filter(
     (r): r is BookingDetailRole =>
       typeof r === "string" &&
       (BOOKING_DETAIL_ROLES as readonly string[]).includes(r),
   );
-  return roles.length > 0
-    ? Array.from(new Set(roles))
-    : [...DEFAULT_MEMO_ROLES];
+  return Array.from(new Set(roles));
 }
 
 /**
