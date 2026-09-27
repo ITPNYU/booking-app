@@ -134,6 +134,59 @@ export function serializedTimestampToMillis(value: unknown): number | null {
 }
 
 /**
+ * Epoch milliseconds for any timestamp shape this app stores or receives.
+ * Prefers `toMillis()` / `toDate()` so Firestore Timestamps keep sub-second
+ * precision, then serialized `{seconds, nanoseconds}` (including admin
+ * `{_seconds, _nanoseconds}`).
+ */
+export function timestampToEpochMillis(value: unknown): number | null {
+  if (value == null) return null;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return Number.isNaN(time) ? null : time;
+  }
+  if (typeof value === "object") {
+    const maybe = value as {
+      toMillis?: () => number;
+      toDate?: () => Date;
+    };
+    if (typeof maybe.toMillis === "function") {
+      const time = maybe.toMillis();
+      if (typeof time === "number" && Number.isFinite(time)) return time;
+    }
+    if (typeof maybe.toDate === "function") {
+      const date = maybe.toDate();
+      if (date instanceof Date && !Number.isNaN(date.getTime())) {
+        return date.getTime();
+      }
+    }
+  }
+  const serialized = serializedTimestampToMillis(value);
+  if (serialized != null) return serialized;
+  if (typeof value === "string") {
+    const time = Date.parse(value);
+    return Number.isNaN(time) ? null : time;
+  }
+  return null;
+}
+
+export function timestampToDate(value: unknown): Date | null {
+  const millis = timestampToEpochMillis(value);
+  return millis == null ? null : new Date(millis);
+}
+
+/** Ascending chronological order. Missing timestamps sort after known ones. */
+export function compareTimestampsAscending(a: unknown, b: unknown): number {
+  const aMs = timestampToEpochMillis(a);
+  const bMs = timestampToEpochMillis(b);
+  if (aMs == null && bMs == null) return 0;
+  if (aMs == null) return 1;
+  if (bMs == null) return -1;
+  return aMs - bMs;
+}
+
+/**
  * Walk a parsed JSON tree and replace every serialized timestamp with the
  * SDK-specific Timestamp produced by `fromSecondsNanos`. Strict matching is
  * used so ordinary objects whose key count happens to be 2 (or 3) are not

@@ -16,7 +16,10 @@ import {
 
 import { BookingLog, BookingStatusLabel } from "@/components/src/types";
 import { traceDatabase } from "@/lib/newrelic-utils";
-import { serializedTimestampToMillis } from "@/lib/utils/timestampWire";
+import {
+  compareTimestampsAscending,
+  timestampToEpochMillis,
+} from "@/lib/utils/timestampWire";
 import admin from "./firebaseAdmin";
 
 const db = admin.firestore();
@@ -514,11 +517,9 @@ export const getBookingLogs = async (
       } as BookingLog;
     });
 
-    // Sort by changedAt on the application side
-    results.sort((a, b) => {
-      if (!a.changedAt || !b.changedAt) return 0;
-      return a.changedAt.toMillis() - b.changedAt.toMillis();
-    });
+    results.sort((a, b) =>
+      compareTimestampsAscending(a.changedAt, b.changedAt),
+    );
 
     return results;
   } catch (error) {
@@ -547,11 +548,7 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 }
 
 function timestampToMillis(value: any): number | null {
-  if (value == null) return null;
-  if (typeof value.toMillis === "function") return value.toMillis();
-  if (typeof value.toDate === "function") return value.toDate().getTime();
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  return serializedTimestampToMillis(value);
+  return timestampToEpochMillis(value);
 }
 
 export const getLatestBookingStatusLogs = async (
