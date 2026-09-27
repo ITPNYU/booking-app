@@ -23,10 +23,13 @@ vi.mock(
 );
 
 // Mock the duration limits hook
+const { mockUseCheckDurationLimits } = vi.hoisted(() => ({
+  mockUseCheckDurationLimits: vi.fn(),
+}));
 vi.mock(
   "@/components/src/client/routes/booking/hooks/useCheckDurationLimits",
   () => ({
-    default: () => ({ durationError: null }),
+    default: () => mockUseCheckDurationLimits(),
   })
 );
 
@@ -113,6 +116,10 @@ const defaultProps = {
   hideBackButton: false,
   hideNextButton: false,
 };
+
+beforeEach(() => {
+  mockUseCheckDurationLimits.mockReturnValue({ durationError: null });
+});
 
 const renderComponent = (contextOverrides = {}, propsOverrides = {}) => {
   const context = { ...mockBookingContext, ...contextOverrides };
@@ -831,5 +838,68 @@ describe("BookingStatusBar - Production Schedule Banner", () => {
     });
 
     expect(screen.queryByText(bannerMessage)).not.toBeInTheDocument();
+  });
+});
+
+describe("BookingStatusBar - Duration Limits", () => {
+  const durationError = (overrides: Record<string, unknown>) => ({
+    roomId: 101,
+    roomName: "Room 101",
+    maxDuration: 4,
+    minDuration: 1,
+    role: Role.STUDENT,
+    isWalkIn: false,
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    mockUseTenantSchema.mockReturnValue({
+      tenant: "media-commons",
+      name: "Media Commons",
+      calendarConfig: {},
+    });
+  });
+
+  it("explains a slot that is shorter than the minimum duration", () => {
+    mockUseCheckDurationLimits.mockReturnValue({
+      durationError: durationError({ currentDuration: 0.5, errorType: "min" }),
+    });
+    renderComponent();
+
+    expect(
+      screen.getByText(
+        /Event duration \(0\.5 hours\) is shorter than the minimum required duration \(1 hour\) for Room 101 based on your Student role\. Please select a longer time slot\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/maximum/)).not.toBeInTheDocument();
+
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    expect(nextButton).toBeDisabled();
+    expect(
+      nextButton.closest(
+        '[aria-label="Duration is below minimum required for your role (1 hour)"]',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("explains a slot that is longer than the maximum duration", () => {
+    mockUseCheckDurationLimits.mockReturnValue({
+      durationError: durationError({ currentDuration: 5, errorType: "max" }),
+    });
+    renderComponent();
+
+    expect(
+      screen.getByText(
+        /Event duration \(5\.0 hours\) exceeds the maximum allowed duration \(4 hours\) for Room 101 based on your Student role\. Please select a shorter time slot\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/minimum/)).not.toBeInTheDocument();
+
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    expect(
+      nextButton.closest(
+        '[aria-label="Duration exceeds maximum allowed for your role (4 hours)"]',
+      ),
+    ).toBeInTheDocument();
   });
 });
