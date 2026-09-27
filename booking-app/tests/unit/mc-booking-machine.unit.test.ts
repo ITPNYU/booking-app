@@ -530,6 +530,24 @@ describe("mcBookingMachine", () => {
     await waitForCondition(actor, (snapshot) => snapshot.matches("Declined"));
   });
 
+  it("declines the whole request while services are still pending review", () => {
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
+      servicesRequested: { staff: true, equipment: true },
+    });
+
+    actor.send({ type: "approve" });
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Services Request")).toBe(true);
+    actor.send({ type: "approveStaff" });
+
+    actor.send({ type: "decline", reason: "No staff available" });
+
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.matches("Declined")).toBe(true);
+    expect(snapshot.context.declineReason).toBe("No staff available");
+  });
+
   /** A booking declined with staff approved and catering declined. */
   const declineWithMixedDecisions = async () => {
     const actor = createTestActor({
