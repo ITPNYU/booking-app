@@ -778,6 +778,7 @@ Blackout periods are time ranges during which bookings are not allowed.
 - `detailsModal.memoViewRoles` (default `["SERVICES", "ADMIN", "SUPER_ADMIN"]`) lists the roles that can see the Memo
 - `detailsModal.memoEditRoles` (default `["SERVICES", "ADMIN", "SUPER_ADMIN"]`) lists the roles that can edit the Memo; edit roles can always see it too
 - Each role also unlocks its own page context (PA page, Liaison page, Services page, Admin page; SUPER_ADMIN uses the Admin page)
+- An unset role list gets the default; an explicit empty list, or one whose entries are all unknown, grants nobody (unknown entries are dropped, never replaced with the default)
 
 ### Memo (work order confirmation)
 
