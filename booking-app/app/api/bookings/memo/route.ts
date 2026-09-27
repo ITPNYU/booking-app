@@ -10,7 +10,7 @@ import { resolveCallerRole } from "@/lib/api/authz";
 import { resolveCollectionName } from "@/lib/api/firestoreServer";
 import { BOOKING_MEMO_MAX_LEN } from "@/components/src/constants/bookingMemo";
 import { canAccessMemo } from "@/components/src/utils/bookingMemoAccess";
-import { getBookingDetailConfig } from "@/lib/api/bookingRedaction";
+import { getDetailsModalConfig } from "@/lib/api/bookingRedaction";
 
 type MemoBody = {
   calendarEventId?: unknown;
@@ -20,10 +20,12 @@ type MemoBody = {
 
 /**
  * Sets the staff-only `memo` on a booking (`{tenant}-bookings`), looked up by
- * calendarEventId. The tenant schema's `detail.showMemo` must be on and the
- * caller's role must satisfy `detail.memoRoles`. An empty memo clears the
- * field. The memo never reaches the calendar event
- * description or any email.
+ * calendarEventId. The tenant schema's `detailsModal.showMemo` must be on and
+ * the caller's role must satisfy `detailsModal.memoEditRoles`. An empty memo
+ * clears the field. The memo never reaches the calendar event description or
+ * any email. This is the only route that writes `memo`: the generic mutate
+ * route refuses it and the booking create/edit routes strip it from their
+ * payloads.
  *
  * Writes go straight to firebase-admin rather than through
  * `serverUpdateInFirestore`, which swallows update errors; a failed write must
@@ -73,15 +75,15 @@ export async function PUT(req: NextRequest) {
     );
   }
 
-  const detail = await getBookingDetailConfig(tenant);
-  if (!detail.showMemo) {
+  const detailsModal = await getDetailsModalConfig(tenant);
+  if (!detailsModal.showMemo) {
     return NextResponse.json(
       { error: "Memo is not enabled for this tenant" },
       { status: 403 },
     );
   }
   const role = await resolveCallerRole(session, tenant);
-  if (!canAccessMemo(detail, role)) {
+  if (!canAccessMemo(detailsModal, role, "edit")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

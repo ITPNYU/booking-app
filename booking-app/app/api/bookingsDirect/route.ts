@@ -42,6 +42,7 @@ import {
 } from "@/lib/bookingRequestLimits";
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -77,10 +78,12 @@ export async function POST(request: NextRequest) {
     requestedBy,
     selectedRooms,
     bookingCalendarInfo,
-    data,
+    data: rawData,
     origin = BookingOrigin.WALK_IN,
     type = "walk-in",
   } = await request.json();
+  // memo is written only through PUT /api/bookings/memo.
+  const data = omitStaffOnlyBookingFieldWrites(rawData);
 
   // Extract tenant from URL
   const tenant = extractTenantFromRequest(request) ?? DEFAULT_TENANT;

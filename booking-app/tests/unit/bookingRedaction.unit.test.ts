@@ -20,16 +20,20 @@ vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
 
 const schemaWith = (
-  detail: Partial<ReturnType<typeof generateDefaultSchema>["detail"]>,
+  detailsModal: Partial<ReturnType<typeof generateDefaultSchema>["detailsModal"]>,
 ) => {
   const base = generateDefaultSchema("mc");
-  return { ...base, detail: { ...base.detail, showMemo: true, ...detail } };
+  return {
+    ...base,
+    detailsModal: { ...base.detailsModal, showMemo: true, ...detailsModal },
+  };
 };
 
 import {
   STAFF_ONLY_BOOKING_FIELDS,
   canReadStaffOnlyBookingFields,
   findStaffOnlyBookingFieldWrite,
+  omitStaffOnlyBookingFieldWrites,
   redactBookingDocsForCaller,
   stripStaffOnlyBookingFields,
 } from "@/lib/api/bookingRedaction";
@@ -58,16 +62,20 @@ describe("bookingRedaction", () => {
     [PagePermission.PA, false],
     [PagePermission.LIAISON, false],
   ])(
-    "canReadStaffOnlyBookingFields(%s) is %s with default memoRoles",
+    "canReadStaffOnlyBookingFields(%s) is %s with default memo roles",
     async (role, expected) => {
       expect(await canReadStaffOnlyBookingFields("mc", role)).toBe(expected);
     },
   );
 
-  it("canReadStaffOnlyBookingFields follows the tenant memoRoles list", async () => {
+  it("canReadStaffOnlyBookingFields follows the tenant view and edit roles", async () => {
     mocks.mockGetCachedTenantSchema.mockResolvedValue(
-      schemaWith({ memoRoles: ["PA"] }),
+      schemaWith({ memoViewRoles: ["PA"], memoEditRoles: ["LIAISON"] }),
     );
+    // Edit roles can always read.
+    expect(
+      await canReadStaffOnlyBookingFields("mc", PagePermission.LIAISON),
+    ).toBe(true);
     expect(await canReadStaffOnlyBookingFields("mc", PagePermission.PA)).toBe(
       true,
     );
@@ -188,6 +196,25 @@ describe("bookingRedaction", () => {
       expect(
         findStaffOnlyBookingFieldWrite(TableNames.BOOKING, undefined),
       ).toBeNull();
+    });
+  });
+
+  describe("omitStaffOnlyBookingFieldWrites", () => {
+    it("drops memo and dotted memo paths without mutating the input", () => {
+      const input = { title: "T", memo: "WO-1", "memo.a": 1, memoir: "keep" };
+      const out = omitStaffOnlyBookingFieldWrites(input);
+      expect(out).toEqual({ title: "T", memoir: "keep" });
+      expect(input.memo).toBe("WO-1");
+    });
+
+    it("returns the same object when there is nothing to drop", () => {
+      const input = { title: "T" };
+      expect(omitStaffOnlyBookingFieldWrites(input)).toBe(input);
+    });
+
+    it("passes non-object payloads through", () => {
+      expect(omitStaffOnlyBookingFieldWrites(undefined)).toBeUndefined();
+      expect(omitStaffOnlyBookingFieldWrites(null)).toBeNull();
     });
   });
 });

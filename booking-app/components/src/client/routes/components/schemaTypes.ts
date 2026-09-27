@@ -315,10 +315,10 @@ export function normalizeMemoRoles(raw: unknown): BookingDetailRole[] {
 }
 
 /**
- * Booking detail modal configuration (Firestore `tenantSchema.detail`).
+ * Booking detail modal configuration (Firestore `tenantSchema.detailsModal`).
  * Separate from `form`, which configures the request form.
  */
-export type BookingDetailConfig = {
+export type DetailsModalConfig = {
   /** Show the WebCheckout section and the cart number in the bookings table. */
   showWebCheckout: boolean;
   /**
@@ -327,11 +327,17 @@ export type BookingDetailConfig = {
    */
   showMemo: boolean;
   /**
-   * Roles that can see and edit the Memo. A role also unlocks its own page
-   * context (PA page, Liaison page, Services page, Admin page; SUPER_ADMIN
-   * uses the Admin page). Server routes enforce the same list.
+   * Roles that can read the Memo. Roles in `memoEditRoles` can always read it
+   * too. A role also unlocks its own page context (PA page, Liaison page,
+   * Services page, Admin page; SUPER_ADMIN uses the Admin page). The Firestore
+   * read routes enforce the same list.
    */
-  memoRoles: BookingDetailRole[];
+  memoViewRoles: BookingDetailRole[];
+  /**
+   * Roles that can edit the Memo, scoped to page contexts the same way as
+   * `memoViewRoles`. `PUT /api/bookings/memo` enforces the same list.
+   */
+  memoEditRoles: BookingDetailRole[];
 };
 
 export type OriginsConfig = {
@@ -373,7 +379,7 @@ export type SchemaContextType = {
   mappings: MappingsConfig;
   roles: string[];
   form: FormConfig;
-  detail: BookingDetailConfig;
+  detailsModal: DetailsModalConfig;
   attestations: Attestation[];
   resources: Resource[];
   origins: OriginsConfig;
@@ -550,10 +556,11 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
       showStaffing: true,
     },
   },
-  detail: {
+  detailsModal: {
     showWebCheckout: true,
     showMemo: false,
-    memoRoles: [...DEFAULT_MEMO_ROLES],
+    memoViewRoles: [...DEFAULT_MEMO_ROLES],
+    memoEditRoles: [...DEFAULT_MEMO_ROLES],
   },
   attestations: defineObjectArrayWithDefaults(defaultAttestation),
   resources: defineObjectArrayWithDefaults(defaultResource),

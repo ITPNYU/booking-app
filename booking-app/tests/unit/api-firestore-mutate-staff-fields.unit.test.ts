@@ -62,24 +62,52 @@ describe("POST /api/firestore/mutate — staff-only booking fields", () => {
     mocks.mockSet.mockResolvedValue(undefined);
   });
 
-  it.each(["update", "set"] as const)(
-    "refuses a booking %s that writes memo even when the write policy allows the caller",
-    async (op) => {
+  it("refuses a booking update that writes memo even when the write policy allows the caller", async () => {
+    const res = await POST(
+      request({
+        op: "update",
+        collection: "bookings",
+        tenant: "mc",
+        docId: "b1",
+        data: { memo: "WO-1" },
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toContain("memo");
+    expect(mocks.mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it.each([{ memo: "WO-1" }, { title: "overwrite everything else" }])(
+    "refuses a whole-document booking set, which would wipe memo (%o)",
+    async (data) => {
       const res = await POST(
         request({
-          op,
+          op: "set",
           collection: "bookings",
           tenant: "mc",
           docId: "b1",
-          data: { memo: "WO-1" },
+          data,
         }),
       );
       expect(res.status).toBe(403);
-      expect((await res.json()).error).toContain("memo");
-      expect(mocks.mockUpdate).not.toHaveBeenCalled();
+      expect((await res.json()).error).toContain("set is not allowed");
       expect(mocks.mockSet).not.toHaveBeenCalled();
     },
   );
+
+  it("still allows set on other collections", async () => {
+    const res = await POST(
+      request({
+        op: "set",
+        collection: "usersResourceApprovers",
+        tenant: "mc",
+        docId: "r1",
+        data: { email: "a@nyu.edu" },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(mocks.mockSet).toHaveBeenCalledWith({ email: "a@nyu.edu" });
+  });
 
   it("refuses a booking create that seeds memo", async () => {
     const res = await POST(

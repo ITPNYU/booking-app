@@ -92,8 +92,8 @@ export function coerceTenantSchema(
     | SchemaContextType["calendarConfig"]
     | undefined;
   const rawForm = raw.form as SchemaContextType["form"] | undefined;
-  const rawDetail = raw.detail as
-    | Partial<SchemaContextType["detail"]>
+  const rawDetailsModal = raw.detailsModal as
+    | Partial<SchemaContextType["detailsModal"]>
     | undefined;
 
   return {
@@ -116,10 +116,15 @@ export function coerceTenantSchema(
         ...(rawForm?.services ?? {}),
       },
     },
-    detail: {
-      ...base.detail,
-      ...rawDetail,
-      memoRoles: normalizeMemoRoles(rawDetail?.memoRoles ?? base.detail.memoRoles),
+    detailsModal: {
+      ...base.detailsModal,
+      ...rawDetailsModal,
+      memoViewRoles: normalizeMemoRoles(
+        rawDetailsModal?.memoViewRoles ?? base.detailsModal.memoViewRoles,
+      ),
+      memoEditRoles: normalizeMemoRoles(
+        rawDetailsModal?.memoEditRoles ?? base.detailsModal.memoEditRoles,
+      ),
     },
     origins: {
       ...base.origins,

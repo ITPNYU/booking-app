@@ -200,7 +200,7 @@ export default function MoreInfoModal({
 
   // Memo: staff-only free text (e.g. work order confirmation number), shown
   // directly under WebCheckout. Visibility and editing are governed by the
-  // tenant schema's detail.showMemo and detail.memoRoles.
+  // tenant schema's detailsModal.showMemo, memoViewRoles, and memoEditRoles.
   const [savedMemo, setSavedMemo] = useState(booking.memo ?? "");
   const [memoDraft, setMemoDraft] = useState(booking.memo ?? "");
   const [isEditingMemo, setIsEditingMemo] = useState(false);
@@ -208,11 +208,15 @@ export default function MoreInfoModal({
   const [memoError, setMemoError] = useState<string | null>(null);
 
   // Both the page context and the caller's role must be inside the tenant's
-  // configured memo roles; anyone outside sees neither the memo nor its edit
-  // icon. The server enforces the same list on reads and writes.
+  // configured memo roles: the view roles to see the section, the edit roles
+  // to get its edit icon. The server enforces the same lists on reads and
+  // writes.
   const showMemoSection =
-    isMemoContextAllowed(schema.detail, pageContext) &&
-    canAccessMemo(schema.detail, pagePermission);
+    isMemoContextAllowed(schema.detailsModal, pageContext, "view") &&
+    canAccessMemo(schema.detailsModal, pagePermission, "view");
+  const canEditMemo =
+    isMemoContextAllowed(schema.detailsModal, pageContext, "edit") &&
+    canAccessMemo(schema.detailsModal, pagePermission, "edit");
 
   const handleStartEditMemo = () => {
     setMemoDraft(savedMemo);
@@ -227,7 +231,7 @@ export default function MoreInfoModal({
   };
 
   const handleSaveMemo = async () => {
-    if (!showMemoSection) {
+    if (!canEditMemo) {
       return;
     }
     const memo = memoDraft.trim();
@@ -295,7 +299,7 @@ export default function MoreInfoModal({
     // Show WebCheckout section for PA/ADMIN/SUPER_ADMIN users.
     // In USER context, show read-only cart details when a cart is assigned.
     const canViewWebCheckout =
-      schema.detail.showWebCheckout &&
+      schema.detailsModal.showWebCheckout &&
       (hasAnyPermission(pagePermission, [
         PagePermission.PA,
         PagePermission.ADMIN,
@@ -310,7 +314,21 @@ export default function MoreInfoModal({
 
     return (
       <Section>
-        <SectionTitle>WebCheckout</SectionTitle>
+        <Box display="flex" alignItems="center" gap={1}>
+          <SectionTitle>WebCheckout</SectionTitle>
+          {canEditCartInContext && !isEditingCart && (
+            <Tooltip title="Edit cart number">
+              <IconButton
+                onClick={() => setIsEditingCart(true)}
+                color="primary"
+                size="small"
+                aria-label="Edit cart number"
+              >
+                <Edit fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
         <Table size="small">
           <TableBody>
             <TableRow>
@@ -517,17 +535,6 @@ export default function MoreInfoModal({
                         No cart assigned
                       </Typography>
                     )}
-                    {canEditCartInContext && (
-                      <Tooltip title="Edit cart number">
-                        <IconButton
-                          onClick={() => setIsEditingCart(true)}
-                          color="primary"
-                          aria-label="Edit cart number"
-                        >
-                          <Edit />
-                        </IconButton>
-                      </Tooltip>
-                    )}
                   </Box>
                 )}
               </TableCell>
@@ -547,7 +554,7 @@ export default function MoreInfoModal({
       <Section data-testid="booking-memo-section">
         <Box display="flex" alignItems="center" gap={1}>
           <SectionTitle>Memo</SectionTitle>
-          {!isEditingMemo && (
+          {canEditMemo && !isEditingMemo && (
             <Tooltip title="Edit memo">
               <IconButton
                 onClick={handleStartEditMemo}
@@ -560,7 +567,7 @@ export default function MoreInfoModal({
             </Tooltip>
           )}
         </Box>
-        {isEditingMemo ? (
+        {canEditMemo && isEditingMemo ? (
           <Box display="flex" flexDirection="column" gap={1}>
             <TextField
               size="small"

@@ -18,7 +18,7 @@ const ALL_SCHEMA_KEYS = [
   "mappings",
   "roles",
   "form",
-  "detail",
+  "detailsModal",
   "attestations",
   "resources",
   "origins",

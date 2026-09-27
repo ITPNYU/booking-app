@@ -80,7 +80,7 @@ export const Bookings: React.FC<BookingsProps> = ({
   const {
     resourceName,
     form,
-    detail,
+    detailsModal,
     resources,
     interimHighlightThresholdHours = 18,
   } = useTenantSchema();
@@ -806,7 +806,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                     booking={params.row}
                     onCartClick={() => setModalData(params.row)}
                     pageContext={pageContext}
-                    showCartNumber={detail?.showWebCheckout ?? true}
+                    showCartNumber={detailsModal?.showWebCheckout ?? true}
                   />
                 </TableCell>
               ),
