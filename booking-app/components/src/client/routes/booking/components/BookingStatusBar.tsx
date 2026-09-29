@@ -90,9 +90,11 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
+  const blocksOnSafetyTraining = needsSafetyTraining && !isModification;
+
   const showAlert =
     isBanned ||
-    needsSafetyTraining ||
+    blocksOnSafetyTraining ||
     isInBlackoutPeriod ||
     durationError !== null ||
     requestLimitError != null ||
@@ -135,7 +137,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         severity: "info",
         variant: "filled",
       };
-    if (needsSafetyTraining)
+    if (blocksOnSafetyTraining)
       return {
         btnDisabled: true,
         btnDisabledMessage: isWalkIn
