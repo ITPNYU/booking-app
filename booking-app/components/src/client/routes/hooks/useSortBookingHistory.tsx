@@ -8,7 +8,7 @@ import { resolvePreApprovedHistoryNotes } from "@/components/src/utils/bookingHi
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
 import { TableCell, TableRow } from "@mui/material";
 import { Timestamp } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { formatDateTable, formatTimeAmPm } from "../../utils/date";
 import StatusChip from "../components/bookingTable/StatusChip";
 
@@ -20,7 +20,7 @@ type HistoryRow = {
 };
 
 export default function useSortBookingHistory(booking: BookingRow) {
-  const [rows, setRows] = useState<JSX.Element[]>([]);
+  const [rows, setRows] = useState<ReactElement[]>([]);
 
   useEffect(() => {
     const fetchLogs = async () => {

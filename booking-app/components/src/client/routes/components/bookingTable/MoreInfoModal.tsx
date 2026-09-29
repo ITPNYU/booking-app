@@ -76,13 +76,17 @@ const StatusTable = styled(CustomTable)({
   width: "100%",
 });
 
-const SectionTitle = styled(Typography)({
+const SectionTitleBase = styled(Typography)({
   fontWeight: 700,
   margin: 0,
 });
-SectionTitle.defaultProps = {
-  variant: "subtitle1",
-};
+
+function SectionTitle({
+  variant = "subtitle1",
+  ...props
+}: React.ComponentProps<typeof SectionTitleBase>) {
+  return <SectionTitleBase variant={variant} {...props} />;
+}
 
 /** Title + table with the same gap used under Services. */
 const Section = styled(Box)(({ theme }) => ({
