@@ -91,7 +91,12 @@ export function coerceTenantSchema(
   const rawCc = raw.calendarConfig as
     | SchemaContextType["calendarConfig"]
     | undefined;
-  const rawForm = raw.form as SchemaContextType["form"] | undefined;
+  // `form.showMemo` was the Memo flag before it moved to `detailsModal`. Drop
+  // it so the schema editor, which saves the coerced schema back, clears it
+  // from stored documents.
+  const { showMemo: _legacyShowMemo, ...rawForm } = (raw.form ?? {}) as Partial<
+    SchemaContextType["form"]
+  > & { showMemo?: unknown };
   const rawDetailsModal = raw.detailsModal as
     | Partial<SchemaContextType["detailsModal"]>
     | undefined;
@@ -113,7 +118,7 @@ export function coerceTenantSchema(
       ...rawForm,
       services: {
         ...base.form.services,
-        ...(rawForm?.services ?? {}),
+        ...(rawForm.services ?? {}),
       },
     },
     detailsModal: {
