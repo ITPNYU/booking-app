@@ -126,6 +126,44 @@ describe("isMemoContextAllowed", () => {
   });
 });
 
+describe("memo access with the stored mc detailsModal", () => {
+  const out = coerceTenantSchema(
+    {
+      form: { showMemo: true },
+      detailsModal: {
+        showWebCheckout: true,
+        showMemo: true,
+        memoViewRoles: ["SERVICES", "ADMIN", "SUPER_ADMIN"],
+        memoEditRoles: ["ADMIN", "SUPER_ADMIN"],
+      },
+    },
+    "mc",
+  );
+  const view = (perm: PagePermission, ctx: PageContextLevel) =>
+    isMemoContextAllowed(out.detailsModal, ctx, "view") &&
+    canAccessMemo(out.detailsModal, perm, "view");
+  const edit = (perm: PagePermission, ctx: PageContextLevel) =>
+    isMemoContextAllowed(out.detailsModal, ctx, "edit") &&
+    canAccessMemo(out.detailsModal, perm, "edit");
+
+  it("shows the memo read-only to Services on the Services page", () => {
+    expect(view(PagePermission.SERVICES, PageContextLevel.SERVICES)).toBe(true);
+    expect(edit(PagePermission.SERVICES, PageContextLevel.SERVICES)).toBe(false);
+  });
+
+  it("lets Admin and Super Admin view and edit on the Admin page", () => {
+    for (const perm of [PagePermission.ADMIN, PagePermission.SUPER_ADMIN]) {
+      expect(view(perm, PageContextLevel.ADMIN)).toBe(true);
+      expect(edit(perm, PageContextLevel.ADMIN)).toBe(true);
+    }
+  });
+
+  it("hides it from PA and Liaison pages", () => {
+    expect(view(PagePermission.ADMIN, PageContextLevel.PA)).toBe(false);
+    expect(view(PagePermission.ADMIN, PageContextLevel.LIAISON)).toBe(false);
+  });
+});
+
 describe("coerceTenantSchema detailsModal", () => {
   it("defaults detailsModal when the stored document has none", () => {
     const out = coerceTenantSchema({ tenantId: "mc" }, "mc");
@@ -192,5 +230,15 @@ describe("coerceTenantSchema detailsModal", () => {
   it("keeps form free of memo settings", () => {
     const out = coerceTenantSchema({}, "mc");
     expect("showMemo" in out.form).toBe(false);
+  });
+
+  it("drops the legacy form.showMemo flag from stored documents", () => {
+    const out = coerceTenantSchema(
+      { form: { showMemo: true, showSponsor: false } },
+      "mc",
+    );
+    expect("showMemo" in out.form).toBe(false);
+    expect(out.form.showSponsor).toBe(false);
+    expect(out.detailsModal.showMemo).toBe(false);
   });
 });
