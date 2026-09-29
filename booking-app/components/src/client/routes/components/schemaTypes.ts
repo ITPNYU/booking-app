@@ -279,6 +279,71 @@ export type FormConfig = {
   services: FormServicesConfig;
 };
 
+/** Staff roles that a booking detail feature can be scoped to. */
+export type BookingDetailRole =
+  | "PA"
+  | "LIAISON"
+  | "SERVICES"
+  | "ADMIN"
+  | "SUPER_ADMIN";
+
+export const BOOKING_DETAIL_ROLES: readonly BookingDetailRole[] = [
+  "PA",
+  "LIAISON",
+  "SERVICES",
+  "ADMIN",
+  "SUPER_ADMIN",
+];
+
+export const DEFAULT_MEMO_ROLES: readonly BookingDetailRole[] = [
+  "SERVICES",
+  "ADMIN",
+  "SUPER_ADMIN",
+];
+
+/**
+ * Normalize a stored memo role list, failing closed. Only an unset list
+ * (undefined or null) gets the defaults; unknown entries and duplicates are
+ * dropped, so an explicit `[]` or a list of only unknown roles grants nobody,
+ * and a malformed non-array value grants nobody too.
+ */
+export function normalizeMemoRoles(raw: unknown): BookingDetailRole[] {
+  if (raw === undefined || raw === null) return [...DEFAULT_MEMO_ROLES];
+  if (!Array.isArray(raw)) return [];
+  const roles = raw.filter(
+    (r): r is BookingDetailRole =>
+      typeof r === "string" &&
+      (BOOKING_DETAIL_ROLES as readonly string[]).includes(r),
+  );
+  return Array.from(new Set(roles));
+}
+
+/**
+ * Booking detail modal configuration (Firestore `tenantSchema.detailsModal`).
+ * Separate from `form`, which configures the request form.
+ */
+export type DetailsModalConfig = {
+  /** Show the WebCheckout section and the cart number in the bookings table. */
+  showWebCheckout: boolean;
+  /**
+   * Show the staff-only Memo section under WebCheckout, used to record e.g.
+   * work order confirmation numbers.
+   */
+  showMemo: boolean;
+  /**
+   * Roles that can read the Memo. Roles in `memoEditRoles` can always read it
+   * too. A role also unlocks its own page context (PA page, Liaison page,
+   * Services page, Admin page; SUPER_ADMIN uses the Admin page). The Firestore
+   * read routes enforce the same list.
+   */
+  memoViewRoles: BookingDetailRole[];
+  /**
+   * Roles that can edit the Memo, scoped to page contexts the same way as
+   * `memoViewRoles`. `PUT /api/bookings/memo` enforces the same list.
+   */
+  memoEditRoles: BookingDetailRole[];
+};
+
 export type OriginsConfig = {
   VIP: boolean;
   walkIn: boolean;
@@ -318,6 +383,7 @@ export type SchemaContextType = {
   mappings: MappingsConfig;
   roles: string[];
   form: FormConfig;
+  detailsModal: DetailsModalConfig;
   attestations: Attestation[];
   resources: Resource[];
   origins: OriginsConfig;
@@ -493,6 +559,12 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
       showSetup: true,
       showStaffing: true,
     },
+  },
+  detailsModal: {
+    showWebCheckout: true,
+    showMemo: false,
+    memoViewRoles: [...DEFAULT_MEMO_ROLES],
+    memoEditRoles: [...DEFAULT_MEMO_ROLES],
   },
   attestations: defineObjectArrayWithDefaults(defaultAttestation),
   resources: defineObjectArrayWithDefaults(defaultResource),

@@ -39,6 +39,7 @@ import {
   extractTenantFromRequest,
   getTenantRooms,
 } from "../shared";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 
 /**
  * Send email notifications for edit
@@ -183,10 +184,12 @@ export async function PUT(request: NextRequest) {
     selectedRooms,
     allRooms,
     bookingCalendarInfo,
-    data,
+    data: rawData,
     calendarEventId,
     modifiedBy,
   } = await request.json();
+  // memo is written only through PUT /api/bookings/memo.
+  const data = omitStaffOnlyBookingFieldWrites(rawData);
 
   const tenant = extractTenantFromRequest(request);
 

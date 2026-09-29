@@ -771,6 +771,25 @@ Blackout periods are time ranges during which bookings are not allowed.
 - Cart details are viewable from the booking detail modal
 - Authorized staff can update cart information
 
+### Booking detail modal configuration (`tenantSchema.detailsModal`)
+
+- `detailsModal.showWebCheckout` (default `true`) shows or hides the WebCheckout section in the booking detail modal and the cart number in the bookings table
+- `detailsModal.showMemo` (default `false`) enables the Memo section
+- `detailsModal.memoViewRoles` (default `["SERVICES", "ADMIN", "SUPER_ADMIN"]`) lists the roles that can see the Memo
+- `detailsModal.memoEditRoles` (default `["SERVICES", "ADMIN", "SUPER_ADMIN"]`) lists the roles that can edit the Memo; edit roles can always see it too
+- Each role also unlocks its own page context (PA page, Liaison page, Services page, Admin page; SUPER_ADMIN uses the Admin page)
+- An unset role list gets the default; an explicit empty list, or one whose entries are all unknown, grants nobody (unknown entries are dropped, never replaced with the default)
+
+### Memo (work order confirmation)
+
+- When enabled, the booking detail modal shows a **Memo** section directly under WebCheckout
+- Memo is a free-text field for staff notes such as a work order confirmation number
+- Users outside the view and edit roles, or viewing from a page outside those roles, do not see the Memo section
+- The edit icon sits next to the section title and appears only for `memoEditRoles` on their own pages; view-only roles see the memo text without it
+- Saved via `PUT /api/bookings/memo` onto the booking document (`memo` field); the route refuses writes when `showMemo` is off or the caller's role is outside `memoEditRoles`; it is never included in calendar event descriptions or emails
+- The `/api/firestore/*` read routes strip `memo` from booking documents for callers outside the view and edit roles, so regular users never receive it, even for their own bookings
+- The dedicated route is the only path that writes `memo`: the generic `/api/firestore/mutate` route refuses booking writes that touch it and refuses whole-document `set` on bookings (which would wipe it), and the booking create/edit routes (`/api/bookings`, `/api/bookings/edit`, `/api/bookings/modification`, `/api/bookingsDirect`) strip it from their payloads
+
 ### Equipment Approval
 
 - Equipment requests follow the standard service approval workflow

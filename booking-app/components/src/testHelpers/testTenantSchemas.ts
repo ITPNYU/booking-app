@@ -48,6 +48,12 @@ const baseMediaCommonsSchema: SchemaContextType = {
       showStaffing: true,
     },
   },
+  detailsModal: {
+    showWebCheckout: true,
+    showMemo: false,
+    memoViewRoles: ["SERVICES", "ADMIN", "SUPER_ADMIN"],
+    memoEditRoles: ["SERVICES", "ADMIN", "SUPER_ADMIN"],
+  },
   attestations: [
     { id: "checklist", html: "<p>Mock checklist agreement.</p>" },
     { id: "resetRoom", html: "<p>Reset room agreement.</p>" },
