@@ -23,6 +23,7 @@
     "migrate:tenant-resource-ids:dry-run": "node scripts/migrateTenantResourceIds.js --dry-run",
     "seed:mc-services": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/seedMcResourceServices.ts",
     "seed:mc-services:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/seedMcResourceServices.ts --dry-run",
+    "backfill:multi-room-invites": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/backfillMultiRoomCalendarInvites.ts",
     "backup:tenant-schema": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/backupTenantSchemaToDisk.ts"
   },
   "dependencies": {
