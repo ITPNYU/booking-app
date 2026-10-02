@@ -306,6 +306,7 @@ export const updateCalendarEvent = async (
   console.log(`Room Calendar Ids: ${roomCalendarIds}`);
   console.log("bookingContents", bookingContents);
   const calendar = await getCalendarClient();
+  const updateErrors: unknown[] = [];
 
   for (const roomCalendarId of roomCalendarIds) {
     try {
@@ -356,6 +357,7 @@ export const updateCalendarEvent = async (
         `Updated event ${calendarEventId} in calendar ${roomCalendarId} with new values: ${JSON.stringify(newValues)}`,
       );
     } catch (error) {
+      updateErrors.push(error);
       console.error(
         "Error updating event %s in calendar %s:",
         calendarEventId,
@@ -363,6 +365,12 @@ export const updateCalendarEvent = async (
         error,
       );
     }
+  }
+
+  if (updateErrors.length > 0) {
+    throw new Error(
+      `Failed to update calendar event ${calendarEventId} in ${updateErrors.length} calendar(s).`,
+    );
   }
 };
 
