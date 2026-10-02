@@ -9,7 +9,8 @@
  * the guests on bookings approved in that window.
  *
  * It is idempotent: a guest already on the event is skipped, so it is safe to
- * re-run. Nothing is written to Firestore. Without --apply it only reports
+ * re-run. Each booking gets a single patch on the organizer's copy of the event;
+ * Google propagates the guest list to the other rooms. Nothing is written to Firestore. Without --apply it only reports
  * what it would do.
  *
  * Usage:
@@ -50,6 +51,7 @@ import {
 const TENANT_SCHEMA_COLLECTION = "tenantSchema";
 // Stay well under the Calendar API per-user rate limit.
 const WRITE_DELAY_MS = 300;
+const RATE_LIMIT_RETRIES = 3;
 
 const DATABASES: Record<string, string> = {
   development: "default",
@@ -187,6 +189,62 @@ const toDate = (value: unknown): Date | null => {
 
 type Outcome = "invited" | "already-invited" | "skipped" | "failed";
 
+type CalendarClient = Awaited<ReturnType<typeof getCalendarClient>>;
+
+const isMissingEvent = (error: any) =>
+  error?.code === 404 || error?.code === 410;
+
+const isRateLimited = (error: any) =>
+  error?.code === 429 ||
+  (error?.code === 403 && /rate limit/i.test(String(error?.message)));
+
+async function withRateLimitRetry<T>(call: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await call();
+    } catch (error) {
+      if (!isRateLimited(error) || attempt >= RATE_LIMIT_RETRIES) throw error;
+      await sleep(2000 * 2 ** attempt);
+    }
+  }
+}
+
+/**
+ * Returns the copy of the event to patch: the organizer's when that is one of
+ * the booking's rooms, otherwise the first room that holds the event.
+ */
+async function findEventCopy(
+  calendar: CalendarClient,
+  calendarIds: string[],
+  eventId: string,
+) {
+  const getCopy = async (calendarId: string) => {
+    try {
+      const event = await withRateLimitRetry(() =>
+        calendar.events.get({ calendarId, eventId }),
+      );
+      return {
+        calendarId,
+        organizerEmail: event.data.organizer?.email,
+        attendees: event.data.attendees ?? [],
+      };
+    } catch (error) {
+      // Annex / shared rooms may not hold a copy of the event.
+      if (isMissingEvent(error)) return null;
+      throw error;
+    }
+  };
+
+  for (const calendarId of calendarIds) {
+    const copy = await getCopy(calendarId);
+    if (!copy) continue;
+    const [preferred] = orderOrganizerFirst(calendarIds, copy.organizerEmail);
+    if (preferred === calendarId) return copy;
+    return (await getCopy(preferred)) ?? copy;
+  }
+  return null;
+}
+
 async function main() {
   const options = parseArgs();
   const databaseName = DATABASES[options.database];
@@ -283,63 +341,47 @@ async function main() {
       continue;
     }
 
-    let outcome: Outcome = "already-invited";
-    let found = false;
-    let organizerEmail: string | null | undefined;
-    for (const calendarId of calendarIds) {
-      try {
-        const event = await calendar.events.get({ calendarId, eventId });
-        organizerEmail = event.data.organizer?.email;
-        break;
-      } catch (error: any) {
-        if (error?.code !== 404 && error?.code !== 410) throw error;
-      }
-    }
-
-    for (const calendarId of orderOrganizerFirst(calendarIds, organizerEmail)) {
-      try {
-        const event = await calendar.events.get({ calendarId, eventId });
-        found = true;
-        const attendees = event.data.attendees ?? [];
-        const toInvite = missingGuests(attendees, guests);
-        if (toInvite.length === 0) continue;
-
-        if (options.apply) {
-          await calendar.events.patch({
-            calendarId,
-            eventId,
-            sendUpdates: options.sendUpdates,
-            requestBody: {
-              attendees: [
-                ...attendees,
-                ...toInvite.map((email) => ({ email })),
-              ],
-            },
-          });
-          await sleep(WRITE_DELAY_MS);
+    // Patch a single copy of the event, preferring the organizer's: its guest
+    // list is authoritative and Google propagates it to the other rooms.
+    // Patching every room's copy back to back races that propagation and
+    // trips the Calendar API rate limit.
+    let outcome: Outcome;
+    try {
+      const target = await findEventCopy(calendar, calendarIds, eventId);
+      if (!target) {
+        console.log(`  ⏭  ${label}: event ${eventId} not found on any room`);
+        outcome = "skipped";
+      } else {
+        const toInvite = missingGuests(target.attendees, guests);
+        if (toInvite.length === 0) {
+          console.log(`  =  ${label}: guests already on the event`);
+          outcome = "already-invited";
+        } else {
+          if (options.apply) {
+            await withRateLimitRetry(() =>
+              calendar.events.patch({
+                calendarId: target.calendarId,
+                eventId,
+                sendUpdates: options.sendUpdates,
+                requestBody: {
+                  attendees: [
+                    ...target.attendees,
+                    ...toInvite.map((email) => ({ email })),
+                  ],
+                },
+              }),
+            );
+            await sleep(WRITE_DELAY_MS);
+          }
+          console.log(
+            `  ${options.apply ? "✉️ " : "🔍"} ${label}: ${options.apply ? "invited" : "would invite"} ${toInvite.join(", ")} on ${target.calendarId}`,
+          );
+          outcome = "invited";
         }
-        outcome = "invited";
-        console.log(
-          `  ${options.apply ? "✉️ " : "🔍"} ${label}: ${options.apply ? "invited" : "would invite"} ${toInvite.join(", ")} on ${calendarId}`,
-        );
-        // A dry run never changes the event, so the other rooms would only
-        // repeat the same line.
-        if (!options.apply) break;
-      } catch (error: any) {
-        // Annex / shared rooms may not hold a copy of the event.
-        if (error?.code === 404 || error?.code === 410) continue;
-        outcome = "failed";
-        console.error(
-          `  ❌ ${label}: ${calendarId}: ${error?.message ?? error}`,
-        );
       }
-    }
-
-    if (!found && outcome !== "failed") {
-      console.log(`  ⏭  ${label}: event ${eventId} not found on any room`);
-      outcome = "skipped";
-    } else if (outcome === "already-invited") {
-      console.log(`  =  ${label}: guests already on the event`);
+    } catch (error: any) {
+      console.error(`  ❌ ${label}: ${error?.message ?? error}`);
+      outcome = "failed";
     }
     counts[outcome] += 1;
   }
