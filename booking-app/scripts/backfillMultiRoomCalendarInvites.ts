@@ -41,6 +41,8 @@ import {
   DEFAULT_APPROVED_TO,
   guestEmailsForBooking,
   isAffectedBooking,
+  isMissingEventError,
+  isRateLimitError,
   missingGuests,
   orderOrganizerFirst,
   resolveRoomCalendarIds,
@@ -191,19 +193,13 @@ type Outcome = "invited" | "already-invited" | "skipped" | "failed";
 
 type CalendarClient = Awaited<ReturnType<typeof getCalendarClient>>;
 
-const isMissingEvent = (error: any) =>
-  error?.code === 404 || error?.code === 410;
-
-const isRateLimited = (error: any) =>
-  error?.code === 429 ||
-  (error?.code === 403 && /rate limit/i.test(String(error?.message)));
-
 async function withRateLimitRetry<T>(call: () => Promise<T>): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     try {
       return await call();
     } catch (error) {
-      if (!isRateLimited(error) || attempt >= RATE_LIMIT_RETRIES) throw error;
+      if (!isRateLimitError(error) || attempt >= RATE_LIMIT_RETRIES)
+        throw error;
       await sleep(2000 * 2 ** attempt);
     }
   }
@@ -230,7 +226,7 @@ async function findEventCopy(
       };
     } catch (error) {
       // Annex / shared rooms may not hold a copy of the event.
-      if (isMissingEvent(error)) return null;
+      if (isMissingEventError(error)) return null;
       throw error;
     }
   };

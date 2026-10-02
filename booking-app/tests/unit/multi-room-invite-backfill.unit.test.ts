@@ -4,6 +4,8 @@ import {
   DEFAULT_APPROVED_TO,
   guestEmailsForBooking,
   isAffectedBooking,
+  isMissingEventError,
+  isRateLimitError,
   missingGuests,
   orderOrganizerFirst,
   resolveRoomCalendarIds,
@@ -139,5 +141,33 @@ describe("orderOrganizerFirst", () => {
       "b",
     ]);
     expect(orderOrganizerFirst(["a", "b"], undefined)).toEqual(["a", "b"]);
+  });
+});
+
+describe("Google API error classification", () => {
+  it("recognizes a missing event from numeric or string status fields", () => {
+    expect(isMissingEventError({ code: 404 })).toBe(true);
+    expect(isMissingEventError({ code: "404" })).toBe(true);
+    expect(isMissingEventError({ status: 410 })).toBe(true);
+    expect(isMissingEventError({ response: { status: 404 }, code: "x" })).toBe(
+      true,
+    );
+    expect(isMissingEventError({ code: 403 })).toBe(false);
+    expect(isMissingEventError(new Error("boom"))).toBe(false);
+  });
+
+  it("recognizes rate limits but not other 403s", () => {
+    expect(isRateLimitError({ code: "429" })).toBe(true);
+    expect(
+      isRateLimitError({ code: 403, message: "Rate Limit Exceeded" }),
+    ).toBe(true);
+    expect(
+      isRateLimitError({
+        response: { status: 403 },
+        errors: [{ reason: "userRateLimitExceeded" }],
+      }),
+    ).toBe(true);
+    expect(isRateLimitError({ code: 403, message: "Forbidden" })).toBe(false);
+    expect(isRateLimitError({ code: 404 })).toBe(false);
   });
 });

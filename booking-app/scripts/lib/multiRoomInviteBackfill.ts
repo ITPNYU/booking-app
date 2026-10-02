@@ -137,3 +137,33 @@ export const orderOrganizerFirst = (
     ...calendarIds.filter((calendarId) => calendarId !== organizerEmail),
   ];
 };
+
+/**
+ * HTTP status of a Google API error. googleapis reports it as a number on
+ * `response.status` / `status` / `code`, but plain gaxios errors carry `code`
+ * as a string, so read all three and normalize.
+ */
+export const googleErrorStatus = (error: any): number | undefined => {
+  const status = Number(
+    error?.response?.status ?? error?.status ?? error?.code,
+  );
+  return Number.isFinite(status) ? status : undefined;
+};
+
+/** The calendar holds no copy of the event (never shared, or deleted). */
+export const isMissingEventError = (error: any): boolean => {
+  const status = googleErrorStatus(error);
+  return status === 404 || status === 410;
+};
+
+/** Calendar reports rate limits as 429, or as 403 with a rate-limit reason. */
+export const isRateLimitError = (error: any): boolean => {
+  const status = googleErrorStatus(error);
+  if (status === 429) return true;
+  if (status !== 403) return false;
+  const reasons = [
+    error?.message,
+    ...(error?.errors ?? []).map((detail: any) => detail?.reason),
+  ];
+  return reasons.some((reason) => /rate ?limit/i.test(String(reason ?? "")));
+};
