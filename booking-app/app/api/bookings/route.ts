@@ -43,7 +43,7 @@ import { createActor } from "xstate";
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
+import { TableNames } from "@/components/src/policy";
 import {
   getMediaCommonsServices,
   isMediaCommons,
@@ -52,12 +52,12 @@ import {
   enforceRequestLimits,
   getRequestLimitRoleKey,
 } from "@/lib/bookingRequestLimits";
-import { getCalendarClient } from "@/lib/googleClient";
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+import { calendarOverlapResponse } from "./checkOverlap";
 import {
   extractTenantFromRequest,
   getAffiliationDisplayValues,
@@ -423,75 +423,6 @@ async function handleBookingApprovalEmails(
   }
 }
 
-async function checkOverlap(
-  selectedRooms: RoomSetting[],
-  bookingCalendarInfo: DateSelectArg,
-  calendarEventId?: string,
-) {
-  const calendar = await getCalendarClient();
-
-  // Google requires RFC3339 with mandatory offset for timeMin/timeMax;
-  // bookingCalendarStrToDate also absorbs offset-less strings from stale
-  // client bundles.
-  const timeMin = bookingCalendarStrToDate(
-    bookingCalendarInfo.startStr,
-  ).toISOString();
-  const timeMax = bookingCalendarStrToDate(
-    bookingCalendarInfo.endStr,
-  ).toISOString();
-
-  // Check each selected room for overlaps
-  for (const room of selectedRooms) {
-    const events = await calendar.events.list({
-      calendarId: room.calendarId,
-      timeMin,
-      timeMax,
-      singleEvents: true,
-    });
-
-    const hasOverlap = events.data.items?.some(event => {
-      // Skip the event being edited in case of modification
-      if (
-        calendarEventId &&
-        (calendarEventId === event.id ||
-          calendarEventId === event.id.split(":")[0])
-      ) {
-        console.log("calendarEventId", calendarEventId);
-        console.log("event.id", event.id);
-        return false;
-      }
-
-      // Skip events with CALENDAR_HIDE_STATUS
-      const eventTitle = event.summary || "";
-      if (CALENDAR_HIDE_STATUS.some(status => eventTitle.includes(status))) {
-        return false;
-      }
-
-      const eventStart = new Date(event.start.dateTime || event.start.date);
-      const eventEnd = new Date(event.end.dateTime || event.end.date);
-      const requestStart = new Date(timeMin);
-      const requestEnd = new Date(timeMax);
-      // log the event that overlaps and then return
-      if (
-        (eventStart >= requestStart && eventStart < requestEnd) ||
-        (eventEnd > requestStart && eventEnd <= requestEnd) ||
-        (eventStart <= requestStart && eventEnd >= requestEnd)
-      ) {
-        console.log("event that overlaps", event);
-      }
-      return (
-        (eventStart >= requestStart && eventStart < requestEnd) ||
-        (eventEnd > requestStart && eventEnd <= requestEnd) ||
-        (eventStart <= requestStart && eventEnd >= requestEnd)
-      );
-    });
-
-    if (hasOverlap) return true;
-  }
-
-  return false;
-}
-
 export async function POST(request: NextRequest) {
   const { email, selectedRooms, bookingCalendarInfo, data: rawData, isAutoApproval } =
     await request.json();
@@ -576,33 +507,14 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  let hasOverlap: boolean;
-  try {
-    hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
-  } catch (err: any) {
-    console.error(
-      `🚨 OVERLAP CHECK FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        googleStatus: err?.response?.status ?? err?.code,
-        googleError: JSON.stringify(
-          err?.response?.data ?? err?.errors ?? err?.message,
-        ),
-        roomIds: selectedRooms?.map((r: any) => r.roomId),
-        startStr: bookingCalendarInfo?.startStr,
-        endStr: bookingCalendarInfo?.endStr,
-      },
-    );
-    return NextResponse.json(
-      { error: "Unable to verify room availability. Please try again." },
-      { status: 500 },
-    );
-  }
-  if (hasOverlap) {
-    return NextResponse.json(
-      { error: "Time slot no longer available" },
-      { status: 409 },
-    );
-  }
+  const overlapResponse = await calendarOverlapResponse({
+    tenant,
+    rooms: selectedRooms,
+    extraCalendarIds: annexCalendarIds,
+    bookingCalendarInfo,
+    roomIds: selectedRooms?.map((r: { roomId?: string | number }) => r.roomId),
+  });
+  if (overlapResponse) return overlapResponse;
 
   // Enforce per-resource request limits (per user email + role)
   try {

@@ -42,6 +42,8 @@ import {
 } from "@/lib/bookingRequestLimits";
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
+import { calendarOverlapResponse } from "@/app/api/bookings/checkOverlap";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -91,6 +93,21 @@ export async function POST(request: NextRequest) {
       { status: 503 },
     );
   }
+
+  const tenantResources = await serverGetTenantResources(tenant);
+  const overlapResponse = await calendarOverlapResponse({
+    tenant,
+    rooms: selectedRooms,
+    extraCalendarIds: resolveAnnexCalendarIds(
+      data?.annexByRoom,
+      tenantResources,
+    ),
+    bookingCalendarInfo,
+    roomIds: Array.isArray(selectedRooms)
+      ? selectedRooms.map((r: { roomId?: string | number }) => r?.roomId)
+      : [],
+  });
+  if (overlapResponse) return overlapResponse;
 
   console.log("📥 BOOKING DIRECT API - Received data:", {
     origin,

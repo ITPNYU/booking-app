@@ -31,6 +31,7 @@ import {
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
+import { calendarOverlapResponse } from "../checkOverlap";
 import {
   buildBookingContents,
   extractTenantFromRequest,
@@ -190,6 +191,22 @@ export async function PUT(request: NextRequest) {
       .map((r: { roomId: string }) => r.roomId)
       .join(", ");
 
+    const tenantResources = await serverGetTenantResources(tenant);
+    const annexCalendarIds = resolveAnnexCalendarIds(
+      data?.annexByRoom,
+      tenantResources,
+    );
+    const overlapResponse = await calendarOverlapResponse({
+      tenant,
+      rooms: selectedRooms,
+      extraCalendarIds: annexCalendarIds,
+      sourceRooms: oldRooms,
+      bookingCalendarInfo,
+      excludeCalendarEventId: calendarEventId,
+      roomIds: selectedRooms?.map((r: { roomId?: string | number }) => r.roomId),
+    });
+    if (overlapResponse) return overlapResponse;
+
     console.log("🔧 MODIFICATION: Deleting old calendar events");
     // Delete old calendar events
     await Promise.all(
@@ -230,10 +247,6 @@ export async function PUT(request: NextRequest) {
       throw Error(`calendarId not found for room ${room.roomId}`);
     }
 
-    const annexCalendarIds = resolveAnnexCalendarIds(
-      data?.annexByRoom,
-      await serverGetTenantResources(tenant),
-    );
     const otherRoomEmails = [
       ...new Set([
         ...otherRooms.map((r: { calendarId: string }) => r.calendarId),

@@ -76,6 +76,7 @@ vi.mock("@/lib/bookingRequestLimits", () => ({
 
 import { POST as POSTBookingsDirect } from "@/app/api/bookingsDirect/route";
 import { POST } from "@/app/api/bookings/route";
+import { getCalendarClient } from "@/lib/googleClient";
 
 const createPostRequest = () =>
   new NextRequest("http://localhost:3000/api/bookings", {
@@ -166,6 +167,76 @@ describe("POST /api/bookings maintenance mode", () => {
       maintenanceMode: true,
     });
     expect(mocks.mockGetMaintenanceModeSettings).toHaveBeenCalledWith("mc");
+    expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("submit conflict check", () => {
+  const overlappingCalendar = () => ({
+    events: {
+      list: vi.fn().mockResolvedValue({
+        data: {
+          items: [
+            {
+              id: "someone-else",
+              iCalUID: "other-ical",
+              summary: "[APPROVED] 202 Taken",
+              start: { dateTime: "2026-05-05T15:00:00.000Z" },
+              end: { dateTime: "2026-05-05T17:00:00.000Z" },
+            },
+          ],
+        },
+      }),
+      get: vi.fn().mockResolvedValue({ data: {} }),
+    },
+  });
+
+  const conflictBody = {
+    email: "requester@nyu.edu",
+    selectedRooms: [{ roomId: "202", calendarId: "room-cal" }],
+    bookingCalendarInfo: {
+      startStr: "2026-05-05T14:00:00.000Z",
+      endStr: "2026-05-05T16:00:00.000Z",
+    },
+    data: { title: "Walk-in", role: "Faculty", department: "ITP" },
+  };
+
+  const post = (url: string) =>
+    new NextRequest(url, {
+      method: "POST",
+      headers: new Headers({
+        "Content-Type": "application/json",
+        "x-tenant": "mc",
+      }),
+      body: JSON.stringify(conflictBody),
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.mockGetMaintenanceModeSettings.mockResolvedValue({
+      enabled: false,
+      message: "",
+    });
+    vi.mocked(getCalendarClient).mockResolvedValue(overlappingCalendar() as never);
+  });
+
+  it("rejects a walk-in or VIP when the slot is already booked", async () => {
+    const response = await POSTBookingsDirect(
+      post("http://localhost:3000/api/bookingsDirect"),
+    );
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Time slot no longer available",
+    });
+    expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects a user request when the slot is already booked", async () => {
+    const response = await POST(post("http://localhost:3000/api/bookings"));
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Time slot no longer available",
+    });
     expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
   });
 });
