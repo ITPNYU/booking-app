@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { defaultFormAlerts } from "../../components/src/client/routes/components/schemaTypes";
 import { coerceTenantSchema } from "../../lib/tenant/coerceTenantSchema";
 
 describe("coerceTenantSchema — timeSensitiveRequestWarning", () => {
@@ -34,6 +35,33 @@ describe("coerceTenantSchema — timeSensitiveRequestWarning", () => {
     };
     const c = coerceTenantSchema(doc, "mc");
     expect(c.calendarConfig?.timeSensitiveRequestWarning?.hours).toBe(99);
+  });
+});
+
+describe("coerceTenantSchema — form alerts", () => {
+  it("fills the default alerts when the document omits them", () => {
+    const coerced = coerceTenantSchema({ tenantId: "mc" }, "mc");
+    expect(coerced.form.alerts).toEqual(defaultFormAlerts);
+  });
+
+  it("replaces the default alerts with the stored list", () => {
+    const alerts = [
+      {
+        id: "vipEligible",
+        slot: "status" as const,
+        showInOrigin: { user: false, VIP: true, walkIn: false },
+        when: { autoApproval: "eligible" as const },
+        severity: "info" as const,
+        message: "This VIP request can be submitted.",
+      },
+    ];
+
+    const coerced = coerceTenantSchema(
+      { tenantId: "mc", form: { alerts } },
+      "mc",
+    );
+
+    expect(coerced.form.alerts).toEqual(alerts);
   });
 });
 

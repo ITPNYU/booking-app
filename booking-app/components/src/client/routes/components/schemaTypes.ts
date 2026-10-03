@@ -272,11 +272,38 @@ export type FormServicesConfig = {
   showStaffing: boolean;
 };
 
+export type FormAlertSeverity = "success" | "info" | "warning" | "error";
+
+/**
+ * Closed set of predicates the booking status bar knows how to evaluate.
+ * Unknown keys are ignored and the alert stays hidden.
+ */
+export type FormAlertWhen = {
+  autoApproval?: "eligible" | "ineligible";
+};
+
+/**
+ * In-app booking-form alert. `status` fills the single approval bar.
+ * `notice` stacks under it. Blockers (ban, overlap, limits) stay in code.
+ */
+export type FormAlert = {
+  id: string;
+  /** Omit to show for every origin. A missing key means show. */
+  showInOrigin?: ShowInOrigin;
+  /** All keys must match. Omit for an always-on notice. */
+  when?: FormAlertWhen;
+  slot: "status" | "notice";
+  severity: FormAlertSeverity;
+  message: string;
+};
+
 export type FormConfig = {
   showBookingType: boolean;
   showNNumber: boolean;
   showSponsor: boolean;
   services: FormServicesConfig;
+  /** Omitted on older documents; code defaults preserve the previous banners. */
+  alerts?: FormAlert[];
 };
 
 export type OriginsConfig = {
@@ -466,6 +493,33 @@ const defaultContextLabelsByTenantId = (tenantId?: string): ContextLabels => {
   };
 };
 
+export const defaultFormAlerts: FormAlert[] = [
+  {
+    id: "autoApprovalEligible",
+    slot: "status",
+    showInOrigin: { user: true, VIP: true, walkIn: true },
+    when: { autoApproval: "eligible" },
+    severity: "success",
+    message: "Yay! This request is eligible for automatic approval",
+  },
+  {
+    id: "needsApproval",
+    slot: "status",
+    showInOrigin: { user: true, VIP: true, walkIn: true },
+    when: { autoApproval: "ineligible" },
+    severity: "warning",
+    message: "This request will require approval.",
+  },
+  {
+    id: "setupBreakdown",
+    slot: "notice",
+    showInOrigin: { user: true, VIP: true, walkIn: true },
+    severity: "warning",
+    message:
+      "Please include all setup and breakdown time in your reservation request.",
+  },
+];
+
 const defaultTenantBranding = (tenantId?: string): TenantBranding => ({
   name: "",
   logo: "",
@@ -493,6 +547,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
       showSetup: true,
       showStaffing: true,
     },
+    alerts: defaultFormAlerts,
   },
   attestations: defineObjectArrayWithDefaults(defaultAttestation),
   resources: defineObjectArrayWithDefaults(defaultResource),

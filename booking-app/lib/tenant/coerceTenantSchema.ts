@@ -109,6 +109,11 @@ export function coerceTenantSchema(
         ...base.form.services,
         ...(rawForm?.services ?? {}),
       },
+      // A stored list replaces the defaults wholesale so a tenant can hide
+      // or rewrite an alert. A missing list keeps the code defaults.
+      alerts: Array.isArray(rawForm?.alerts)
+        ? rawForm.alerts
+        : base.form.alerts,
     },
     origins: {
       ...base.origins,
