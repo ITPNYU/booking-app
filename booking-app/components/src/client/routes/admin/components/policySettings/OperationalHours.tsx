@@ -52,9 +52,7 @@ export default function OperationalHours() {
     } = event;
     // On autofill we get a stringified value.
     const list = typeof value === "string" ? value.split(",") : value;
-    setSpecialHourRooms(
-      list.sort(compareResourceIds),
-    );
+    setSpecialHourRooms(list.sort(compareResourceIds));
   };
 
   return (

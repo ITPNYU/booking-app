@@ -9,10 +9,7 @@ import UserRolePage from "@/components/src/client/routes/booking/formPages/UserR
 const Role = () => {
   const { id } = useParams<{ id: string }>();
   return (
-    <UserRolePage
-      calendarEventId={id}
-      formContext={FormContextLevel.EDIT}
-    />
+    <UserRolePage calendarEventId={id} formContext={FormContextLevel.EDIT} />
   );
 };
 

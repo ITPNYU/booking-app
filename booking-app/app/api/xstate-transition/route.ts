@@ -13,7 +13,9 @@ import {
 } from "@/components/src/utils/serviceDecisions";
 
 /** Keep only known service keys from an "edit" event's changed-services list. */
-const toChangedServices = (value: unknown): MediaCommonsServiceKey[] | undefined =>
+const toChangedServices = (
+  value: unknown,
+): MediaCommonsServiceKey[] | undefined =>
   Array.isArray(value)
     ? (value.filter((key): key is MediaCommonsServiceKey =>
         (MEDIA_COMMONS_SERVICE_KEYS as readonly string[]).includes(key),

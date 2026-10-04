@@ -151,7 +151,11 @@ export type ResourceTraining = {
   infoUrl?: string;
 };
 
-export type RequestLimitPeriod = "perDay" | "perWeek" | "perMonth" | "perSemester";
+export type RequestLimitPeriod =
+  | "perDay"
+  | "perWeek"
+  | "perMonth"
+  | "perSemester";
 
 /** Keys in `resource.requestLimits` — one bucket per base role (VIP / walk-in share the same cap). */
 export type RequestLimitBucketKey = "admin" | "faculty" | "student";
@@ -358,7 +362,9 @@ export type SchemaContextType = {
   emailNotifications: EmailNotifications;
 };
 
-function defineObjectArrayWithDefaults<T>(defaults: T): ObjectArrayWithDefaults<T> {
+function defineObjectArrayWithDefaults<T>(
+  defaults: T,
+): ObjectArrayWithDefaults<T> {
   const value = [] as ObjectArrayWithDefaults<T>;
   value.__defaults__ = defaults;
   return value;

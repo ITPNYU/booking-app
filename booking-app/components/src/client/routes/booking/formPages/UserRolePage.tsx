@@ -155,7 +155,11 @@ export default function UserRolePage({
 
     const hasOther = filtered.includes("Other");
     return hasOther ? filtered : [...filtered, "Other"];
-  }, [tenantSchema.mappings?.program, watchedFields.school, schemaSchoolMapping]);
+  }, [
+    tenantSchema.mappings?.program,
+    watchedFields.school,
+    schemaSchoolMapping,
+  ]);
 
   useEffect(() => {
     if (department && !departmentOptions.includes(department)) {

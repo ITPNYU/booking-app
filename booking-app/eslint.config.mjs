@@ -4,6 +4,7 @@ import tseslint from "typescript-eslint";
 import prettierConfig from "eslint-config-prettier";
 import prettierPlugin from "eslint-plugin-prettier";
 import jsxA11y from "eslint-plugin-jsx-a11y";
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import globals from "globals";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -49,9 +50,10 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
 
-  // Legacy configs via FlatCompat
+  // airbnb-base is still an eslintrc shareable config. eslint-config-next 16
+  // is already flat config; loading it through FlatCompat crashes ESLint.
   ...compat.extends("airbnb-base"),
-  ...compat.extends("next/core-web-vitals"),
+  ...nextCoreWebVitals,
 
   // Re-establish typescript-eslint parser for TS/TSX files
   // (next/core-web-vitals overrides the parser, breaking type-checked rules)
@@ -65,19 +67,27 @@ export default tseslint.config(
     },
   },
 
-  // Disable type-checked rules for JS files
+  // Next's config parses JS/JSX with next/babel, which requires
+  // @babel/plugin-proposal-object-rest-spread. Use the TypeScript parser
+  // instead, without type-checked rules.
   {
-    files: ["**/*.js", "**/*.mjs"],
+    files: ["**/*.js", "**/*.jsx", "**/*.mjs"],
+    languageOptions: {
+      parser: tseslint.parser,
+    },
+  },
+  {
+    files: ["**/*.js", "**/*.jsx", "**/*.mjs"],
     ...tseslint.configs.disableTypeChecked,
   },
 
   // Prettier must be last to override formatting rules
   prettierConfig,
 
-  // jsx-a11y recommended rules for TSX/JSX
+  // jsx-a11y recommended rules for TSX/JSX.
+  // The plugin is already registered by eslint-config-next.
   {
     files: ["**/*.tsx", "**/*.jsx"],
-    plugins: { "jsx-a11y": jsxA11y },
     rules: {
       ...jsxA11y.configs.recommended.rules,
       // Dialog primary buttons intentionally use autoFocus for focus management
@@ -141,8 +151,16 @@ export default tseslint.config(
       // Disabled: TypeScript handles these checks
       "no-undef": "off",
       "no-unused-vars": "off",
-      // Downgraded to warn: pre-existing issues to fix incrementally
+      // Downgraded to warn: pre-existing issues to fix incrementally.
+      // eslint-plugin-react-hooks 7 (via eslint-config-next 16) adds the
+      // React Compiler rules below as errors.
       "react-hooks/rules-of-hooks": "warn",
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/refs": "warn",
+      "react-hooks/error-boundaries": "warn",
+      "react-hooks/immutability": "warn",
+      "react-hooks/use-memo": "warn",
+      "react-hooks/incompatible-library": "warn",
       "@next/next/no-html-link-for-pages": "warn",
       "react/no-unescaped-entities": "warn",
       // Disabled: overly strict airbnb-base rules not matching project style

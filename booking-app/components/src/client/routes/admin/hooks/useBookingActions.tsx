@@ -133,99 +133,103 @@ export default function useBookingActions({
     useState<MediaCommonsServiceFlags>({});
   const [currentXState, setCurrentXState] = useState<any>("");
 
-  const applyBookingData = useCallback((data: any) => {
-    if (!data || !isMediaCommons(tenant as string)) return;
+  const applyBookingData = useCallback(
+    (data: any) => {
+      if (!data || !isMediaCommons(tenant as string)) return;
 
-    const requestedFromData = getMediaCommonsServices(data, tenantResources);
+      const requestedFromData = getMediaCommonsServices(data, tenantResources);
 
-    if (data.xstateData) {
-      const checker = createXStateChecker(data);
-      const currentStateValue = checker.getCurrentStateString();
-      setCurrentXState(currentStateValue);
+      if (data.xstateData) {
+        const checker = createXStateChecker(data);
+        const currentStateValue = checker.getCurrentStateString();
+        setCurrentXState(currentStateValue);
 
-      const context = getXStateContext(data) || {};
-      const closeoutContext = context.servicesClosedOut ?? {};
-      const snapshotValue = data.xstateData?.snapshot?.value;
-      // A region still sitting in "<Name> Requested" needs a decision even if
-      // the booking data no longer derives that flag (e.g. furniture requests
-      // used to be folded into setup before they became their own service).
-      const serviceRequestStates =
-        typeof snapshotValue === "object" &&
-        snapshotValue &&
-        snapshotValue["Services Request"]
-          ? snapshotValue["Services Request"]
-          : {};
-      const pendingInMachine = Object.fromEntries(
-        SERVICE_TYPES.filter(
-          (serviceType) =>
-            serviceRequestStates[
-              `${SERVICE_REGION_NAMES[serviceType]} Request`
-            ] === `${SERVICE_REGION_NAMES[serviceType]} Requested`,
-        ).map((serviceType) => [serviceType, true]),
-      ) as MediaCommonsServiceFlags;
-      setServiceRequests({ ...requestedFromData, ...pendingInMachine });
-      const serviceCloseoutStates =
-        typeof snapshotValue === "object" &&
-        snapshotValue &&
-        snapshotValue["Service Closeout"]
-          ? snapshotValue["Service Closeout"]
-          : {};
-      setServicesApproved({
-        staff: context.servicesApproved?.staff ?? data.staffServiceApproved,
-        equipment:
-          context.servicesApproved?.equipment ?? data.equipmentServiceApproved,
-        catering:
-          context.servicesApproved?.catering ?? data.cateringServiceApproved,
-        cleaning:
-          context.servicesApproved?.cleaning ?? data.cleaningServiceApproved,
-        security:
-          context.servicesApproved?.security ?? data.securityServiceApproved,
-        setup: context.servicesApproved?.setup ?? data.setupServiceApproved,
-        furnishings:
-          context.servicesApproved?.furnishings ??
-          data.furnishingsServiceApproved,
-      });
+        const context = getXStateContext(data) || {};
+        const closeoutContext = context.servicesClosedOut ?? {};
+        const snapshotValue = data.xstateData?.snapshot?.value;
+        // A region still sitting in "<Name> Requested" needs a decision even if
+        // the booking data no longer derives that flag (e.g. furniture requests
+        // used to be folded into setup before they became their own service).
+        const serviceRequestStates =
+          typeof snapshotValue === "object" &&
+          snapshotValue &&
+          snapshotValue["Services Request"]
+            ? snapshotValue["Services Request"]
+            : {};
+        const pendingInMachine = Object.fromEntries(
+          SERVICE_TYPES.filter(
+            (serviceType) =>
+              serviceRequestStates[
+                `${SERVICE_REGION_NAMES[serviceType]} Request`
+              ] === `${SERVICE_REGION_NAMES[serviceType]} Requested`,
+          ).map((serviceType) => [serviceType, true]),
+        ) as MediaCommonsServiceFlags;
+        setServiceRequests({ ...requestedFromData, ...pendingInMachine });
+        const serviceCloseoutStates =
+          typeof snapshotValue === "object" &&
+          snapshotValue &&
+          snapshotValue["Service Closeout"]
+            ? snapshotValue["Service Closeout"]
+            : {};
+        setServicesApproved({
+          staff: context.servicesApproved?.staff ?? data.staffServiceApproved,
+          equipment:
+            context.servicesApproved?.equipment ??
+            data.equipmentServiceApproved,
+          catering:
+            context.servicesApproved?.catering ?? data.cateringServiceApproved,
+          cleaning:
+            context.servicesApproved?.cleaning ?? data.cleaningServiceApproved,
+          security:
+            context.servicesApproved?.security ?? data.securityServiceApproved,
+          setup: context.servicesApproved?.setup ?? data.setupServiceApproved,
+          furnishings:
+            context.servicesApproved?.furnishings ??
+            data.furnishingsServiceApproved,
+        });
 
-      setServicesClosedOut({
-        staff:
-          closeoutContext.staff === true ||
-          serviceCloseoutStates["Staff Closeout"] === "Staff Closedout",
-        equipment:
-          closeoutContext.equipment === true ||
-          serviceCloseoutStates["Equipment Closeout"] ===
-            "Equipment Closedout",
-        catering:
-          closeoutContext.catering === true ||
-          serviceCloseoutStates["Catering Closeout"] === "Catering Closedout",
-        cleaning:
-          closeoutContext.cleaning === true ||
-          serviceCloseoutStates["Cleaning Closeout"] === "Cleaning Closedout",
-        security:
-          closeoutContext.security === true ||
-          serviceCloseoutStates["Security Closeout"] === "Security Closedout",
-        setup:
-          closeoutContext.setup === true ||
-          serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
-        furnishings:
-          closeoutContext.furnishings === true ||
-          serviceCloseoutStates["Furnishings Closeout"] ===
-            "Furnishings Closedout",
-      });
-    } else {
-      setCurrentXState("");
-      setServiceRequests(requestedFromData);
-      setServicesApproved({
-        staff: data.staffServiceApproved,
-        equipment: data.equipmentServiceApproved,
-        catering: data.cateringServiceApproved,
-        cleaning: data.cleaningServiceApproved,
-        security: data.securityServiceApproved,
-        setup: data.setupServiceApproved,
-        furnishings: data.furnishingsServiceApproved,
-      });
-      setServicesClosedOut({});
-    }
-  }, [tenant]);
+        setServicesClosedOut({
+          staff:
+            closeoutContext.staff === true ||
+            serviceCloseoutStates["Staff Closeout"] === "Staff Closedout",
+          equipment:
+            closeoutContext.equipment === true ||
+            serviceCloseoutStates["Equipment Closeout"] ===
+              "Equipment Closedout",
+          catering:
+            closeoutContext.catering === true ||
+            serviceCloseoutStates["Catering Closeout"] === "Catering Closedout",
+          cleaning:
+            closeoutContext.cleaning === true ||
+            serviceCloseoutStates["Cleaning Closeout"] === "Cleaning Closedout",
+          security:
+            closeoutContext.security === true ||
+            serviceCloseoutStates["Security Closeout"] === "Security Closedout",
+          setup:
+            closeoutContext.setup === true ||
+            serviceCloseoutStates["Setup Closeout"] === "Setup Closedout",
+          furnishings:
+            closeoutContext.furnishings === true ||
+            serviceCloseoutStates["Furnishings Closeout"] ===
+              "Furnishings Closedout",
+        });
+      } else {
+        setCurrentXState("");
+        setServiceRequests(requestedFromData);
+        setServicesApproved({
+          staff: data.staffServiceApproved,
+          equipment: data.equipmentServiceApproved,
+          catering: data.cateringServiceApproved,
+          cleaning: data.cleaningServiceApproved,
+          security: data.securityServiceApproved,
+          setup: data.setupServiceApproved,
+          furnishings: data.furnishingsServiceApproved,
+        });
+        setServicesClosedOut({});
+      }
+    },
+    [tenant],
+  );
 
   // Bookings are already loaded for the table — avoid N+1 Firestore reads per row.
   useEffect(() => {
@@ -303,7 +307,8 @@ export default function useBookingActions({
           tenant as string,
         );
         const data = await fetchBookingData();
-        if (data && updateBookingInList) updateBookingInList(calendarEventId, data);
+        if (data && updateBookingInList)
+          updateBookingInList(calendarEventId, data);
       },
       optimisticNextStatus: BookingStatusLabel.PRE_APPROVED,
     },
@@ -317,7 +322,8 @@ export default function useBookingActions({
           tenant as string,
         );
         const data = await fetchBookingData();
-        if (data && updateBookingInList) updateBookingInList(calendarEventId, data);
+        if (data && updateBookingInList)
+          updateBookingInList(calendarEventId, data);
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
     },
@@ -359,7 +365,6 @@ export default function useBookingActions({
       confirmation: false,
     },
   };
-
 
   // Common action definition function
   const getActionsForPageContext = (
@@ -583,11 +588,11 @@ export default function useBookingActions({
             // Use enum values (not enum names) to match the action keys
             const approveAction =
               Actions[
-              `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+                `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
               ];
             const declineAction =
               Actions[
-              `DECLINE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+                `DECLINE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
               ];
             addServiceActions(serviceType, approveAction, declineAction);
           });
@@ -619,7 +624,7 @@ export default function useBookingActions({
             ) {
               const closeoutAction =
                 Actions[
-                `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+                  `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
                 ];
               options.push(closeoutAction);
             }
@@ -793,7 +798,7 @@ export default function useBookingActions({
       // Approve actions - use the enum value directly as key for proper enum-based matching
       const approveActionKey =
         Actions[
-        `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+          `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
         ];
       serviceActions[approveActionKey] = {
         action: () => executeServiceAction(serviceType, "approve"),
@@ -803,7 +808,7 @@ export default function useBookingActions({
       // Decline actions - use the enum value directly as key for proper enum-based matching
       const declineActionKey =
         Actions[
-        `DECLINE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+          `DECLINE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
         ];
       serviceActions[declineActionKey] = {
         action: () =>
@@ -819,7 +824,7 @@ export default function useBookingActions({
       // Closeout actions - use the enum value directly as key for proper enum-based matching
       const closeoutActionKey =
         Actions[
-        `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
+          `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
         ];
       serviceActions[closeoutActionKey] = {
         action: () => executeServiceAction(serviceType, "closeout"),
@@ -837,7 +842,7 @@ export default function useBookingActions({
     ...serviceActions,
     // never used, just make typescript happy
     [Actions.PLACEHOLDER]: {
-      action: async () => { },
+      action: async () => {},
       optimisticNextStatus: BookingStatusLabel.UNKNOWN,
     },
   };

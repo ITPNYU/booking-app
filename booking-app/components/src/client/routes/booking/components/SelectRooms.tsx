@@ -1,4 +1,10 @@
-import { Box, Checkbox, FormControlLabel, FormGroup, Tooltip } from "@mui/material";
+import {
+  Box,
+  Checkbox,
+  FormControlLabel,
+  FormGroup,
+  Tooltip,
+} from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import dayjs from "dayjs";
@@ -47,8 +53,7 @@ export const SelectRooms = ({
 
   // Sort rooms by room number for consistent display order
   const sortedRooms = useMemo(
-    () =>
-      [...allRooms].sort((a, b) => compareResourceIds(a.roomId, b.roomId)),
+    () => [...allRooms].sort((a, b) => compareResourceIds(a.roomId, b.roomId)),
     [allRooms],
   );
 

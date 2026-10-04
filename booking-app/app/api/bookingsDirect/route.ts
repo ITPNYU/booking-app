@@ -108,7 +108,9 @@ export async function POST(request: NextRequest) {
   const { departmentDisplay, schoolDisplay } =
     getAffiliationDisplayValues(data);
   const [room, ...otherRooms] = selectedRooms;
-  const selectedRoomIds = selectedRooms.map((r: { roomId: string }) => r.roomId);
+  const selectedRoomIds = selectedRooms.map(
+    (r: { roomId: string }) => r.roomId,
+  );
   const otherRoomIds = otherRooms.map(
     (r: { calendarId: string }) => r.calendarId,
   );
@@ -123,12 +125,7 @@ export async function POST(request: NextRequest) {
       .map((id: number | string) => Number(id))
       .filter((n: number) => Number.isFinite(n));
 
-    if (
-      tenant &&
-      email &&
-      bookingRoleField &&
-      selectedRoomIdsNums.length > 0
-    ) {
+    if (tenant && email && bookingRoleField && selectedRoomIdsNums.length > 0) {
       const tenantSchema = await serverGetDocumentById<SchemaContextType>(
         TableNames.TENANT_SCHEMA,
         tenant,
@@ -455,7 +452,10 @@ export async function POST(request: NextRequest) {
         tenant
       ) {
         try {
-          await notifyServiceApproversForRequestedServices(calendarEventId, tenant);
+          await notifyServiceApproversForRequestedServices(
+            calendarEventId,
+            tenant,
+          );
         } catch (notificationError) {
           console.error(
             `🚨 SERVICE APPROVER NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,

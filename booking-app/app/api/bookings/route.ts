@@ -206,7 +206,7 @@ async function createBookingCalendarEvent(
       ...otherRooms.map((r: { calendarId: string }) => r.calendarId),
       ...annexCalendarIds,
     ]),
-  ].filter((email) => email && email !== calendarId);
+  ].filter(email => email && email !== calendarId);
 
   // Limit title to 25 characters
   const truncatedTitle =
@@ -493,8 +493,13 @@ async function checkOverlap(
 }
 
 export async function POST(request: NextRequest) {
-  const { email, selectedRooms, bookingCalendarInfo, data: rawData, isAutoApproval } =
-    await request.json();
+  const {
+    email,
+    selectedRooms,
+    bookingCalendarInfo,
+    data: rawData,
+    isAutoApproval,
+  } = await request.json();
 
   // Students cannot request auxiliary spaces — strip even if posted directly.
   const data =
@@ -521,9 +526,7 @@ export async function POST(request: NextRequest) {
   // checkboxes (annexByRoom); reject them if posted as bookable rooms.
   const tenantResources = await serverGetTenantResources(tenant);
   const annexResourceIds = new Set(
-    tenantResources
-      .filter((r) => r.parentResourceId)
-      .map((r) => r.resourceId),
+    tenantResources.filter(r => r.parentResourceId).map(r => r.resourceId),
   );
   const requestedAnnexRoom = Array.isArray(selectedRooms)
     ? selectedRooms.find((r: any) => annexResourceIds.has(String(r?.roomId)))

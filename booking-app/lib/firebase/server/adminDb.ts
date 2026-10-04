@@ -150,14 +150,17 @@ export const serverResolveResourceApproverEmails = async (
   for (const approver of approvers) {
     if (!requestedResourceIds.has(approver.resourceId)) continue;
     const email = normalizeEmail(approver.email);
-    const approverResourceIds = resourceIdsByEmail.get(email) ?? new Set<string>();
+    const approverResourceIds =
+      resourceIdsByEmail.get(email) ?? new Set<string>();
     approverResourceIds.add(approver.resourceId);
     resourceIdsByEmail.set(email, approverResourceIds);
   }
 
   const recipients = [...resourceIdsByEmail.entries()]
     .filter(([, approverResourceIds]) =>
-      uniqueResourceIds.every((resourceId) => approverResourceIds.has(resourceId)),
+      uniqueResourceIds.every((resourceId) =>
+        approverResourceIds.has(resourceId),
+      ),
     )
     .map(([email]) => email);
 
@@ -247,8 +250,10 @@ export const serverSaveDataToFirestore = async (
       collectionName as TableNames,
       tenant,
     );
-    const docRef = await traceDatabase("add", `Firestore/${tenantCollection}`, () =>
-      db.collection(tenantCollection).add(data),
+    const docRef = await traceDatabase(
+      "add",
+      `Firestore/${tenantCollection}`,
+      () => db.collection(tenantCollection).add(data),
     );
     console.log("Document successfully written with ID:", docRef.id);
     return docRef;
@@ -284,8 +289,10 @@ export const serverGetDocumentById = async <T extends DocumentData>(
   try {
     const tenantCollection = getServerTenantCollection(collectionName, tenant);
     const docRef = db.collection(tenantCollection).doc(docId);
-    const docSnap = await traceDatabase("get", `Firestore/${tenantCollection}`, () =>
-      docRef.get(),
+    const docSnap = await traceDatabase(
+      "get",
+      `Firestore/${tenantCollection}`,
+      () => docRef.get(),
     );
 
     if (docSnap.exists) {
@@ -448,9 +455,7 @@ const serverGetFinalApproverEmailFromDatabaseStrict = async (
 
 export const serverGetFinalApproverEmail = async (
   tenant?: string,
-): Promise<string | null> => {
-  return serverGetFinalApproverEmailFromDatabase(tenant);
-};
+): Promise<string | null> => serverGetFinalApproverEmailFromDatabase(tenant);
 
 export const logServerBookingChange = async ({
   bookingId,

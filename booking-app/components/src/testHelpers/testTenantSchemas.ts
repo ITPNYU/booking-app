@@ -157,7 +157,11 @@ const baseMediaCommonsSchema: SchemaContextType = {
       resourceId: "230",
       isEquipment: false,
       calendarId: "mock-calendar-230",
-      training: { required: true, formId: "https://docs.google.com/forms/d/e/mock/viewform", infoUrl: "" },
+      training: {
+        required: true,
+        formId: "https://docs.google.com/forms/d/e/mock/viewform",
+        infoUrl: "",
+      },
       isWalkIn: false,
       isWalkInCanBookTwo: false,
       services: ["equipment", "catering", "cleaning", "security"],

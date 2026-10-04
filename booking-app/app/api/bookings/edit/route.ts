@@ -241,7 +241,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    let wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
+    const wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
     if (usesXState) {
       console.log(
         `🔍 EDIT: Current booking status [${tenant?.toUpperCase()}]:`,
@@ -312,7 +312,7 @@ export async function PUT(request: NextRequest) {
         ...otherRooms.map((r: { calendarId: string }) => r.calendarId),
         ...annexCalendarIds,
       ]),
-    ].filter((email) => email && email !== calendarId);
+    ].filter(email => email && email !== calendarId);
 
     const truncatedTitle =
       data.title.length > 25 ? `${data.title.substring(0, 25)}...` : data.title;
@@ -365,14 +365,17 @@ export async function PUT(request: NextRequest) {
     const changedServices = getChangedServiceKeys(existingContents, data);
     const previousDecisions = getServiceDecisions(existingContents);
     const clearedDecisionFields = changedServices
-      .filter((service) => typeof previousDecisions[service] === "boolean")
-      .map((service) => SERVICE_APPROVAL_FIELDS[service]);
-    console.log(`🧮 EDIT: Service request changes [${tenant?.toUpperCase()}]:`, {
-      calendarEventId,
-      changedServices,
-      previousDecisions,
-      clearedDecisionFields,
-    });
+      .filter(service => typeof previousDecisions[service] === "boolean")
+      .map(service => SERVICE_APPROVAL_FIELDS[service]);
+    console.log(
+      `🧮 EDIT: Service request changes [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId,
+        changedServices,
+        previousDecisions,
+        clearedDecisionFields,
+      },
+    );
 
     // If booking was declined, clear the declinedAt timestamp to ensure status shows as REQUESTED
     if (existingContents.declinedAt) {

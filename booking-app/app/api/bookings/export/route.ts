@@ -92,10 +92,8 @@ const parseExportDate = (value: string | null): Date | null => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
 
   const date = fromZonedTime(`${value}T00:00:00`, TIMEZONE);
-  return (
-    isNaN(date.getTime()) ||
+  return isNaN(date.getTime()) ||
     formatInTimeZone(date, TIMEZONE, "yyyy-MM-dd") !== value
-  )
     ? null
     : date;
 };
@@ -201,17 +199,13 @@ const buildRow = (booking: Booking): string => {
     booking.setupDetails || "",
     booking.furnishingsByRoom
       ? Object.entries(booking.furnishingsByRoom)
-          .filter(
-            ([, v]) => typeof v === "string" && v.toLowerCase() === "yes",
-          )
+          .filter(([, v]) => typeof v === "string" && v.toLowerCase() === "yes")
           .map(([roomId]) => roomId)
           .join("; ")
       : "",
     booking.chartFieldForFurnishingsByRoom
       ? Object.entries(booking.chartFieldForFurnishingsByRoom)
-          .filter(
-            ([roomId]) => booking.furnishingsByRoom?.[roomId] === "yes",
-          )
+          .filter(([roomId]) => booking.furnishingsByRoom?.[roomId] === "yes")
           .map(([roomId, chart]) => `${roomId}: ${chart}`)
           .join("; ")
       : "",
@@ -295,7 +289,7 @@ export async function GET(request: NextRequest) {
     .stream() as unknown as NodeJS.ReadableStream & { destroy: () => void };
 
   const encoder = new TextEncoder();
-  const headerLine = HEADERS.map(escapeCsv).join(",") + "\n";
+  const headerLine = `${HEADERS.map(escapeCsv).join(",")}\n`;
 
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -303,7 +297,7 @@ export async function GET(request: NextRequest) {
       docStream.on("data", (docSnap: any) => {
         try {
           const booking = { id: docSnap.id, ...docSnap.data() } as Booking;
-          controller.enqueue(encoder.encode(buildRow(booking) + "\n"));
+          controller.enqueue(encoder.encode(`${buildRow(booking)}\n`));
         } catch (err) {
           controller.error(err);
           docStream.destroy();

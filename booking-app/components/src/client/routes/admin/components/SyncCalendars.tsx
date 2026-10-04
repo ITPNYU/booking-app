@@ -26,10 +26,10 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import { useState } from "react";
 
-import AlertToast from "../../components/AlertToast";
-import { TIMEZONE } from "../../../utils/date";
 import { serializedTimestampToMillis } from "@/lib/utils/timestampWire";
 import { isServiceRequested } from "@/components/src/utils/tenantUtils";
+import AlertToast from "../../components/AlertToast";
+import { TIMEZONE } from "../../../utils/date";
 
 const formatFirestoreTimestamp = (value: any): string => {
   if (!value) return "";
@@ -62,7 +62,9 @@ const servicesSummary = (booking: any): string[] => {
 const DryRunRow = ({ booking, index }: { booking: any; index: number }) => {
   const [open, setOpen] = useState(false);
   const services = servicesSummary(booking);
-  const issues: string[] = Array.isArray(booking?._issues) ? booking._issues : [];
+  const issues: string[] = Array.isArray(booking?._issues)
+    ? booking._issues
+    : [];
   const hasIssues = issues.length > 0;
   return (
     <>
@@ -80,9 +82,11 @@ const DryRunRow = ({ booking, index }: { booking: any; index: number }) => {
         <TableCell sx={{ width: 40, pr: 0 }}>
           <IconButton
             size="small"
-            aria-label={open ? "Collapse booking details" : "Expand booking details"}
+            aria-label={
+              open ? "Collapse booking details" : "Expand booking details"
+            }
             aria-expanded={open}
-            onClick={() => setOpen(v => !v)}
+            onClick={() => setOpen((v) => !v)}
           >
             {open ? <KeyboardArrowDownIcon /> : <KeyboardArrowRightIcon />}
           </IconButton>
@@ -109,7 +113,7 @@ const DryRunRow = ({ booking, index }: { booking: any; index: number }) => {
             </Typography>
           ) : (
             <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-              {services.map(s => (
+              {services.map((s) => (
                 <Chip key={s} label={s} size="small" variant="outlined" />
               ))}
             </Stack>
@@ -118,7 +122,7 @@ const DryRunRow = ({ booking, index }: { booking: any; index: number }) => {
         <TableCell sx={{ minWidth: 160 }}>
           {hasIssues ? (
             <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-              {issues.map(issue => (
+              {issues.map((issue) => (
                 <Chip
                   key={issue}
                   label={issue}
@@ -134,7 +138,10 @@ const DryRunRow = ({ booking, index }: { booking: any; index: number }) => {
         </TableCell>
       </TableRow>
       <TableRow>
-        <TableCell colSpan={10} sx={{ p: 0, borderBottom: open ? undefined : "none" }}>
+        <TableCell
+          colSpan={10}
+          sx={{ p: 0, borderBottom: open ? undefined : "none" }}
+        >
           <Collapse in={open} unmountOnExit>
             <Box
               sx={{
@@ -355,12 +362,12 @@ const SyncCalendars = () => {
                 writes booking records to <em>this environment&apos;s</em>
                 &nbsp;Firestore. Guest emails are overridden to&nbsp;
                 <code>booking-app+pregame@itp.nyu.edu</code> so real requesters
-                never receive invites. Production calendar event titles are
-                NOT modified.
+                never receive invites. Production calendar event titles are NOT
+                modified.
               </li>
             </ul>
-            The real <code>IMPORT PREGAME CALENDAR EVENTS</code> button is
-            only available on the production deployment.
+            The real <code>IMPORT PREGAME CALENDAR EVENTS</code> button is only
+            available on the production deployment.
           </Alert>
         ) : (
           <Alert severity="warning" sx={{ mb: 2 }}>
@@ -440,7 +447,13 @@ const SyncCalendars = () => {
                 {dryRunData.message}
               </Typography>
 
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 3 }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                flexWrap="wrap"
+                useFlexGap
+                sx={{ mb: 3 }}
+              >
                 {dryRunData.testMode && (
                   <Chip label="TEST MODE" color="warning" size="small" />
                 )}
@@ -469,7 +482,8 @@ const SyncCalendars = () => {
                 />
               </Stack>
 
-              {Array.isArray(dryRunData.results) && dryRunData.results.length > 0 ? (
+              {Array.isArray(dryRunData.results) &&
+              dryRunData.results.length > 0 ? (
                 <TableContainer component={Paper} variant="outlined">
                   <Table size="small" stickyHeader>
                     <TableHead>
@@ -509,8 +523,8 @@ const SyncCalendars = () => {
                 </TableContainer>
               ) : (
                 <Typography variant="body2" color="text.secondary">
-                  No new bookings would be created. (Existing or skipped events do
-                  not appear in this list.)
+                  No new bookings would be created. (Existing or skipped events
+                  do not appear in this list.)
                 </Typography>
               )}
             </Box>
@@ -524,7 +538,7 @@ const SyncCalendars = () => {
       <Backdrop
         open={loading}
         sx={{
-          zIndex: theme => theme.zIndex.modal + 1,
+          zIndex: (theme) => theme.zIndex.modal + 1,
           color: "#fff",
           flexDirection: "column",
           gap: 2,

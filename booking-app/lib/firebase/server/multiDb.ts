@@ -1,7 +1,7 @@
-import admin from "./firebaseAdmin";
 import { getFirestore } from "firebase-admin/firestore";
-import { DATABASES } from "./databases";
 import { TableNames } from "@/components/src/policy";
+import admin from "./firebaseAdmin";
+import { DATABASES } from "./databases";
 
 export type Environment = keyof typeof DATABASES;
 
