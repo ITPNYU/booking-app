@@ -65,7 +65,11 @@ export async function POST(req: NextRequest) {
       const start = parseDate(range[0]);
       const end = parseDate(range[1]);
       if (start)
-        q = q.where("startDate", ">=", admin.firestore.Timestamp.fromDate(start));
+        q = q.where(
+          "startDate",
+          ">=",
+          admin.firestore.Timestamp.fromDate(start),
+        );
       if (end)
         q = q.where("startDate", "<=", admin.firestore.Timestamp.fromDate(end));
     }
@@ -97,20 +101,20 @@ export async function POST(req: NextRequest) {
       const searchTerm = searchQuery.toLowerCase();
       const orderedQuery = q.orderBy(body.filters.sortField, sortDirection);
       const snapshot = await orderedQuery.get();
-      const matchingDocs = snapshot.docs.filter((doc) => {
+      const matchingDocs = snapshot.docs.filter(doc => {
         const data = doc.data();
         if (data.firstName && data.lastName) {
           const fullName = `${data.firstName} ${data.lastName}`.toLowerCase();
           if (fullName.includes(searchTerm)) return true;
         }
-        return SEARCHABLE_FIELDS.some((field) => {
+        return SEARCHABLE_FIELDS.some(field => {
           const value = data[field];
           if (value === null || value === undefined) return false;
           return String(value).toLowerCase().includes(searchTerm);
         });
       });
       return NextResponse.json({
-        docs: matchingDocs.map((doc) => ({ id: doc.id, ...doc.data() })),
+        docs: matchingDocs.map(doc => ({ id: doc.id, ...doc.data() })),
       });
     }
 
@@ -141,7 +145,7 @@ export async function POST(req: NextRequest) {
     }
     const snapshot = await orderedQuery.get();
     return NextResponse.json({
-      docs: snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })),
+      docs: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
     });
   } catch (error) {
     console.error("[/api/firestore/paginated] error:", error);

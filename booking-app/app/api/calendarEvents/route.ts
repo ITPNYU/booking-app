@@ -159,14 +159,17 @@ export async function GET(req: NextRequest) {
   if (calendarIds) {
     const ids = calendarIds.split(",").filter(Boolean);
     if (ids.length === 0) {
-      return NextResponse.json({ error: "Invalid calendarIds" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid calendarIds" },
+        { status: 400 },
+      );
     }
 
     try {
       const indexPromise = loadBookingMatchIndex(tenant);
       const roomsPromise = getTenantRooms(tenant).then(roomIdsByCalendarId);
       const results = await Promise.all(
-        ids.map(async (id) => {
+        ids.map(async id => {
           try {
             const events = await getCalendarEvents(
               id,
@@ -175,7 +178,11 @@ export async function GET(req: NextRequest) {
             );
             return { calendarId: id, events };
           } catch (error) {
-            console.error("Error fetching calendar events for calendarId:", id, error);
+            console.error(
+              "Error fetching calendar events for calendarId:",
+              id,
+              error,
+            );
             return { calendarId: id, events: [] };
           }
         }),

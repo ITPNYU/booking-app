@@ -100,7 +100,8 @@ export default function useExistingBooking() {
       if (existing && Object.keys(existing).length > 0) {
         return { map: existing, chart: existingChart };
       }
-      if (!isRequested(legacyValue)) return { map: existing, chart: existingChart };
+      if (!isRequested(legacyValue))
+        return { map: existing, chart: existingChart };
       const targetIds = rooms
         .filter((room) => !!getServiceSectionConfig(room, key))
         .map((room) => String(room.roomId));
@@ -155,8 +156,7 @@ export default function useExistingBooking() {
     const setupTargetIds = setupTargetRooms.map((room) => String(room.roomId));
 
     const roomSetupByRoom =
-      booking.roomSetupByRoom &&
-      Object.keys(booking.roomSetupByRoom).length > 0
+      booking.roomSetupByRoom && Object.keys(booking.roomSetupByRoom).length > 0
         ? booking.roomSetupByRoom
         : legacySetupRequested && setupTargetIds.length === 1
           ? (() => {

@@ -49,7 +49,10 @@ function getMcTestSchema(tenant: string): SchemaContextType {
     policy: "<p>Test policy.</p>",
     mappings: {
       school: {
-        "Tisch School of the Arts": ["ITP / IMA / Low Res", "General Department"],
+        "Tisch School of the Arts": [
+          "ITP / IMA / Low Res",
+          "General Department",
+        ],
       },
       program: {
         "ITP / IMA / Low Res": ["ITP"],

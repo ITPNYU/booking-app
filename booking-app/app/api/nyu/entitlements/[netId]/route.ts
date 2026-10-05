@@ -6,7 +6,6 @@ import { auth } from "@/lib/auth";
 import { fetchNYUIdentity } from "@/lib/server/nyuIdentity";
 import { NextRequest, NextResponse } from "next/server";
 
-
 function getEntitledTenants(userData: UserApiData): TenantValue[] {
   const tenants: TenantValue[] = [TENANTS.MC];
 

@@ -92,7 +92,7 @@ export default function useRequestFormState({
   }, [annexByRoom, setValue]);
 
   const watchedFields = watch();
-  const prevWatchedFieldsRef = useRef<Inputs>();
+  const prevWatchedFieldsRef = useRef<Inputs | undefined>(undefined);
 
   // update provider if form state changes so we can repopulate form if user switches form pages
   useEffect(() => {

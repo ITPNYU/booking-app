@@ -33,9 +33,9 @@ function hideFlagsToShowInOrigin(section: {
   const { hideForUser, hideForVIP, hideForWalkIn } = section;
   if (!hideForUser && !hideForVIP && !hideForWalkIn) return undefined;
   return {
-    user: hideForUser ? false : true,
-    VIP: hideForVIP ? false : true,
-    walkIn: hideForWalkIn ? false : true,
+    user: !hideForUser,
+    VIP: !hideForVIP,
+    walkIn: !hideForWalkIn,
   };
 }
 
@@ -60,7 +60,9 @@ function normalizeChartField(
     ...(typeof cf.descriptionHtml === "string"
       ? { descriptionHtml: cf.descriptionHtml }
       : {}),
-    ...(asBool(cf.required) !== undefined ? { required: asBool(cf.required) } : {}),
+    ...(asBool(cf.required) !== undefined
+      ? { required: asBool(cf.required) }
+      : {}),
     ...(typeof cf.validation === "string" ? { validation: cf.validation } : {}),
   };
 }
@@ -83,7 +85,9 @@ function normalizeOption(opt: Record<string, unknown>): ResourceFormOption {
   return {
     value: String(opt.value ?? ""),
     label: String(opt.label ?? opt.value ?? ""),
-    ...(asBool(opt.required) !== undefined ? { required: asBool(opt.required) } : {}),
+    ...(asBool(opt.required) !== undefined
+      ? { required: asBool(opt.required) }
+      : {}),
     ...(typeof opt.descriptionHtml === "string"
       ? { descriptionHtml: opt.descriptionHtml }
       : {}),
@@ -159,7 +163,9 @@ function normalizeSection(
     ...(typeof raw.defaultValue === "string"
       ? { defaultValue: raw.defaultValue }
       : {}),
-    ...(asBool(raw.required) !== undefined ? { required: asBool(raw.required) } : {}),
+    ...(asBool(raw.required) !== undefined
+      ? { required: asBool(raw.required) }
+      : {}),
     ...(options ? { options } : {}),
     ...(chartField ? { chartField } : {}),
     ...(showInOrigin ? { showInOrigin } : {}),
@@ -167,7 +173,9 @@ function normalizeSection(
     ...(asBool(raw.studentLoungeCheckbox) === true
       ? { studentLoungeCheckbox: true }
       : {}),
-    ...(asBool(raw.showDetailsField) === true ? { showDetailsField: true } : {}),
+    ...(asBool(raw.showDetailsField) === true
+      ? { showDetailsField: true }
+      : {}),
     ...(typeof raw.detailsLabel === "string"
       ? { detailsLabel: raw.detailsLabel }
       : {}),
@@ -283,10 +291,7 @@ function normalizeObjectServices(
         }
       }
     }
-    if (
-      Array.isArray(staffingRaw.staffingOptions) &&
-      !staffing.sections
-    ) {
+    if (Array.isArray(staffingRaw.staffingOptions) && !staffing.sections) {
       staffing.sections = {
         default: {
           label: staffing.label ?? "Staffing",
@@ -298,10 +303,7 @@ function normalizeObjectServices(
       };
     }
     // Description-only staffing (no sections) → static info, unless explicitly hidden.
-    if (
-      !staffing.sections ||
-      Object.keys(staffing.sections).length === 0
-    ) {
+    if (!staffing.sections || Object.keys(staffing.sections).length === 0) {
       if (staffing.mode !== "hidden") {
         staffing.mode = "static";
       }
@@ -320,7 +322,10 @@ export function migrateResourceServices(
   const rawServices = resource.services;
   let result: ResourceServicesConfig = {};
 
-  if (Array.isArray(rawServices) && rawServices.every((s) => typeof s === "string")) {
+  if (
+    Array.isArray(rawServices) &&
+    rawServices.every((s) => typeof s === "string")
+  ) {
     for (const key of rawServices) {
       if (key === "setup") {
         result.setup = { label: SERVICE_LABELS.setup };
@@ -342,7 +347,11 @@ export function migrateResourceServices(
         result.annex = { label: SERVICE_LABELS.annex };
       }
     }
-  } else if (rawServices && typeof rawServices === "object" && !Array.isArray(rawServices)) {
+  } else if (
+    rawServices &&
+    typeof rawServices === "object" &&
+    !Array.isArray(rawServices)
+  ) {
     result = normalizeObjectServices(rawServices as Record<string, unknown>);
   }
 
@@ -351,10 +360,7 @@ export function migrateResourceServices(
     | Array<{ name: string; indexes: number[] }>
     | undefined;
 
-  if (
-    staffingServices?.length &&
-    !result.staffing?.sections
-  ) {
+  if (staffingServices?.length && !result.staffing?.sections) {
     const staffing: ResourceStaffingConfig = {
       label: SERVICE_LABELS.staffing,
       ...result.staffing,

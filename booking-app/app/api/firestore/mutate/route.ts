@@ -44,10 +44,7 @@ export async function POST(req: NextRequest) {
     }
     if (body.op === "update") {
       if (!body.docId) {
-        return NextResponse.json(
-          { error: "docId required" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "docId required" }, { status: 400 });
       }
       const data = reviveValue(body.data) as FirebaseFirestore.DocumentData;
       await colRef.doc(body.docId).update(data);
@@ -55,10 +52,7 @@ export async function POST(req: NextRequest) {
     }
     if (body.op === "set") {
       if (!body.docId) {
-        return NextResponse.json(
-          { error: "docId required" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "docId required" }, { status: 400 });
       }
       const data = reviveValue(body.data) as FirebaseFirestore.DocumentData;
       await colRef.doc(body.docId).set(data);
@@ -66,10 +60,7 @@ export async function POST(req: NextRequest) {
     }
     if (body.op === "delete") {
       if (!body.docId) {
-        return NextResponse.json(
-          { error: "docId required" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "docId required" }, { status: 400 });
       }
       await colRef.doc(body.docId).delete();
       return NextResponse.json({ ok: true });

@@ -59,10 +59,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (status === "authenticated" && session?.user) {
         setUser({
           email: session.user.email ?? null,
-          netId:
-            (session.user as Record<string, unknown>).netId as
-              | string
-              | undefined,
+          netId: (session.user as Record<string, unknown>).netId as
+            | string
+            | undefined,
           name: session.user.name,
         });
         setLoading(false);

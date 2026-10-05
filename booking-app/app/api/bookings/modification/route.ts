@@ -266,7 +266,7 @@ export async function PUT(request: NextRequest) {
         ...otherRooms.map((r: { calendarId: string }) => r.calendarId),
         ...annexCalendarIds,
       ]),
-    ].filter((email) => email && email !== calendarId);
+    ].filter(email => email && email !== calendarId);
 
     const truncatedTitle =
       data.title.length > 25 ? `${data.title.substring(0, 25)}...` : data.title;
@@ -401,8 +401,7 @@ export async function PUT(request: NextRequest) {
           cleaning: existingBookingData.cleaningServiceApproved || false,
           security: existingBookingData.securityServiceApproved || false,
           setup: existingBookingData.setupServiceApproved || false,
-          furnishings:
-            existingBookingData.furnishingsServiceApproved || false,
+          furnishings: existingBookingData.furnishingsServiceApproved || false,
         }
       : undefined;
 

@@ -11,7 +11,7 @@ import {
   timestampToDate,
 } from "@/lib/utils/timestampWire";
 import { TableCell, TableRow } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { formatHistoryDateTime } from "../../utils/date";
 import StatusChip from "../components/bookingTable/StatusChip";
 
@@ -29,7 +29,7 @@ const historyTimeLabel = (value: unknown, suffix = "") => {
 };
 
 export default function useSortBookingHistory(booking: BookingRow) {
-  const [rows, setRows] = useState<JSX.Element[]>([]);
+  const [rows, setRows] = useState<ReactElement[]>([]);
 
   useEffect(() => {
     const fetchLogs = async () => {

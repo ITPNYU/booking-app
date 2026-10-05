@@ -80,19 +80,18 @@ export default function fetchCalendarEvents(allRooms: RoomSetting[]) {
       calendarIds,
     }).toString();
 
-    fetch(
-      `/api/calendarEvents?${query}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "x-tenant": (tenant as string) || DEFAULT_TENANT,
-        },
-        signal: controller.signal,
+    fetch(`/api/calendarEvents?${query}`, {
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": (tenant as string) || DEFAULT_TENANT,
       },
-    )
+      signal: controller.signal,
+    })
       .then((response) => {
         if (!response.ok) {
-          throw new Error(`Failed to fetch calendar events: ${response.status}`);
+          throw new Error(
+            `Failed to fetch calendar events: ${response.status}`,
+          );
         }
         return response.json();
       })

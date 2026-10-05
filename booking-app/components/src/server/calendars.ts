@@ -63,11 +63,14 @@ export const inviteUserToCalendarEvent = async (
 
   for (const roomCalendarId of roomCalendarIds) {
     try {
-      const event = await traceExternalCall("GoogleCalendar", "events.get", () =>
-        calendar.events.get({
-          calendarId: roomCalendarId,
-          eventId: calendarEventId,
-        }),
+      const event = await traceExternalCall(
+        "GoogleCalendar",
+        "events.get",
+        () =>
+          calendar.events.get({
+            calendarId: roomCalendarId,
+            eventId: calendarEventId,
+          }),
       );
 
       if (event) {
@@ -161,11 +164,11 @@ export const bookingContentsToDescription = async (
   description += listItem("N-Number", getProperty(bookingContents, "nNumber"));
   description += listItem(
     "Secondary Contact",
-    getSecondaryContactName(bookingContents)
+    getSecondaryContactName(bookingContents),
   );
   description += listItem(
     "Secondary Contact Email",
-    getProperty(bookingContents, "secondaryEmail")
+    getProperty(bookingContents, "secondaryEmail"),
   );
   description += listItem(
     "Sponsor Name",
@@ -313,11 +316,14 @@ export const updateCalendarEvent = async (
 
   for (const roomCalendarId of roomCalendarIds) {
     try {
-      const event = await traceExternalCall("GoogleCalendar", "events.get", () =>
-        calendar.events.get({
-          calendarId: roomCalendarId,
-          eventId: calendarEventId,
-        }),
+      const event = await traceExternalCall(
+        "GoogleCalendar",
+        "events.get",
+        () =>
+          calendar.events.get({
+            calendarId: roomCalendarId,
+            eventId: calendarEventId,
+          }),
       );
 
       if (!event) {
