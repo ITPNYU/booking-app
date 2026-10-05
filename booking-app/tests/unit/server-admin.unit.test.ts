@@ -533,6 +533,60 @@ describe("components/src/server/admin", () => {
     ]);
   });
 
+  it("lists same-minute history logs in millisecond order", async () => {
+    seedCollection("tenant-z-bookings", [
+      {
+        id: "booking-ms",
+        data: {
+          calendarEventId: "cal-ms",
+          requestNumber: 80,
+          title: "Millisecond Workshop",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-01T05:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-01T07:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
+          status: BookingStatusLabel.APPROVED,
+        },
+      },
+    ]);
+    seedCollection("tenant-z-bookingLogs", [
+      {
+        id: "log-approved-later",
+        data: {
+          calendarEventId: "cal-ms",
+          status: BookingStatusLabel.APPROVED,
+          changedBy: "System",
+          changedAt: makeTimestamp("2024-02-25T10:00:00.800Z"),
+          requestNumber: 80,
+        },
+      },
+      {
+        id: "log-requested-earlier",
+        data: {
+          calendarEventId: "cal-ms",
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: "requester@nyu.edu",
+          changedAt: makeTimestamp("2024-02-25T10:00:00.100Z"),
+          requestNumber: 80,
+        },
+      },
+    ]);
+
+    const { serverBookingContents } =
+      await import("@/components/src/server/admin");
+
+    const result = await serverBookingContents("cal-ms", "tenant-z");
+
+    expect(result.history.map((h: any) => h.status)).toEqual([
+      BookingStatusLabel.REQUESTED,
+      BookingStatusLabel.APPROVED,
+    ]);
+    expect(result.history.map((h: any) => h.date)).toEqual([
+      "02/25/24 5:00:00 AM",
+      "02/25/24 5:00:00 AM",
+    ]);
+  });
+
   it("performs first approval flow and notifies final approver", async () => {
     seedCollection("tenant-y-bookings", [
       {

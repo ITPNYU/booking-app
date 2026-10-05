@@ -32,6 +32,7 @@ vi.mock("@/components/src/server/admin", () => ({
   serverBookingContents: mockServerBookingContents,
   serverUpdateDataByCalendarEventId: mockServerUpdateDataByCalendarEventId,
   finalApprove: mockFinalApprove,
+  serverSendBookingDetailEmail: vi.fn(),
 }));
 
 vi.mock("@/components/src/server/calendars", () => ({

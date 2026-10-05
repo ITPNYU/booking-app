@@ -32,8 +32,13 @@ import {
   isSystemHistoryActor,
   resolvePreApprovedHistoryNotes,
 } from "../utils/bookingHistoryNotes";
+import { formatHistoryDateTime } from "../client/utils/date";
 import { getSecondaryContactName } from "../utils/formatters";
 import { isMediaCommons } from "../utils/tenantUtils";
+import {
+  compareTimestampsAscending,
+  timestampToDate,
+} from "@/lib/utils/timestampWire";
 import { getTenantEmailConfig } from "./emails";
 
 interface HistoryItem {
@@ -42,6 +47,11 @@ interface HistoryItem {
   date: string;
   note?: string;
 }
+
+const historyDateLabel = (value: unknown) => {
+  const instant = timestampToDate(value);
+  return instant ? formatHistoryDateTime(instant) : "";
+};
 
 const parseBookingResourceIds = (roomId: unknown): string[] =>
   String(roomId ?? "")
@@ -96,8 +106,6 @@ const getBookingHistory = async (
   booking: Booking,
   tenant?: string,
 ): Promise<HistoryItem[]> => {
-  const history: HistoryItem[] = [];
-
   // Fetch logs from BOOKING_LOGS table
   const logs = await serverFetchAllDataFromCollection<BookingLog>(
     TableNames.BOOKING_LOGS,
@@ -112,96 +120,111 @@ const getBookingHistory = async (
   );
 
   if (logs.length > 0) {
-    // Use bookingLogs data if available
-    const sortedLogs = logs.sort(
-      (a, b) => a.changedAt.toMillis() - b.changedAt.toMillis(),
+    // Use bookingLogs data if available. Sort by the raw timestamp so
+    // same-minute automated transitions stay in millisecond order.
+    const sortedLogs = [...logs].sort((a, b) =>
+      compareTimestampsAscending(a.changedAt, b.changedAt),
     );
     const resolvedNotes = resolvePreApprovedHistoryNotes(sortedLogs);
     return sortedLogs.map((log, index) => ({
       status: log.status,
       user: log.changedBy,
-      date: log.changedAt.toDate().toLocaleString(),
+      date: historyDateLabel(log.changedAt),
       note: resolvedNotes[index],
     }));
   }
 
-  // Fallback to original implementation if no logs found
+  // Fallback to original implementation if no logs found.
+  // Keep the source timestamp and sort that, not a minute-truncated label.
+  const fallback: Array<HistoryItem & { at: unknown }> = [];
   if (booking.requestedAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.REQUESTED,
       user: booking.email,
-      date: booking.requestedAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.requestedAt,
     });
   }
 
   if (booking.firstApprovedAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.PRE_APPROVED,
       user: booking.firstApprovedBy,
-      date: booking.firstApprovedAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.firstApprovedAt,
     });
   }
 
   if (booking.finalApprovedAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.APPROVED,
       user: booking.finalApprovedBy,
-      date: booking.finalApprovedAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.finalApprovedAt,
     });
   }
 
   if (booking.declinedAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.DECLINED,
       user: booking.declinedBy,
-      date: booking.declinedAt.toDate().toLocaleString(),
+      date: "",
       note: booking.declineReason,
+      at: booking.declinedAt,
     });
   }
 
   if (booking.canceledAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.CANCELED,
       user: booking.canceledBy,
-      date: booking.canceledAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.canceledAt,
     });
   }
 
   if (booking.checkedInAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.CHECKED_IN,
       user: booking.checkedInBy,
-      date: booking.checkedInAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.checkedInAt,
     });
   }
 
   if (booking.checkedOutAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.CHECKED_OUT,
       user: booking.checkedOutBy,
-      date: booking.checkedOutAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.checkedOutAt,
     });
   }
 
   if (booking.noShowedAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.NO_SHOW,
       user: booking.noShowedBy,
-      date: booking.noShowedAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.noShowedAt,
     });
   }
 
   if (booking.walkedInAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.WALK_IN,
       user: "PA",
-      date: booking.walkedInAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.walkedInAt,
     });
   }
 
-  return history.sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-  );
+  return fallback
+    .sort((a, b) => compareTimestampsAscending(a.at, b.at))
+    .map(({ at, ...item }) => ({
+      ...item,
+      date: historyDateLabel(at),
+    }));
 };
 
 export const serverBookingContents = async (id: string, tenant?: string) => {
