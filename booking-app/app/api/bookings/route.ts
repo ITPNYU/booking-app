@@ -30,6 +30,11 @@ import {
 import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
 import { canRequestAuxiliarySpaces } from "@/components/src/utils/roleUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
 import {
   logServerBookingChange,
   serverGetNextSequentialId,
@@ -519,6 +524,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: maintenanceMode.message, maintenanceMode: true },
       { status: 503 },
+    );
+  }
+
+  // Enforce production-schedule requirement server-side (schema-driven).
+  const tenantSchema = await getCachedTenantSchema(tenant ?? DEFAULT_TENANT);
+  const productionScheduleConfig = tenantSchema?.form?.productionSchedule;
+  if (
+    isProductionScheduleMissingWhenRequired({
+      enabled: productionScheduleConfig?.enabled,
+      requiredAboveHours: productionScheduleConfig?.requiredAboveHours,
+      start: bookingCalendarInfo?.start ?? bookingCalendarInfo?.startStr,
+      end: bookingCalendarInfo?.end ?? bookingCalendarInfo?.endStr,
+      productionSchedule: data?.productionSchedule,
+    })
+  ) {
+    return NextResponse.json(
+      {
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
+      },
+      { status: 400 },
     );
   }
 

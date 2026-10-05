@@ -61,6 +61,17 @@ vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
   serverGetTenantResources: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
+  getCachedTenantSchema: vi.fn().mockResolvedValue({
+    form: {
+      productionSchedule: {
+        enabled: false,
+        requiredAboveHours: 4,
+      },
+    },
+  }),
+}));
+
 vi.mock("@/components/src/utils/tenantUtils", () => ({
   getMediaCommonsServices: (...args: any[]) =>
     mockGetMediaCommonsServices(...args),

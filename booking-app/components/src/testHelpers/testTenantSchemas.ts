@@ -1,5 +1,6 @@
 import {
   generateDefaultSchema,
+  defaultProductionSchedule,
   type SchemaContextType,
 } from "../client/routes/components/SchemaProvider";
 import { TENANTS } from "../constants/tenants";
@@ -46,6 +47,10 @@ const baseMediaCommonsSchema: SchemaContextType = {
       showSecurity: true,
       showSetup: true,
       showStaffing: true,
+    },
+    productionSchedule: {
+      ...defaultProductionSchedule,
+      enabled: true,
     },
   },
   attestations: [

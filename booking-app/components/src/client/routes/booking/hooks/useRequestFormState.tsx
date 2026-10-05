@@ -46,6 +46,7 @@ export default function useRequestFormState({
       chartFieldForCleaning: "",
       chartFieldForSecurity: "",
       chartFieldForRoomSetup: "",
+      productionSchedule: "",
       roomSetupByRoom: {},
       setupDetailsByRoom: {},
       chartFieldForRoomSetupByRoom: {},

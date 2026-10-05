@@ -24,6 +24,12 @@ import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import {
   logServerBookingChange,
   serverGetDataByCalendarEventId,
@@ -137,6 +143,27 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(
       { error: "missing bookingCalendarId" },
       { status: 500 },
+    );
+  }
+
+  const tenantSchema = await getCachedTenantSchema(tenant ?? DEFAULT_TENANT);
+  const productionScheduleConfig = tenantSchema?.form?.productionSchedule;
+  if (
+    isProductionScheduleMissingWhenRequired({
+      enabled: productionScheduleConfig?.enabled,
+      requiredAboveHours: productionScheduleConfig?.requiredAboveHours,
+      start: bookingCalendarInfo?.start ?? bookingCalendarInfo?.startStr,
+      end: bookingCalendarInfo?.end ?? bookingCalendarInfo?.endStr,
+      productionSchedule: data?.productionSchedule,
+    })
+  ) {
+    return NextResponse.json(
+      {
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
+      },
+      { status: 400 },
     );
   }
 

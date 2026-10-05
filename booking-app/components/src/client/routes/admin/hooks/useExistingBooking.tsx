@@ -211,6 +211,7 @@ export default function useExistingBooking() {
       sponsorEmail: booking.sponsorEmail,
       title: booking.title,
       description: booking.description,
+      productionSchedule: booking.productionSchedule ?? "",
       bookingType: booking.bookingType,
       attendeeAffiliation: booking.attendeeAffiliation,
       roomSetup: booking.roomSetup,
