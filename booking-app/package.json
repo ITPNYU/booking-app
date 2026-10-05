@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@emotion/styled": "^11.13.0",
+    "@fontsource/roboto": "^5.3.0",
     "@fullcalendar/core": "^6.1.14",
     "@fullcalendar/daygrid": "^6.1.14",
     "@fullcalendar/google-calendar": "^6.1.14",
