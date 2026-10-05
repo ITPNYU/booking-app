@@ -26,7 +26,7 @@ export const serverFormatDate = (
     const date = new Date(timestamp.toDate());
     const zonedDate = toZonedTime(date, timeZone);
 
-    const formattedResult = format(zonedDate, "yyyy-MM-dd hh:mm a", {
+    const formattedResult = format(zonedDate, "yyyy-MM-dd hh:mm:ss a", {
       timeZone,
     });
 
