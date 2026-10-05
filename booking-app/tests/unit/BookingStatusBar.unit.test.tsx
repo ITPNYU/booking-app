@@ -838,6 +838,86 @@ describe("BookingStatusBar - schema form alerts", () => {
     ).toBeInTheDocument();
   });
 
+  it("uses the ineligible status alert for VIP and still blocks Next", () => {
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: false,
+      errorMessage: "Services were requested",
+    });
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        defaultFormAlerts[0],
+        {
+          ...defaultFormAlerts[1],
+          severity: "info",
+          message: "A VIP request with services needs review.",
+        },
+      ]),
+    );
+
+    renderComponent({}, { formContext: FormContextLevel.VIP });
+
+    expect(
+      screen.getByText(/A VIP request with services needs review/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("This request will require approval."),
+    ).not.toBeInTheDocument();
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    expect(nextButton).toBeDisabled();
+    expect(
+      nextButton.closest('[aria-label="Services were requested"]'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Why\? Services were requested/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses the ineligible status alert for walk-in", () => {
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: false,
+      errorMessage: "Duration is too long",
+    });
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        {
+          ...defaultFormAlerts[1],
+          message: "This walk-in needs a shorter time.",
+        },
+      ]),
+    );
+
+    renderComponent({}, { formContext: FormContextLevel.WALK_IN });
+
+    expect(
+      screen.getByText(/This walk-in needs a shorter time/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /next/i }),
+    ).toBeDisabled();
+  });
+
+  it("keeps the hardcoded approval block when no ineligible alert matches VIP", () => {
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: false,
+      errorMessage: "Services were requested",
+    });
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        {
+          ...defaultFormAlerts[1],
+          showInOrigin: { user: true, VIP: false, walkIn: true },
+        },
+      ]),
+    );
+
+    renderComponent({}, { formContext: FormContextLevel.VIP });
+
+    expect(
+      screen.getByText(/This request will require approval/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
+  });
+
   it("drops a notice whose origin is turned off", () => {
     mockUseTenantSchema.mockReturnValue(
       schemaWithAlerts([

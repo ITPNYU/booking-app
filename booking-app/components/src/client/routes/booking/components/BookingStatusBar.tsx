@@ -283,22 +283,26 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         ),
         severity: "error",
       };
-    if ((isWalkIn || isVIP) && !isAutoApproval && errorMessage) {
-      // Show actual error from auto-approval check (e.g., duration limits, services requested, multiple rooms, etc.)
-      return {
-        btnDisabled: true,
-        btnDisabledMessage: errorMessage,
-        message: (
-          <p>
-            This request will require approval.{" "}
-            <ApprovalWhyButton errorMessage={errorMessage} />
-          </p>
-        ),
-        severity: "error",
-      };
-    }
+    // Walk-in and VIP cannot continue when auto-approval fails. The status
+    // copy comes from the schema when one matches; this only keeps Next disabled.
+    const walkInOrVipBlocked =
+      (isWalkIn || isVIP) && !isAutoApproval && !!errorMessage;
+    const approvalRequiredBlock = walkInOrVipBlocked
+      ? {
+          btnDisabled: true,
+          btnDisabledMessage: errorMessage,
+          message: (
+            <p>
+              This request will require approval.{" "}
+              <ApprovalWhyButton errorMessage={errorMessage} />
+            </p>
+          ),
+          severity: "error" as const,
+        }
+      : null;
     if (formContext !== FormContextLevel.MODIFICATION) {
       if (!alertsConfigured) {
+        if (approvalRequiredBlock) return approvalRequiredBlock;
         if (isAutoApproval)
           return {
             btnDisabled: false,
@@ -332,8 +336,8 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         const showWhy =
           statusAlert.when?.autoApproval === "ineligible" && !!errorMessage;
         return {
-          btnDisabled: false,
-          btnDisabledMessage: null,
+          btnDisabled: walkInOrVipBlocked,
+          btnDisabledMessage: walkInOrVipBlocked ? errorMessage : null,
           message: (
             <p>
               {statusAlert.message}
@@ -353,6 +357,8 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         };
       }
     }
+
+    if (approvalRequiredBlock) return approvalRequiredBlock;
 
     return undefined;
   })();
