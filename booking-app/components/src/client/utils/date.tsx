@@ -90,6 +90,15 @@ export const formatTimeAmPm = (d: Date) => {
   return format(zonedDate, "h:mm a");
 };
 
+/**
+ * Booking-history clock time. Seconds stay visible; milliseconds are used
+ * only for sort order and are not shown.
+ */
+export const formatHistoryDateTime = (date: Date) => {
+  const zonedDate = toZonedTime(date, TIMEZONE);
+  return `${formatDateTable(date)} ${format(zonedDate, "h:mm:ss a")}`;
+};
+
 export function roundTimeUp(slotUnit: number = DEFAULT_SLOT_UNIT) {
   // Get current time in Eastern timezone
   const now = new Date();

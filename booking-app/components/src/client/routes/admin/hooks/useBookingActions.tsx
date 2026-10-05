@@ -405,6 +405,7 @@ export default function useBookingActions({
           options.push(Actions.MODIFICATION);
         } else if (status === BookingStatusLabel.CHECKED_IN) {
           options.push(Actions.CHECK_OUT);
+          options.push(Actions.MODIFICATION);
         } else if (status === BookingStatusLabel.NO_SHOW) {
           options.push(Actions.CHECK_IN);
         } else if (status === BookingStatusLabel.WALK_IN) {
@@ -514,6 +515,13 @@ export default function useBookingActions({
 
             addServiceActions(serviceType, approveAction, declineAction);
           });
+        }
+
+        if (
+          status === BookingStatusLabel.APPROVED ||
+          status === BookingStatusLabel.CHECKED_IN
+        ) {
+          options.push(Actions.MODIFICATION);
         }
         break;
 
@@ -637,6 +645,7 @@ export default function useBookingActions({
           options.push(Actions.MODIFICATION);
         } else if (status === BookingStatusLabel.CHECKED_IN) {
           options.push(Actions.CHECK_OUT);
+          options.push(Actions.MODIFICATION);
         } else if (status === BookingStatusLabel.NO_SHOW) {
           options.push(Actions.CHECK_IN);
         } else if (status === BookingStatusLabel.WALK_IN) {

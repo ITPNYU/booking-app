@@ -234,7 +234,10 @@ describe("useBookingActions Hook", () => {
       Actions.CHECK_IN,
       Actions.MODIFICATION,
     ]);
-    testPAContext(BookingStatusLabel.CHECKED_IN, [Actions.CHECK_OUT]);
+    testPAContext(BookingStatusLabel.CHECKED_IN, [
+      Actions.CHECK_OUT,
+      Actions.MODIFICATION,
+    ]);
     testPAContext(BookingStatusLabel.NO_SHOW, [Actions.CHECK_IN]);
     testPAContext(BookingStatusLabel.WALK_IN, [
       Actions.CHECK_OUT,
@@ -357,11 +360,11 @@ describe("useBookingActions Hook", () => {
     // Services context shows no basic actions, only service-specific actions in Service Requested state
     testServicesContext(BookingStatusLabel.REQUESTED, []);
     testServicesContext(BookingStatusLabel.PRE_APPROVED, []);
-    testServicesContext(BookingStatusLabel.APPROVED, []);
+    testServicesContext(BookingStatusLabel.APPROVED, [Actions.MODIFICATION]);
     testServicesContext(BookingStatusLabel.EQUIPMENT, []);
     testServicesContext(BookingStatusLabel.DECLINED, []);
     testServicesContext(BookingStatusLabel.CANCELED, []);
-    testServicesContext(BookingStatusLabel.CHECKED_IN, []);
+    testServicesContext(BookingStatusLabel.CHECKED_IN, [Actions.MODIFICATION]);
     testServicesContext(BookingStatusLabel.CHECKED_OUT, []);
     testServicesContext(BookingStatusLabel.CLOSED, []);
     testServicesContext(BookingStatusLabel.NO_SHOW, []);
@@ -421,6 +424,7 @@ describe("useBookingActions Hook", () => {
     ]);
     testAdminContext(BookingStatusLabel.CHECKED_IN, [
       Actions.CHECK_OUT,
+      Actions.MODIFICATION,
       Actions.CANCEL,
       Actions.DECLINE,
     ]);
@@ -904,7 +908,7 @@ describe("useBookingActions Hook", () => {
           [PageContextLevel.USER]: [Actions.CANCEL],
           [PageContextLevel.PA]: [Actions.CHECK_IN, Actions.MODIFICATION],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
-          [PageContextLevel.SERVICES]: [],
+          [PageContextLevel.SERVICES]: [Actions.MODIFICATION],
           [PageContextLevel.ADMIN]: [
             Actions.CHECK_IN,
             Actions.MODIFICATION,
@@ -934,11 +938,12 @@ describe("useBookingActions Hook", () => {
       describe("CHECKED_IN status actions across contexts", () => {
         const expectedActionsByContext = {
           [PageContextLevel.USER]: [],
-          [PageContextLevel.PA]: [Actions.CHECK_OUT],
+          [PageContextLevel.PA]: [Actions.CHECK_OUT, Actions.MODIFICATION],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
-          [PageContextLevel.SERVICES]: [],
+          [PageContextLevel.SERVICES]: [Actions.MODIFICATION],
           [PageContextLevel.ADMIN]: [
             Actions.CHECK_OUT,
+            Actions.MODIFICATION,
             Actions.CANCEL,
             Actions.DECLINE,
           ],
