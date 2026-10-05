@@ -109,6 +109,10 @@ export function coerceTenantSchema(
         ...base.form.services,
         ...(rawForm?.services ?? {}),
       },
+      productionSchedule: {
+        ...base.form.productionSchedule,
+        ...(rawForm?.productionSchedule ?? {}),
+      },
     },
     origins: {
       ...base.origins,

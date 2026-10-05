@@ -47,6 +47,21 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   }),
 }));
 
+vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
+  getCachedTenantSchema: vi.fn().mockResolvedValue({
+    form: {
+      productionSchedule: {
+        enabled: false,
+        requiredAboveHours: 4,
+      },
+    },
+  }),
+}));
+
+vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
+  serverGetTenantResources: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/components/src/server/db", () => ({
   callXStateTransitionAPI: (...args: any[]) => mockCallXStateTransitionAPI(...args),
 }));
