@@ -831,8 +831,10 @@ describe("BookingStatusBar - schema form alerts", () => {
     renderComponent();
 
     expect(
-      screen.getByText(/Staff need to review this request/),
-    ).toBeInTheDocument();
+      screen
+        .getByText(/Staff need to review this request/)
+        .closest('[role="alert"]'),
+    ).toHaveClass("MuiAlert-filledWarning");
     expect(
       screen.getByRole("button", { name: /Why\? Duration is too long/ }),
     ).toBeInTheDocument();
@@ -857,8 +859,10 @@ describe("BookingStatusBar - schema form alerts", () => {
     renderComponent({}, { formContext: FormContextLevel.VIP });
 
     expect(
-      screen.getByText(/A VIP request with services needs review/),
-    ).toBeInTheDocument();
+      screen
+        .getByText(/A VIP request with services needs review/)
+        .closest('[role="alert"]'),
+    ).toHaveClass("MuiAlert-filledError");
     expect(
       screen.queryByText("This request will require approval."),
     ).not.toBeInTheDocument();
@@ -889,8 +893,10 @@ describe("BookingStatusBar - schema form alerts", () => {
     renderComponent({}, { formContext: FormContextLevel.WALK_IN });
 
     expect(
-      screen.getByText(/This walk-in needs a shorter time/),
-    ).toBeInTheDocument();
+      screen
+        .getByText(/This walk-in needs a shorter time/)
+        .closest('[role="alert"]'),
+    ).toHaveClass("MuiAlert-filledError");
     expect(
       screen.getByRole("button", { name: /next/i }),
     ).toBeDisabled();

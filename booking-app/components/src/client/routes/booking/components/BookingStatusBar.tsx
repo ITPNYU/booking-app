@@ -349,9 +349,9 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
               )}
             </p>
           ),
-          severity: statusAlert.severity,
+          severity: walkInOrVipBlocked ? "error" : statusAlert.severity,
           icon:
-            statusAlert.severity === "success" ? (
+            !walkInOrVipBlocked && statusAlert.severity === "success" ? (
               <Check fontSize="inherit" />
             ) : undefined,
         };
