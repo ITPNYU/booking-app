@@ -17,6 +17,13 @@ export {
 /**
  * Load the tenant's booking detail modal config, falling back to the defaults
  * (memo hidden) when the tenant has no schema.
+ *
+ * Reads through `getCachedTenantSchema`, so a schema edit to `detailsModal`
+ * can take up to its 30s TTL to apply on a warm instance. That window is
+ * accepted: it only delays tenant-wide policy tweaks, while revoking a person
+ * goes through `resolveCallerRole`, which reads the role collections uncached
+ * on every request. Skipping the cache would add a Firestore read to every
+ * bookings list read.
  */
 export async function getDetailsModalConfig(
   tenant: string | undefined,
