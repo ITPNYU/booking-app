@@ -4,6 +4,8 @@ import { requireSession } from "@/lib/api/requireSession";
 import { authorizeWrite, isAccessDenied } from "@/lib/api/authz";
 import { resolveCollectionName, reviveValue } from "@/lib/api/firestoreServer";
 import type { MutateRequest } from "@/lib/api/firestoreShared";
+import { TableNames } from "@/components/src/policy";
+import { findStaffOnlyBookingFieldWrite } from "@/lib/api/staffOnlyBookingFields";
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
@@ -32,6 +34,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: decision.reason },
       { status: decision.status },
+    );
+  }
+  // A bare `set` replaces the whole document, so on a booking it would wipe
+  // staff-only fields (and everything else) the payload leaves out. Nothing
+  // sets bookings through this route; partial writes go through `update`.
+  if (body.op === "set" && body.collection === TableNames.BOOKING) {
+    return NextResponse.json(
+      { error: "set is not allowed on bookings; use update" },
+      { status: 403 },
+    );
+  }
+  // Staff-only booking fields (e.g. memo) and the WebCheckout cart number have
+  // dedicated routes that enforce the tenant's detailsModal edit roles (plus
+  // trimming and length limits for memo). Refuse them here so the generic
+  // paOrAbove booking write policy cannot bypass those routes.
+  const staffOnlyField = findStaffOnlyBookingFieldWrite(
+    body.collection,
+    "data" in body ? body.data : undefined,
+  );
+  if (staffOnlyField) {
+    return NextResponse.json(
+      {
+        error: `${staffOnlyField} can only be written through its dedicated route`,
+      },
+      { status: 403 },
     );
   }
   const collectionName = resolveCollectionName(body.collection, body.tenant);

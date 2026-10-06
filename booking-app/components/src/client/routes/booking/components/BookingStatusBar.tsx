@@ -30,6 +30,9 @@ import {
 } from "../../components/SchemaProvider";
 import { isProductionScheduleRequired } from "../utils/productionSchedule";
 
+const formatHours = (hours: number) =>
+  `${hours} ${hours === 1 ? "hour" : "hours"}`;
+
 interface Props {
   formContext: FormContextLevel;
   goBack: () => void;
@@ -313,20 +316,29 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         severity: "error",
         variant: "filled",
       };
-    if (durationError)
+    if (durationError) {
+      const isBelowMin = durationError.errorType === "min";
+      const limit = formatHours(
+        isBelowMin ? durationError.minDuration : durationError.maxDuration,
+      );
       return {
         btnDisabled: true,
-        btnDisabledMessage: `Duration exceeds maximum allowed for your role (${durationError.maxDuration} hours)`,
+        btnDisabledMessage: isBelowMin
+          ? `Duration is below minimum required for your role (${limit})`
+          : `Duration exceeds maximum allowed for your role (${limit})`,
         message: (
           <p>
-            Event duration ({durationError.currentDuration.toFixed(1)} hours)
-            exceeds the maximum allowed duration ({durationError.maxDuration}{" "}
-            hours) for {durationError.roomName} based on your{" "}
-            {durationError.role} role. Please select a shorter time slot.
+            Event duration ({durationError.currentDuration.toFixed(1)} hours){" "}
+            {isBelowMin
+              ? `is shorter than the minimum required duration (${limit})`
+              : `exceeds the maximum allowed duration (${limit})`}{" "}
+            for {durationError.roomName} based on your {durationError.role}{" "}
+            role. Please select a {isBelowMin ? "longer" : "shorter"} time slot.
           </p>
         ),
         severity: "error",
       };
+    }
     // Walk-in and VIP cannot continue when auto-approval fails. The status
     // copy comes from the schema when one matches; this only keeps Next disabled.
     const walkInOrVipBlocked =

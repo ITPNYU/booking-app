@@ -47,6 +47,7 @@ import {
   getProductionScheduleRequiredErrorMessage,
   isProductionScheduleMissingWhenRequired,
 } from "@/components/src/client/routes/booking/utils/productionSchedule";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -82,10 +83,12 @@ export async function POST(request: NextRequest) {
     requestedBy,
     selectedRooms,
     bookingCalendarInfo,
-    data,
+    data: rawData,
     origin = BookingOrigin.WALK_IN,
     type = "walk-in",
   } = await request.json();
+  // memo and the cart number are written only through their dedicated routes.
+  const data = omitStaffOnlyBookingFieldWrites(rawData);
 
   // Extract tenant from URL
   const tenant = extractTenantFromRequest(request) ?? DEFAULT_TENANT;
