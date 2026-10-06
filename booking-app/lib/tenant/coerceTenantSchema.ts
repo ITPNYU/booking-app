@@ -114,6 +114,10 @@ export function coerceTenantSchema(
       alerts: Array.isArray(rawForm?.alerts)
         ? rawForm.alerts
         : base.form.alerts,
+      productionSchedule: {
+        ...base.form.productionSchedule,
+        ...(rawForm?.productionSchedule ?? {}),
+      },
     },
     origins: {
       ...base.origins,

@@ -6,7 +6,12 @@ import { FormContextLevel } from "../../../../types";
  * list computed for a request (see useFormSteps).
  */
 export type FormStep =
-  "netid" | "role" | "selectRoom" | "form" | "services" | "confirmation";
+  | "netid"
+  | "role"
+  | "selectRoom"
+  | "form"
+  | "services"
+  | "confirmation";
 
 export const FORM_STEP_LABELS: Record<FormStep, string> = {
   netid: "NetID",

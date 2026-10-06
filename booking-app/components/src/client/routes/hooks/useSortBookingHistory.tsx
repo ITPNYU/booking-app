@@ -6,21 +6,30 @@ import {
 } from "@/components/src/types";
 import { resolvePreApprovedHistoryNotes } from "@/components/src/utils/bookingHistoryNotes";
 import { clientFetchAllDataFromCollection } from "@/lib/firebase/firebase";
+import {
+  compareTimestampsAscending,
+  timestampToDate,
+} from "@/lib/utils/timestampWire";
 import { TableCell, TableRow } from "@mui/material";
-import { Timestamp } from "firebase/firestore";
-import { useEffect, useState } from "react";
-import { formatDateTable, formatTimeAmPm } from "../../utils/date";
+import { useEffect, useState, type ReactElement } from "react";
+import { formatHistoryDateTime } from "../../utils/date";
 import StatusChip from "../components/bookingTable/StatusChip";
 
 type HistoryRow = {
   status: BookingStatusLabel;
   user: string;
-  time: Timestamp;
+  time: unknown;
   note?: string;
 };
 
+const historyTimeLabel = (value: unknown, suffix = "") => {
+  const instant = timestampToDate(value);
+  if (!instant) return "";
+  return `${formatHistoryDateTime(instant)}${suffix}`;
+};
+
 export default function useSortBookingHistory(booking: BookingRow) {
-  const [rows, setRows] = useState<JSX.Element[]>([]);
+  const [rows, setRows] = useState<ReactElement[]>([]);
 
   useEffect(() => {
     const fetchLogs = async () => {
@@ -31,8 +40,8 @@ export default function useSortBookingHistory(booking: BookingRow) {
 
       if (logs.length > 0) {
         // Use bookingLogs data if available
-        const sortedLogs = logs.sort(
-          (a, b) => a.changedAt.toMillis() - b.changedAt.toMillis(),
+        const sortedLogs = [...logs].sort((a, b) =>
+          compareTimestampsAscending(a.changedAt, b.changedAt),
         );
         const resolvedNotes = resolvePreApprovedHistoryNotes(sortedLogs);
         const sortedRows = sortedLogs.map((log, index) => {
@@ -46,10 +55,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
                 <StatusChip status={log.status} />
               </TableCell>
               <TableCell>{log.changedBy}</TableCell>
-              <TableCell>
-                {formatDateTable(log.changedAt.toDate())}{" "}
-                {formatTimeAmPm(log.changedAt.toDate())}
-              </TableCell>
+              <TableCell>{historyTimeLabel(log.changedAt)}</TableCell>
               <TableCell>{note}</TableCell>
             </TableRow>
           );
@@ -122,17 +128,14 @@ export default function useSortBookingHistory(booking: BookingRow) {
           });
         }
         const sortedRows = data
-          .sort((a, b) => a.time.toMillis() - b.time.toMillis())
+          .sort((a, b) => compareTimestampsAscending(a.time, b.time))
           .map((row, index) => (
             <TableRow key={index}>
               <TableCell>
                 <StatusChip status={row.status} />
               </TableCell>
               <TableCell>{row.user}</TableCell>
-              <TableCell>
-                {formatDateTable(row.time.toDate())}{" "}
-                {formatTimeAmPm(row.time.toDate())} ET
-              </TableCell>
+              <TableCell>{historyTimeLabel(row.time, " ET")}</TableCell>
               <TableCell>{row.note}</TableCell>
             </TableRow>
           ));

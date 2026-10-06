@@ -97,7 +97,7 @@ export default function UserRolePage({
   });
 
   const watchedFields = watch();
-  const prevWatchedFieldsRef = useRef<Inputs>();
+  const prevWatchedFieldsRef = useRef<Inputs | undefined>(undefined);
   const showOther = department === Department.OTHER;
 
   const isVIP = formContext === FormContextLevel.VIP;
@@ -155,7 +155,11 @@ export default function UserRolePage({
 
     const hasOther = filtered.includes("Other");
     return hasOther ? filtered : [...filtered, "Other"];
-  }, [tenantSchema.mappings?.program, watchedFields.school, schemaSchoolMapping]);
+  }, [
+    tenantSchema.mappings?.program,
+    watchedFields.school,
+    schemaSchoolMapping,
+  ]);
 
   useEffect(() => {
     if (department && !departmentOptions.includes(department)) {

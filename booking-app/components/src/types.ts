@@ -175,6 +175,8 @@ export type Inputs = {
   sponsorEmail: string;
   title: string;
   description: string;
+  /** Free-text production schedule; required when duration exceeds schema threshold. */
+  productionSchedule?: string;
   bookingType: string;
   attendeeAffiliation: string;
   roomSetup: string;
@@ -356,7 +358,9 @@ export type RoomSetting = {
   isWalkIn?: boolean;
   isWalkInCanBookTwo?: boolean;
   isEquipment?: boolean;
-  services?: string[] | import("@/components/src/client/routes/components/schemaTypes").ResourceServicesConfig;
+  services?:
+    | string[]
+    | import("@/components/src/client/routes/components/schemaTypes").ResourceServicesConfig;
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: { name: string; indexes: number[] }[];
   // Auto-approval configuration

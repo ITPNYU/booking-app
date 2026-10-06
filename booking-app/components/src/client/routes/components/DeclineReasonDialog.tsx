@@ -13,7 +13,7 @@ interface Props {
   value: string;
   setValue: (x: string) => void;
   callback: (result: boolean) => void;
-  children: React.ReactElement;
+  children: React.ReactElement<{ onClick?: React.MouseEventHandler }>;
 }
 
 export default function DeclineReasonDialog({

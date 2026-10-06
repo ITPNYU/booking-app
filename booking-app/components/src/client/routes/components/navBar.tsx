@@ -140,9 +140,7 @@ export default function NavBar() {
     router.push("/");
   };
 
-  const envTitle = getEnvironmentTitle(
-    process.env.NEXT_PUBLIC_BRANCH_NAME,
-  );
+  const envTitle = getEnvironmentTitle(process.env.NEXT_PUBLIC_BRANCH_NAME);
 
   useEffect(() => {
     const isTenantRoot = /^\/[^/]+$/.test(pathname);

@@ -16,10 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
   if (!body?.collection) {
-    return NextResponse.json(
-      { error: "collection required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "collection required" }, { status: 400 });
   }
   const decision = await authorizeRead(session, body.tenant, body.collection);
   if (isAccessDenied(decision)) {

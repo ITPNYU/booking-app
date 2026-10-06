@@ -42,6 +42,11 @@ import {
 } from "@/lib/bookingRequestLimits";
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -92,6 +97,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const tenantSchema = await getCachedTenantSchema(tenant);
+  const productionScheduleConfig = tenantSchema?.form?.productionSchedule;
+  if (
+    isProductionScheduleMissingWhenRequired({
+      enabled: productionScheduleConfig?.enabled,
+      requiredAboveHours: productionScheduleConfig?.requiredAboveHours,
+      start: bookingCalendarInfo?.start ?? bookingCalendarInfo?.startStr,
+      end: bookingCalendarInfo?.end ?? bookingCalendarInfo?.endStr,
+      productionSchedule: data?.productionSchedule,
+    })
+  ) {
+    return NextResponse.json(
+      {
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
+      },
+      { status: 400 },
+    );
+  }
+
   console.log("📥 BOOKING DIRECT API - Received data:", {
     origin,
     type,
@@ -108,7 +134,9 @@ export async function POST(request: NextRequest) {
   const { departmentDisplay, schoolDisplay } =
     getAffiliationDisplayValues(data);
   const [room, ...otherRooms] = selectedRooms;
-  const selectedRoomIds = selectedRooms.map((r: { roomId: string }) => r.roomId);
+  const selectedRoomIds = selectedRooms.map(
+    (r: { roomId: string }) => r.roomId,
+  );
   const otherRoomIds = otherRooms.map(
     (r: { calendarId: string }) => r.calendarId,
   );
@@ -123,12 +151,7 @@ export async function POST(request: NextRequest) {
       .map((id: number | string) => Number(id))
       .filter((n: number) => Number.isFinite(n));
 
-    if (
-      tenant &&
-      email &&
-      bookingRoleField &&
-      selectedRoomIdsNums.length > 0
-    ) {
+    if (tenant && email && bookingRoleField && selectedRoomIdsNums.length > 0) {
       const tenantSchema = await serverGetDocumentById<SchemaContextType>(
         TableNames.TENANT_SCHEMA,
         tenant,
@@ -455,7 +478,10 @@ export async function POST(request: NextRequest) {
         tenant
       ) {
         try {
-          await notifyServiceApproversForRequestedServices(calendarEventId, tenant);
+          await notifyServiceApproversForRequestedServices(
+            calendarEventId,
+            tenant,
+          );
         } catch (notificationError) {
           console.error(
             `🚨 SERVICE APPROVER NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,

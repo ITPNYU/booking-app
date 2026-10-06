@@ -6,6 +6,7 @@
 // bundle. `SchemaProvider.tsx` re-exports everything here for client consumers.
 
 import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
+import { isMediaCommonsTenant } from "@/components/src/constants/tenants";
 
 export { defaultSafetyTrainingInfoUrl };
 
@@ -151,7 +152,11 @@ export type ResourceTraining = {
   infoUrl?: string;
 };
 
-export type RequestLimitPeriod = "perDay" | "perWeek" | "perMonth" | "perSemester";
+export type RequestLimitPeriod =
+  | "perDay"
+  | "perWeek"
+  | "perMonth"
+  | "perSemester";
 
 /** Keys in `resource.requestLimits` — one bucket per base role (VIP / walk-in share the same cap). */
 export type RequestLimitBucketKey = "admin" | "faculty" | "student";
@@ -297,6 +302,18 @@ export type FormAlert = {
   message: string;
 };
 
+/** Duration-gated free-text field on the Details step (issue #1126). */
+export type ProductionScheduleConfig = {
+  enabled: boolean;
+  /** Required when reservation length (hours) is strictly greater than this. */
+  requiredAboveHours: number;
+  label: string;
+  description: string;
+  templateLink: string;
+  templateLinkText: string;
+  calendarBannerMessage: string;
+};
+
 export type FormConfig = {
   showBookingType: boolean;
   showNNumber: boolean;
@@ -304,6 +321,7 @@ export type FormConfig = {
   services: FormServicesConfig;
   /** Omitted on older documents; code defaults preserve the previous banners. */
   alerts?: FormAlert[];
+  productionSchedule: ProductionScheduleConfig;
 };
 
 export type OriginsConfig = {
@@ -385,7 +403,9 @@ export type SchemaContextType = {
   emailNotifications: EmailNotifications;
 };
 
-function defineObjectArrayWithDefaults<T>(defaults: T): ObjectArrayWithDefaults<T> {
+function defineObjectArrayWithDefaults<T>(
+  defaults: T,
+): ObjectArrayWithDefaults<T> {
   const value = [] as ObjectArrayWithDefaults<T>;
   value.__defaults__ = defaults;
   return value;
@@ -473,6 +493,20 @@ const defaultTimeSensitiveRequestWarning: TimeSensitiveRequestWarning = {
   policyLink: "",
 };
 
+export const defaultProductionSchedule: ProductionScheduleConfig = {
+  enabled: false,
+  requiredAboveHours: 4,
+  label: "Production Schedule",
+  description:
+    "Please provide a production schedule for your reservation. This is required to justify reservations longer than 4 hours. It should minimally include setup, production, and breakdown.",
+  templateLink:
+    "https://docs.google.com/document/d/1RzBf0mlWiYHrWpfIvh7qS5zKnmTn3SHSr7xVTQaOoz0/edit?usp=sharing",
+  templateLinkText:
+    "Click here for schedule templates for events, recording sessions, and other productions",
+  calendarBannerMessage:
+    "This request is greater than four hours. You will need to provide a production schedule on the next page to continue.",
+};
+
 const defaultContextLabelsByTenantId = (tenantId?: string): ContextLabels => {
   const normalized = (tenantId || "").toLowerCase();
   if (normalized === "itp") {
@@ -548,6 +582,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
       showStaffing: true,
     },
     alerts: defaultFormAlerts,
+    productionSchedule: defaultProductionSchedule,
   },
   attestations: defineObjectArrayWithDefaults(defaultAttestation),
   resources: defineObjectArrayWithDefaults(defaultResource),
@@ -623,6 +658,15 @@ export function generateDefaultSchema(tenantId: string): SchemaContextType {
     tenant: {
       ...defaultScheme.tenant,
       contextLabels: defaultContextLabelsByTenantId(tenantId),
+    },
+    form: {
+      ...defaultScheme.form,
+      services: { ...defaultScheme.form.services },
+      // MC requires production schedules for long reservations (#1126).
+      productionSchedule: {
+        ...defaultProductionSchedule,
+        enabled: isMediaCommonsTenant(tenantId),
+      },
     },
   };
 }

@@ -45,7 +45,10 @@ type StaffingSectionView = {
 };
 
 function staffingSectionKey(section: StaffingSectionView): string {
-  return `${section.name}::${section.services.map((s) => s.value).sort().join(",")}`;
+  return `${section.name}::${section.services
+    .map((s) => s.value)
+    .sort()
+    .join(",")}`;
 }
 
 function addStaffingSection(
@@ -115,99 +118,100 @@ export default function BookingFormStaffingServices(props: Props) {
       (room.staffingServices && room.staffingServices.length > 0),
   );
 
-  const { staffingSections, flatServices, staticStaffingRooms } = useMemo(() => {
-    const sections: StaffingSectionView[] = [];
-    const flat: Array<{ value: string; label: string }> = [];
-    const staticRooms: Array<{
-      label?: string;
-      descriptionHtml?: string;
-      name?: string;
-    }> = [];
+  const { staffingSections, flatServices, staticStaffingRooms } =
+    useMemo(() => {
+      const sections: StaffingSectionView[] = [];
+      const flat: Array<{ value: string; label: string }> = [];
+      const staticRooms: Array<{
+        label?: string;
+        descriptionHtml?: string;
+        name?: string;
+      }> = [];
 
-    selectedRooms.forEach((room) => {
-      const staffingConfig = getResourceServicesConfig(room).staffing;
-      if (!staffingConfig) {
-        if (room.staffingSections && room.staffingSections.length > 0) {
-          const legacyServices = (room.staffingServices ?? []) as string[];
-          room.staffingSections.forEach((section) => {
-            addStaffingSection(sections, {
-              name: section.name,
-              services: section.indexes
-                .map((index) => legacyServices[index])
-                .filter(Boolean)
-                .map((value) => ({
-                  value,
-                  label:
-                    (StaffingServices as Record<string, string>)[value] ?? value,
-                })),
-            });
-          });
-        } else if (room.staffingServices?.length) {
-          room.staffingServices.forEach((serviceKey: string) => {
-            if (!flat.some((f) => f.value === serviceKey)) {
-              flat.push({
-                value: serviceKey,
-                label:
-                  (StaffingServices as Record<string, string>)[serviceKey] ??
-                  serviceKey,
+      selectedRooms.forEach((room) => {
+        const staffingConfig = getResourceServicesConfig(room).staffing;
+        if (!staffingConfig) {
+          if (room.staffingSections && room.staffingSections.length > 0) {
+            const legacyServices = (room.staffingServices ?? []) as string[];
+            room.staffingSections.forEach((section) => {
+              addStaffingSection(sections, {
+                name: section.name,
+                services: section.indexes
+                  .map((index) => legacyServices[index])
+                  .filter(Boolean)
+                  .map((value) => ({
+                    value,
+                    label:
+                      (StaffingServices as Record<string, string>)[value] ??
+                      value,
+                  })),
               });
-            }
-          });
+            });
+          } else if (room.staffingServices?.length) {
+            room.staffingServices.forEach((serviceKey: string) => {
+              if (!flat.some((f) => f.value === serviceKey)) {
+                flat.push({
+                  value: serviceKey,
+                  label:
+                    (StaffingServices as Record<string, string>)[serviceKey] ??
+                    serviceKey,
+                });
+              }
+            });
+          }
+          return;
         }
-        return;
-      }
 
-      const hasSections =
-        !!staffingConfig.sections &&
-        Object.keys(staffingConfig.sections).length > 0;
-      const isStatic =
-        staffingConfig.mode === "static" ||
-        (!hasSections && !staffingConfig.staffingOptions?.length);
+        const hasSections =
+          !!staffingConfig.sections &&
+          Object.keys(staffingConfig.sections).length > 0;
+        const isStatic =
+          staffingConfig.mode === "static" ||
+          (!hasSections && !staffingConfig.staffingOptions?.length);
 
-      if (isStatic) {
-        staticRooms.push({
-          label: staffingConfig.label,
-          descriptionHtml: staffingConfig.descriptionHtml,
-          name: room.name,
-        });
-        return;
-      }
+        if (isStatic) {
+          staticRooms.push({
+            label: staffingConfig.label,
+            descriptionHtml: staffingConfig.descriptionHtml,
+            name: room.name,
+          });
+          return;
+        }
 
-      if (staffingConfig.sections) {
-        Object.values(staffingConfig.sections).forEach((section) => {
-          const options =
-            section.options?.length
+        if (staffingConfig.sections) {
+          Object.values(staffingConfig.sections).forEach((section) => {
+            const options = section.options?.length
               ? section.options
               : section.services?.map((s) => ({
                   value: s.value,
                   label: s.label,
                 }));
-          if (options?.length) {
-            addStaffingSection(sections, {
-              name: section.label ?? section.name ?? "Staffing",
-              services: options.map((s) => ({
-                value: s.value,
-                label: s.label,
-              })),
-              defaultValue: section.defaultValue,
-            });
-          }
-        });
-      } else if (staffingConfig.staffingOptions?.length) {
-        staffingConfig.staffingOptions.forEach((s) => {
-          if (!flat.some((f) => f.value === s.value)) {
-            flat.push({ value: s.value, label: s.label });
-          }
-        });
-      }
-    });
+            if (options?.length) {
+              addStaffingSection(sections, {
+                name: section.label ?? section.name ?? "Staffing",
+                services: options.map((s) => ({
+                  value: s.value,
+                  label: s.label,
+                })),
+                defaultValue: section.defaultValue,
+              });
+            }
+          });
+        } else if (staffingConfig.staffingOptions?.length) {
+          staffingConfig.staffingOptions.forEach((s) => {
+            if (!flat.some((f) => f.value === s.value)) {
+              flat.push({ value: s.value, label: s.label });
+            }
+          });
+        }
+      });
 
-    return {
-      staffingSections: sections,
-      flatServices: flat,
-      staticStaffingRooms: staticRooms,
-    };
-  }, [roomIds, selectedRooms]);
+      return {
+        staffingSections: sections,
+        flatServices: flat,
+        staticStaffingRooms: staticRooms,
+      };
+    }, [roomIds, selectedRooms]);
 
   const hasInteractiveStaffing =
     staffingSections.length > 0 || flatServices.length > 0;
@@ -274,7 +278,10 @@ export default function BookingFormStaffingServices(props: Props) {
   // field. Seed defaults when staffing is enabled so bookings persist selections.
   useEffect(() => {
     if (!showStaffingServices || !setValue) return;
-    if (typeof staffingFieldValue === "string" && staffingFieldValue.length > 0) {
+    if (
+      typeof staffingFieldValue === "string" &&
+      staffingFieldValue.length > 0
+    ) {
       return;
     }
     const defaults = defaultStaffingValues(staffingSections);
@@ -407,7 +414,9 @@ export default function BookingFormStaffingServices(props: Props) {
                 {staffingSections.length > 0 ? (
                   <div>
                     {staffingSections.map((section, sectionIndex) => {
-                      const sectionValues = section.services.map((s) => s.value);
+                      const sectionValues = section.services.map(
+                        (s) => s.value,
+                      );
                       const current =
                         selectedServices.find((service) =>
                           sectionValues.includes(service),
@@ -433,8 +442,7 @@ export default function BookingFormStaffingServices(props: Props) {
                               value={current}
                               onChange={(e) => {
                                 const otherServices = selectedServices.filter(
-                                  (service) =>
-                                    !sectionValues.includes(service),
+                                  (service) => !sectionValues.includes(service),
                                 );
                                 const newServices = e.target.value
                                   ? [...otherServices, e.target.value]

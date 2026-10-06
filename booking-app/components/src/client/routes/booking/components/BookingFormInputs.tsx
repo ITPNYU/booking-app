@@ -222,7 +222,7 @@ export function BookingFormTextField(props: TextFieldProps) {
 }
 
 interface SwitchProps extends Props {
-  description?: React.ReactElement;
+  description?: React.ReactElement<{ style?: React.CSSProperties }>;
   disabled?: boolean;
   /** Rendered after the switch, on the same row as the label. */
   decisionMark?: React.ReactNode;

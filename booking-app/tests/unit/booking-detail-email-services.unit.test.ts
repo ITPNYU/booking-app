@@ -159,6 +159,39 @@ describe("booking_detail email services", () => {
     expect(html).not.toContain(">Services<");
   });
 
+  it("renders Production Schedule in Details when present", () => {
+    const html = template({
+      contents: {
+        ...baseContents,
+        title: "Long Event",
+        productionSchedule: "10:00 AM Setup; 11:00 AM Production; 3:00 PM Breakdown",
+        services: { show: false, bookingLevel: [], rooms: [] },
+      },
+      bookingLogs: [],
+    });
+
+    expect(html).toContain(">Details<");
+    expect(html).toContain("Production Schedule");
+    expect(html).toContain(
+      "10:00 AM Setup; 11:00 AM Production; 3:00 PM Breakdown",
+    );
+  });
+
+  it("omits Production Schedule from Details when empty", () => {
+    const html = template({
+      contents: {
+        ...baseContents,
+        title: "Short Event",
+        productionSchedule: "",
+        services: { show: false, bookingLevel: [], rooms: [] },
+      },
+      bookingLogs: [],
+    });
+
+    expect(html).toContain(">Details<");
+    expect(html).not.toContain("Production Schedule");
+  });
+
   it("shows auxiliary spaces only under the room in Services, not in Request", () => {
     const html = template({
       contents: {

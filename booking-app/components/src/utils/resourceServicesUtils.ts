@@ -226,9 +226,7 @@ export function getServiceSectionConfig(
       label: staffing.label,
       descriptionHtml: staffing.descriptionHtml,
       toggle: staffing.toggle,
-      mode:
-        staffing.mode ??
-        (hasSections ? undefined : "static"),
+      mode: staffing.mode ?? (hasSections ? undefined : "static"),
       hideForUser: staffing.hideForUser,
       hideForVIP: staffing.hideForVIP,
       hideForWalkIn: staffing.hideForWalkIn,
@@ -522,9 +520,7 @@ export function mergeRoomIdsWithAnnex(
       }
     }
   }
-  return merged
-    .sort(compareResourceIds)
-    .join(", ");
+  return merged.sort(compareResourceIds).join(", ");
 }
 
 /**
@@ -535,10 +531,7 @@ export function mergeRoomIdsWithAnnex(
  * Rows for a per-room service map: "roomId: value" plus its chartfield when
  * present, for each room that requested the service. Empty for no map.
  */
-export function formatServiceByRoom(
-  map: unknown,
-  chartMap: unknown,
-): string[] {
+export function formatServiceByRoom(map: unknown, chartMap: unknown): string[] {
   if (!map || typeof map !== "object" || Array.isArray(map)) return [];
   const charts =
     chartMap && typeof chartMap === "object" && !Array.isArray(chartMap)
