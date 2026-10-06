@@ -498,6 +498,27 @@ describe("@xstate/test coverage for mcBookingMachine", () => {
       ],
       expected: "Closed",
     },
+    {
+      description:
+        "services request declines mid-approval without waiting on pending services",
+      input: {
+        tenant: "mc",
+        calendarEventId: "cal-service-request-decline",
+        email: "servicedecline@nyu.edu",
+        bookingCalendarInfo: makeCalendarInfo(),
+        selectedRooms: [
+          { roomId: 1203, autoApproval: { shouldAutoApprove: false } },
+        ],
+        servicesRequested: { equipment: true, staff: true },
+      },
+      events: [
+        { type: "approve" },
+        { type: "approve" },
+        { type: "approveStaff" },
+        { type: "decline" },
+      ],
+      expected: "Declined",
+    },
   ] as const;
 
   scenarios.forEach((scenario) => {
