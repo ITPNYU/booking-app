@@ -144,6 +144,7 @@ export default function MoreInfoModal({
     booking.webcheckoutCartNumber || "",
   );
   const [isUpdating, setIsUpdating] = useState(false);
+  const [cartError, setCartError] = useState<string | null>(null);
   const [webCheckoutUrl, setWebCheckoutUrl] = useState<string | null>(null);
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [webCheckoutData, setWebCheckoutData] = useState<any>(null);
@@ -161,6 +162,7 @@ export default function MoreInfoModal({
     }
 
     setIsUpdating(true);
+    setCartError(null);
     try {
       const response = await fetch("/api/updateWebcheckoutCart", {
         method: "POST",
@@ -175,23 +177,27 @@ export default function MoreInfoModal({
         }),
       });
 
-      if (response.ok) {
-        setIsEditingCart(false);
-        // Update the booking object
-        booking.webcheckoutCartNumber = cartNumber.trim() || undefined;
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.error}`);
+      // Only a 2xx means the cart number was persisted; on anything else keep
+      // the editor open with the draft and show the error inline.
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setCartError(data?.error || "Failed to update cart number");
+        return;
       }
+      setIsEditingCart(false);
+      // Update the booking object
+      booking.webcheckoutCartNumber = cartNumber.trim() || undefined;
     } catch (error) {
       console.error("Failed to update cart number:", error);
-      alert("Failed to update cart number");
+      setCartError("Failed to update cart number");
+    } finally {
+      setIsUpdating(false);
     }
-    setIsUpdating(false);
   };
 
   const handleCancelEdit = () => {
     setCartNumber(booking.webcheckoutCartNumber || "");
+    setCartError(null);
     setIsEditingCart(false);
   };
 
@@ -334,37 +340,49 @@ export default function MoreInfoModal({
               <LabelCell>Cart Number</LabelCell>
               <TableCell>
                 {isEditingCart ? (
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <TextField
-                      size="small"
-                      value={cartNumber}
-                      onChange={(e) => setCartNumber(e.target.value)}
-                      placeholder="Enter cart number"
-                      disabled={isUpdating}
-                      variant="outlined"
-                      sx={{
-                        flexGrow: 1,
-                        "& .MuiOutlinedInput-root": {
-                          height: "40px",
-                        },
-                      }}
-                    />
-                    <IconButton
-                      onClick={handleSaveCartNumber}
-                      disabled={isUpdating}
-                      color="primary"
-                      aria-label="Save cart number"
-                    >
-                      <Check />
-                    </IconButton>
-                    <IconButton
-                      onClick={handleCancelEdit}
-                      disabled={isUpdating}
-                      color="primary"
-                      aria-label="Cancel editing cart number"
-                    >
-                      <Cancel />
-                    </IconButton>
+                  <Box display="flex" flexDirection="column" gap={1}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <TextField
+                        size="small"
+                        value={cartNumber}
+                        onChange={(e) => setCartNumber(e.target.value)}
+                        placeholder="Enter cart number"
+                        disabled={isUpdating}
+                        variant="outlined"
+                        sx={{
+                          flexGrow: 1,
+                          "& .MuiOutlinedInput-root": {
+                            height: "40px",
+                          },
+                        }}
+                      />
+                      <IconButton
+                        onClick={handleSaveCartNumber}
+                        disabled={isUpdating}
+                        color="primary"
+                        aria-label="Save cart number"
+                      >
+                        <Check />
+                      </IconButton>
+                      <IconButton
+                        onClick={handleCancelEdit}
+                        disabled={isUpdating}
+                        color="primary"
+                        aria-label="Cancel editing cart number"
+                      >
+                        <Cancel />
+                      </IconButton>
+                    </Box>
+                    {cartError && (
+                      <Typography
+                        variant="body2"
+                        color="error"
+                        role="alert"
+                        data-testid="cart-number-error"
+                      >
+                        {cartError}
+                      </Typography>
+                    )}
                   </Box>
                 ) : (
                   <Box display="flex" alignItems="center" gap={1}>

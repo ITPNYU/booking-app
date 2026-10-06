@@ -3,11 +3,12 @@ import {
   isValidTenant,
 } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
-import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { canAccessWebCheckoutCart } from "@/components/src/utils/bookingMemoAccess";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { getDetailsModalConfig } from "@/lib/api/bookingRedaction";
+import { resolveCollectionName } from "@/lib/api/firestoreServer";
 import { requireSession } from "@/lib/api/requireSession";
+import admin from "@/lib/firebase/server/firebaseAdmin";
 
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,6 +16,10 @@ import { NextRequest, NextResponse } from "next/server";
  * Sets `webcheckoutCartNumber` on a booking, looked up by calendarEventId. The
  * tenant schema's `detailsModal.showWebCheckout` must be on and the caller's
  * session role must satisfy `detailsModal.webCheckoutEditRoles`.
+ *
+ * Writes go straight to firebase-admin rather than through
+ * `serverUpdateInFirestore`, which swallows update errors; a failed write must
+ * surface as a 500 so the client does not mark the cart number as saved.
  */
 export async function POST(req: NextRequest) {
   const session = await requireSession();
@@ -56,15 +61,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update the cart number in the database using calendarEventId
-    await serverUpdateDataByCalendarEventId(
-      TableNames.BOOKING,
-      calendarEventId,
-      {
-        webcheckoutCartNumber: cartNumber || null,
-      },
-      tenant,
-    );
+    // Update the cart number on the booking found by calendarEventId. Any
+    // Firestore error falls through to the 500 below.
+    const collectionName = resolveCollectionName(TableNames.BOOKING, tenant);
+    const snapshot = await admin
+      .firestore()
+      .collection(collectionName)
+      .where("calendarEventId", "==", calendarEventId)
+      .limit(1)
+      .get();
+    if (snapshot.empty) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+    await snapshot.docs[0].ref.update({
+      webcheckoutCartNumber: cartNumber || null,
+    });
 
     // Update the calendar event description with the new cart number via API
     try {
