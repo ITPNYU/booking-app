@@ -26,15 +26,14 @@ import {
   hasBookingServicesDisplay,
   type BookingServiceDisplayRow,
 } from "@/components/src/utils/bookingServicesDisplay";
+import { BOOKING_MEMO_MAX_LEN } from "@/components/src/constants/bookingMemo";
 import {
-  BookingRow,
-  PageContextLevel,
-  PagePermission,
-} from "../../../../types";
-import {
-  canAccessWebCheckout,
-  hasAnyPermission,
-} from "../../../../utils/permissions";
+  canAccessMemo,
+  canAccessWebCheckoutCart,
+  isMemoContextAllowed,
+  isWebCheckoutContextAllowed,
+} from "@/components/src/utils/bookingMemoAccess";
+import { BookingRow, PageContextLevel } from "../../../../types";
 import { useTenantSchema } from "../SchemaProvider";
 import { formatTimeAmPm, formatDateTable } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
@@ -145,14 +144,17 @@ export default function MoreInfoModal({
     booking.webcheckoutCartNumber || "",
   );
   const [isUpdating, setIsUpdating] = useState(false);
+  const [cartError, setCartError] = useState<string | null>(null);
   const [webCheckoutUrl, setWebCheckoutUrl] = useState<string | null>(null);
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [webCheckoutData, setWebCheckoutData] = useState<any>(null);
 
-  // Check if user has permission to edit cart number
-  const canEditCart = canAccessWebCheckout(pagePermission);
+  // Both the page context and the caller's role must be inside the tenant's
+  // detailsModal.webCheckoutEditRoles to get the cart edit icon, the same way
+  // as the memo. POST /api/updateWebcheckoutCart enforces the same list.
   const canEditCartInContext =
-    canEditCart && pageContext !== PageContextLevel.USER;
+    isWebCheckoutContextAllowed(schema.detailsModal, pageContext, "edit") &&
+    canAccessWebCheckoutCart(schema.detailsModal, pagePermission, "edit");
 
   const handleSaveCartNumber = async () => {
     if (!canEditCartInContext) {
@@ -160,6 +162,7 @@ export default function MoreInfoModal({
     }
 
     setIsUpdating(true);
+    setCartError(null);
     try {
       const response = await fetch("/api/updateWebcheckoutCart", {
         method: "POST",
@@ -174,24 +177,97 @@ export default function MoreInfoModal({
         }),
       });
 
-      if (response.ok) {
-        setIsEditingCart(false);
-        // Update the booking object
-        booking.webcheckoutCartNumber = cartNumber.trim() || undefined;
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.error}`);
+      // Only a 2xx means the cart number was persisted; on anything else keep
+      // the editor open with the draft and show the error inline.
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setCartError(data?.error || "Failed to update cart number");
+        return;
       }
+      setIsEditingCart(false);
+      // Update the booking object
+      booking.webcheckoutCartNumber = cartNumber.trim() || undefined;
     } catch (error) {
       console.error("Failed to update cart number:", error);
-      alert("Failed to update cart number");
+      setCartError("Failed to update cart number");
+    } finally {
+      setIsUpdating(false);
     }
-    setIsUpdating(false);
   };
 
   const handleCancelEdit = () => {
     setCartNumber(booking.webcheckoutCartNumber || "");
+    setCartError(null);
     setIsEditingCart(false);
+  };
+
+  // Memo: staff-only free text (e.g. work order confirmation number), shown
+  // directly under WebCheckout. Visibility and editing are governed by the
+  // tenant schema's detailsModal.showMemo, memoViewRoles, and memoEditRoles.
+  const [savedMemo, setSavedMemo] = useState(booking.memo ?? "");
+  const [memoDraft, setMemoDraft] = useState(booking.memo ?? "");
+  const [isEditingMemo, setIsEditingMemo] = useState(false);
+  const [isSavingMemo, setIsSavingMemo] = useState(false);
+  const [memoError, setMemoError] = useState<string | null>(null);
+
+  // Both the page context and the caller's role must be inside the tenant's
+  // configured memo roles: the view roles to see the section, the edit roles
+  // to get its edit icon. The server enforces the same lists on reads and
+  // writes.
+  const showMemoSection =
+    isMemoContextAllowed(schema.detailsModal, pageContext, "view") &&
+    canAccessMemo(schema.detailsModal, pagePermission, "view");
+  const canEditMemo =
+    isMemoContextAllowed(schema.detailsModal, pageContext, "edit") &&
+    canAccessMemo(schema.detailsModal, pagePermission, "edit");
+
+  const handleStartEditMemo = () => {
+    setMemoDraft(savedMemo);
+    setMemoError(null);
+    setIsEditingMemo(true);
+  };
+
+  const handleCancelEditMemo = () => {
+    setMemoDraft(savedMemo);
+    setMemoError(null);
+    setIsEditingMemo(false);
+  };
+
+  const handleSaveMemo = async () => {
+    if (!canEditMemo) {
+      return;
+    }
+    const memo = memoDraft.trim();
+    setIsSavingMemo(true);
+    setMemoError(null);
+    try {
+      const response = await fetch("/api/bookings/memo", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(tenant ? { "x-tenant": tenant } : {}),
+        },
+        body: JSON.stringify({
+          calendarEventId: booking.calendarEventId,
+          memo,
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        setMemoError(data?.error || "Failed to save memo");
+        return;
+      }
+      setSavedMemo(memo);
+      setMemoDraft(memo);
+      setIsEditingMemo(false);
+      booking.memo = memo || undefined;
+      updateBooking?.({ ...booking, memo: memo || undefined });
+    } catch (error) {
+      console.error("Failed to save memo:", error);
+      setMemoError("Failed to save memo");
+    } finally {
+      setIsSavingMemo(false);
+    }
   };
 
   const fetchWebCheckoutUrl = async (cartNum: string) => {
@@ -223,15 +299,18 @@ export default function MoreInfoModal({
   }, [booking.webcheckoutCartNumber]);
 
   const renderWebCheckoutSection = () => {
-    // Show WebCheckout section for PA/ADMIN/SUPER_ADMIN users.
-    // In USER context, show read-only cart details when a cart is assigned.
+    // Show WebCheckout section to detailsModal.webCheckoutViewRoles (and
+    // edit roles) on their own pages. In USER context, show read-only cart
+    // details when a cart is assigned.
     const canViewWebCheckout =
-      hasAnyPermission(pagePermission, [
-        PagePermission.PA,
-        PagePermission.ADMIN,
-        PagePermission.SUPER_ADMIN,
-      ]) ||
-      (pageContext === PageContextLevel.USER &&
+      (isWebCheckoutContextAllowed(schema.detailsModal, pageContext, "view") &&
+        canAccessWebCheckoutCart(
+          schema.detailsModal,
+          pagePermission,
+          "view",
+        )) ||
+      (schema.detailsModal.showWebCheckout &&
+        pageContext === PageContextLevel.USER &&
         Boolean(booking.webcheckoutCartNumber));
 
     if (!canViewWebCheckout) {
@@ -240,44 +319,70 @@ export default function MoreInfoModal({
 
     return (
       <Section>
-        <SectionTitle>WebCheckout</SectionTitle>
+        <Box display="flex" alignItems="center" gap={1}>
+          <SectionTitle>WebCheckout</SectionTitle>
+          {canEditCartInContext && !isEditingCart && (
+            <Tooltip title="Edit cart number">
+              <IconButton
+                onClick={() => setIsEditingCart(true)}
+                color="primary"
+                size="small"
+                aria-label="Edit cart number"
+              >
+                <Edit fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
         <Table size="small">
           <TableBody>
             <TableRow>
               <LabelCell>Cart Number</LabelCell>
               <TableCell>
                 {isEditingCart ? (
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <TextField
-                      size="small"
-                      value={cartNumber}
-                      onChange={(e) => setCartNumber(e.target.value)}
-                      placeholder="Enter cart number"
-                      disabled={isUpdating}
-                      variant="outlined"
-                      sx={{
-                        flexGrow: 1,
-                        "& .MuiOutlinedInput-root": {
-                          height: "40px",
-                        },
-                      }}
-                    />
-                    <IconButton
-                      onClick={handleSaveCartNumber}
-                      disabled={isUpdating}
-                      color="primary"
-                      aria-label="Save cart number"
-                    >
-                      <Check />
-                    </IconButton>
-                    <IconButton
-                      onClick={handleCancelEdit}
-                      disabled={isUpdating}
-                      color="primary"
-                      aria-label="Cancel editing cart number"
-                    >
-                      <Cancel />
-                    </IconButton>
+                  <Box display="flex" flexDirection="column" gap={1}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <TextField
+                        size="small"
+                        value={cartNumber}
+                        onChange={(e) => setCartNumber(e.target.value)}
+                        placeholder="Enter cart number"
+                        disabled={isUpdating}
+                        variant="outlined"
+                        sx={{
+                          flexGrow: 1,
+                          "& .MuiOutlinedInput-root": {
+                            height: "40px",
+                          },
+                        }}
+                      />
+                      <IconButton
+                        onClick={handleSaveCartNumber}
+                        disabled={isUpdating}
+                        color="primary"
+                        aria-label="Save cart number"
+                      >
+                        <Check />
+                      </IconButton>
+                      <IconButton
+                        onClick={handleCancelEdit}
+                        disabled={isUpdating}
+                        color="primary"
+                        aria-label="Cancel editing cart number"
+                      >
+                        <Cancel />
+                      </IconButton>
+                    </Box>
+                    {cartError && (
+                      <Typography
+                        variant="body2"
+                        color="error"
+                        role="alert"
+                        data-testid="cart-number-error"
+                      >
+                        {cartError}
+                      </Typography>
+                    )}
                   </Box>
                 ) : (
                   <Box display="flex" alignItems="center" gap={1}>
@@ -447,18 +552,92 @@ export default function MoreInfoModal({
                         No cart assigned
                       </Typography>
                     )}
-                    {canEditCartInContext && (
-                      <Tooltip title="Edit cart number">
-                        <IconButton
-                          onClick={() => setIsEditingCart(true)}
-                          color="primary"
-                          aria-label="Edit cart number"
-                        >
-                          <Edit />
-                        </IconButton>
-                      </Tooltip>
-                    )}
                   </Box>
+                )}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </Section>
+    );
+  };
+
+  const renderMemoSection = () => {
+    if (!showMemoSection) {
+      return null;
+    }
+
+    return (
+      <Section data-testid="booking-memo-section">
+        <Box display="flex" alignItems="center" gap={1}>
+          <SectionTitle>Memo</SectionTitle>
+          {canEditMemo && !isEditingMemo && (
+            <Tooltip title="Edit memo">
+              <IconButton
+                onClick={handleStartEditMemo}
+                color="primary"
+                size="small"
+                aria-label="Edit memo"
+              >
+                <Edit fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+        <Table size="small">
+          <TableBody>
+            <TableRow>
+              <TableCell>
+                {canEditMemo && isEditingMemo ? (
+                  <Box display="flex" flexDirection="column" gap={1}>
+                    <TextField
+                      size="small"
+                      multiline
+                      minRows={2}
+                      maxRows={8}
+                      value={memoDraft}
+                      onChange={(e) => setMemoDraft(e.target.value)}
+                      placeholder="e.g. Work order confirmation number"
+                      disabled={isSavingMemo}
+                      variant="outlined"
+                      fullWidth
+                      inputProps={{
+                        "aria-label": "Memo",
+                        maxLength: BOOKING_MEMO_MAX_LEN,
+                      }}
+                    />
+                    {memoError && (
+                      <Typography variant="body2" color="error">
+                        {memoError}
+                      </Typography>
+                    )}
+                    <Box display="flex" justifyContent="flex-end" gap={1}>
+                      <IconButton
+                        onClick={handleSaveMemo}
+                        disabled={isSavingMemo}
+                        color="primary"
+                        aria-label="Save memo"
+                      >
+                        <Check />
+                      </IconButton>
+                      <IconButton
+                        onClick={handleCancelEditMemo}
+                        disabled={isSavingMemo}
+                        color="primary"
+                        aria-label="Cancel editing memo"
+                      >
+                        <Cancel />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                ) : savedMemo ? (
+                  <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                    {savedMemo}
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No memo
+                  </Typography>
                 )}
               </TableCell>
             </TableRow>
@@ -505,6 +684,7 @@ export default function MoreInfoModal({
           </AlertHeader>
           <Grid container columnSpacing={2} margin={0}>
             {renderWebCheckoutSection()}
+            {renderMemoSection()}
 
             <Section>
               <SectionTitle>History</SectionTitle>

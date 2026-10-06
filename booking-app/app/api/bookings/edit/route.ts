@@ -40,6 +40,7 @@ import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { logServerBookingChange } from "@/lib/firebase/server/adminDb";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 import {
   buildBookingContents,
   extractTenantFromRequest,
@@ -189,10 +190,12 @@ export async function PUT(request: NextRequest) {
     selectedRooms,
     allRooms,
     bookingCalendarInfo,
-    data,
+    data: rawData,
     calendarEventId,
     modifiedBy,
   } = await request.json();
+  // memo and the cart number are written only through their dedicated routes.
+  const data = omitStaffOnlyBookingFieldWrites(rawData);
 
   const tenant = extractTenantFromRequest(request);
 

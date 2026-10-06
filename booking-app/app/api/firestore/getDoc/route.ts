@@ -3,6 +3,7 @@ import admin from "@/lib/firebase/server/firebaseAdmin";
 import { requireSession } from "@/lib/api/requireSession";
 import { authorizeRead, isAccessDenied } from "@/lib/api/authz";
 import { resolveCollectionName } from "@/lib/api/firestoreServer";
+import { redactBookingDocsForCaller } from "@/lib/api/bookingRedaction";
 import type { GetDocRequest } from "@/lib/api/firestoreShared";
 
 export async function POST(req: NextRequest) {
@@ -39,7 +40,13 @@ export async function POST(req: NextRequest) {
     if (!snap.exists) {
       return NextResponse.json({ doc: null });
     }
-    return NextResponse.json({ doc: { id: snap.id, ...snap.data() } });
+    const [doc] = await redactBookingDocsForCaller(
+      session,
+      body.tenant,
+      body.collection,
+      [{ id: snap.id, ...snap.data() }],
+    );
+    return NextResponse.json({ doc });
   } catch (error) {
     console.error("[/api/firestore/getDoc] error:", error);
     return NextResponse.json(
