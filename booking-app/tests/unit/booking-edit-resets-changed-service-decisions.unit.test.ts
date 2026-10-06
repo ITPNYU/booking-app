@@ -325,5 +325,21 @@ describe("Edit resets only the service decisions of changed services", () => {
       expect(deletedServiceFlags()).toEqual([]);
       expect(editEvents()).toEqual([]);
     });
+
+    it("never writes a memo posted with the edit form", async () => {
+      // memo is written only through PUT /api/bookings/memo.
+      mockServerBookingContents.mockResolvedValue(savedBooking());
+
+      const res = await submit({
+        ...savedServiceRequests,
+        memo: "forged",
+        "memo.x": "forged",
+      });
+      expect(res.status).toBe(200);
+
+      const updatedData = mockServerUpdateDataByCalendarEventId.mock.calls[0][2];
+      expect(updatedData).not.toHaveProperty("memo");
+      expect(Object.keys(updatedData)).not.toContain("memo.x");
+    });
   });
 });

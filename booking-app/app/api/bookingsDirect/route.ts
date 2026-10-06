@@ -49,6 +49,7 @@ import {
   getProductionScheduleRequiredErrorMessage,
   isProductionScheduleMissingWhenRequired,
 } from "@/components/src/client/routes/booking/utils/productionSchedule";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -84,10 +85,12 @@ export async function POST(request: NextRequest) {
     requestedBy,
     selectedRooms,
     bookingCalendarInfo,
-    data,
+    data: rawData,
     origin = BookingOrigin.WALK_IN,
     type = "walk-in",
   } = await request.json();
+  // memo and the cart number are written only through their dedicated routes.
+  const data = omitStaffOnlyBookingFieldWrites(rawData);
 
   // Extract tenant from URL
   const tenant = extractTenantFromRequest(request) ?? DEFAULT_TENANT;
@@ -171,11 +174,11 @@ export async function POST(request: NextRequest) {
       FormContextLevel.FULL_FORM,
       bookingRoleField,
     );
-    const selectedRoomIdsNums = selectedRoomIds
-      .map((id: number | string) => Number(id))
-      .filter((n: number) => Number.isFinite(n));
+    const selectedRoomIdsForLimits = selectedRoomIds
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0);
 
-    if (tenant && email && bookingRoleField && selectedRoomIdsNums.length > 0) {
+    if (tenant && email && bookingRoleField && selectedRoomIdsForLimits.length > 0) {
       const tenantSchema = await serverGetDocumentById<SchemaContextType>(
         TableNames.TENANT_SCHEMA,
         tenant,
@@ -187,7 +190,7 @@ export async function POST(request: NextRequest) {
         email,
         bookingRoleField,
         limitRoleKey,
-        selectedRoomIds: selectedRoomIdsNums,
+        selectedRoomIds: selectedRoomIdsForLimits,
         schema: tenantSchema,
       });
 

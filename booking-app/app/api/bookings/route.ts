@@ -63,6 +63,7 @@ import type { SchemaContextType } from "@/components/src/client/routes/component
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
 import { calendarOverlapResponse } from "./checkOverlap";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 import {
   extractTenantFromRequest,
   getAffiliationDisplayValues,
@@ -433,9 +434,11 @@ export async function POST(request: NextRequest) {
     email,
     selectedRooms,
     bookingCalendarInfo,
-    data: rawData,
+    data: postedData,
     isAutoApproval,
   } = await request.json();
+  // memo and the cart number are written only through their dedicated routes.
+  const rawData = omitStaffOnlyBookingFieldWrites(postedData);
 
   // Students cannot request auxiliary spaces — strip even if posted directly.
   const data =

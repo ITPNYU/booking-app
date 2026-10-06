@@ -38,6 +38,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
 import { calendarOverlapResponse } from "../checkOverlap";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 import {
   buildBookingContents,
   extractTenantFromRequest,
@@ -123,11 +124,13 @@ export async function PUT(request: NextRequest) {
     selectedRooms,
     allRooms,
     bookingCalendarInfo,
-    data,
+    data: rawData,
     calendarEventId,
   } = await request.json();
   // Never trust a client-supplied actor; the session is the source of truth.
   const modifiedBy = session.email;
+  // memo and the cart number are written only through their dedicated routes.
+  const data = omitStaffOnlyBookingFieldWrites(rawData);
   const { isMediaCommons } = getTenantFlags(tenant);
 
   console.log(
