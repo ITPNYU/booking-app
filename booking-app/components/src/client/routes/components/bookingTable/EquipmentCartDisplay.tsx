@@ -1,25 +1,37 @@
 import { BookingRow, PageContextLevel } from "@/components/src/types";
+import {
+  canAccessWebCheckoutCart,
+  isWebCheckoutContextAllowed,
+} from "@/components/src/utils/bookingMemoAccess";
 import { Box, Typography } from "@mui/material";
+import { useContext } from "react";
+import { DatabaseContext } from "../Provider";
+import { useTenantSchema } from "../SchemaProvider";
 import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 
 interface Props {
   booking: BookingRow;
   onCartClick: () => void;
   pageContext: PageContextLevel;
-  /** Tenant schema `detailsModal.showWebCheckout`; when false only the toggle shows. */
-  showCartNumber?: boolean;
 }
 
 export default function EquipmentCartDisplay({
   booking,
   onCartClick,
   pageContext,
-  showCartNumber = true,
 }: Props) {
-  const canShowCartNumber =
-    showCartNumber && pageContext >= PageContextLevel.PA;
+  const { pagePermission } = useContext(DatabaseContext);
+  const { detailsModal } = useTenantSchema();
 
-  // If user is PA level or above and there's a cart number, display it as clickable text
+  // Same gate as MoreInfoModal's WebCheckout section: the tenant's
+  // detailsModal.showWebCheckout must be on, and both the page context and the
+  // caller's role must be in webCheckoutViewRoles (or webCheckoutEditRoles).
+  const canShowCartNumber =
+    Boolean(detailsModal) &&
+    isWebCheckoutContextAllowed(detailsModal, pageContext, "view") &&
+    canAccessWebCheckoutCart(detailsModal, pagePermission, "view");
+
+  // If the caller can see the cart and there's a cart number, display it as clickable text
   if (canShowCartNumber && booking.webcheckoutCartNumber) {
     return (
       <Box sx={{ display: "flex", alignItems: "center" }}>
