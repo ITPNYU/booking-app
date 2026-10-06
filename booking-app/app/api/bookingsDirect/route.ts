@@ -1,10 +1,7 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { getApprovalCcEmail } from "@/components/src/tenantPolicyServer";
-import {
-  serverGetRoomCalendarId,
-  serverSendBookingDetailEmail,
-} from "@/components/src/server/admin";
+import { serverSendBookingDetailEmail } from "@/components/src/server/admin";
 import {
   isServicesRequestState,
   notifyServiceApproversForRequestedServices,
@@ -42,7 +39,10 @@ import {
 } from "@/lib/bookingRequestLimits";
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
-import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
+import {
+  resolveAnnexCalendarIds,
+  resolveSelectedRoomCalendars,
+} from "@/components/src/utils/resourceServicesUtils";
 import { calendarOverlapResponse } from "@/app/api/bookings/checkOverlap";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
 import {
@@ -121,17 +121,28 @@ export async function POST(request: NextRequest) {
   }
 
   const tenantResources = await serverGetTenantResources(tenant);
+  // Calendar ids on the request are not authoritative. The event is written
+  // to the schema calendar for each roomId, so the conflict check must use
+  // those same ids.
+  const { rooms: bookedRooms, missingRoomId } = resolveSelectedRoomCalendars(
+    selectedRooms,
+    tenantResources,
+  );
+  if (missingRoomId) {
+    return NextResponse.json(
+      { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
+      { status: 500 },
+    );
+  }
   const overlapResponse = await calendarOverlapResponse({
     tenant,
-    rooms: selectedRooms,
+    rooms: bookedRooms,
     extraCalendarIds: resolveAnnexCalendarIds(
       data?.annexByRoom,
       tenantResources,
     ),
     bookingCalendarInfo,
-    roomIds: Array.isArray(selectedRooms)
-      ? selectedRooms.map((r: { roomId?: string | number }) => r?.roomId)
-      : [],
+    roomIds: bookedRooms.map((room) => room.roomId),
   });
   if (overlapResponse) return overlapResponse;
 
@@ -150,13 +161,9 @@ export async function POST(request: NextRequest) {
   const { department } = data;
   const { departmentDisplay, schoolDisplay } =
     getAffiliationDisplayValues(data);
-  const [room, ...otherRooms] = selectedRooms;
-  const selectedRoomIds = selectedRooms.map(
-    (r: { roomId: string }) => r.roomId,
-  );
-  const otherRoomIds = otherRooms.map(
-    (r: { calendarId: string }) => r.calendarId,
-  );
+  const [room, ...otherRooms] = bookedRooms;
+  const selectedRoomIds = bookedRooms.map((r) => r.roomId);
+  const otherRoomIds = otherRooms.map((r) => r.calendarId);
 
   try {
     const bookingRoleField = String(data?.role ?? "").trim();
@@ -245,7 +252,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const calendarId = await serverGetRoomCalendarId(room.roomId, tenant);
+  const calendarId = room?.calendarId;
   if (calendarId == null) {
     return NextResponse.json(
       { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
