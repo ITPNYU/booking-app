@@ -566,54 +566,65 @@ export default function MoreInfoModal({
             </Tooltip>
           )}
         </Box>
-        {canEditMemo && isEditingMemo ? (
-          <Box display="flex" flexDirection="column" gap={1}>
-            <TextField
-              size="small"
-              multiline
-              minRows={2}
-              maxRows={8}
-              value={memoDraft}
-              onChange={(e) => setMemoDraft(e.target.value)}
-              placeholder="e.g. Work order confirmation number"
-              disabled={isSavingMemo}
-              variant="outlined"
-              fullWidth
-              inputProps={{ "aria-label": "Memo", maxLength: BOOKING_MEMO_MAX_LEN }}
-            />
-            {memoError && (
-              <Typography variant="body2" color="error">
-                {memoError}
-              </Typography>
-            )}
-            <Box display="flex" justifyContent="flex-end" gap={1}>
-              <IconButton
-                onClick={handleSaveMemo}
-                disabled={isSavingMemo}
-                color="primary"
-                aria-label="Save memo"
-              >
-                <Check />
-              </IconButton>
-              <IconButton
-                onClick={handleCancelEditMemo}
-                disabled={isSavingMemo}
-                color="primary"
-                aria-label="Cancel editing memo"
-              >
-                <Cancel />
-              </IconButton>
-            </Box>
-          </Box>
-        ) : savedMemo ? (
-          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-            {savedMemo}
-          </Typography>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            No memo
-          </Typography>
-        )}
+        <Table size="small">
+          <TableBody>
+            <TableRow>
+              <TableCell>
+                {canEditMemo && isEditingMemo ? (
+                  <Box display="flex" flexDirection="column" gap={1}>
+                    <TextField
+                      size="small"
+                      multiline
+                      minRows={2}
+                      maxRows={8}
+                      value={memoDraft}
+                      onChange={(e) => setMemoDraft(e.target.value)}
+                      placeholder="e.g. Work order confirmation number"
+                      disabled={isSavingMemo}
+                      variant="outlined"
+                      fullWidth
+                      inputProps={{
+                        "aria-label": "Memo",
+                        maxLength: BOOKING_MEMO_MAX_LEN,
+                      }}
+                    />
+                    {memoError && (
+                      <Typography variant="body2" color="error">
+                        {memoError}
+                      </Typography>
+                    )}
+                    <Box display="flex" justifyContent="flex-end" gap={1}>
+                      <IconButton
+                        onClick={handleSaveMemo}
+                        disabled={isSavingMemo}
+                        color="primary"
+                        aria-label="Save memo"
+                      >
+                        <Check />
+                      </IconButton>
+                      <IconButton
+                        onClick={handleCancelEditMemo}
+                        disabled={isSavingMemo}
+                        color="primary"
+                        aria-label="Cancel editing memo"
+                      >
+                        <Cancel />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                ) : savedMemo ? (
+                  <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                    {savedMemo}
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No memo
+                  </Typography>
+                )}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </Section>
     );
   };

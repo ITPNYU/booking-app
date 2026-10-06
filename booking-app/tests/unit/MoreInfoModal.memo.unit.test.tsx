@@ -398,6 +398,25 @@ describe("MoreInfoModal - Memo section", () => {
     });
   });
 
+  describe("field framing", () => {
+    it("renders the memo in the same framed table as the cart number", () => {
+      renderModal({
+        booking: createMockBooking({
+          webcheckoutCartNumber: "CK-1",
+          memo: "WO-123",
+        }),
+        permission: PagePermission.ADMIN,
+        pageContext: PageContextLevel.ADMIN,
+      });
+      const memoCell = screen.getByText("WO-123").closest("td");
+      const cartCell = screen.getByText("Cart Number").closest("td");
+      expect(memoCell).not.toBeNull();
+      expect(memoCell!.closest("table")!.className).toBe(
+        cartCell!.closest("table")!.className,
+      );
+    });
+  });
+
   describe("edit icon placement", () => {
     it.each([
       ["Edit cart number", "WebCheckout"],
