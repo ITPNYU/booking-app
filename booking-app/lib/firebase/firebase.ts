@@ -457,7 +457,8 @@ export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
 
 export const getPaginatedData = async <T>(
   collectionName: string,
-  itemsPerPage: number = 10,
+  /** `null` fetches the whole filtered range (no LIMIT). */
+  itemsPerPage: number | null = 10,
   filters: Filters,
   lastVisible: Record<string, unknown> | null = null,
   tenant?: string,
@@ -503,7 +504,7 @@ export const getPaginatedData = async <T>(
         searchQuery: filters.searchQuery,
         userEmail: filters.userEmail,
       },
-      limit: itemsPerPage,
+      limit: itemsPerPage ?? undefined,
       lastVisible: serializedLast,
     });
     return docs as unknown as T[];
