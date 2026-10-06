@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     origin = BookingOrigin.WALK_IN,
     type = "walk-in",
   } = await request.json();
-  // memo is written only through PUT /api/bookings/memo.
+  // memo and the cart number are written only through their dedicated routes.
   const data = omitStaffOnlyBookingFieldWrites(rawData);
 
   // Extract tenant from URL

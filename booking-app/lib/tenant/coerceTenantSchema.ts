@@ -6,6 +6,7 @@ import type {
 import {
   generateDefaultSchema,
   normalizeMemoRoles,
+  normalizeWebCheckoutRoles,
 } from "@/components/src/client/routes/components/schemaTypes";
 import { normalizeResourceServices } from "./migrateResourceServices";
 
@@ -128,6 +129,14 @@ export function coerceTenantSchema(
     detailsModal: {
       ...base.detailsModal,
       ...rawDetailsModal,
+      webCheckoutViewRoles: normalizeWebCheckoutRoles(
+        rawDetailsModal?.webCheckoutViewRoles ??
+          base.detailsModal.webCheckoutViewRoles,
+      ),
+      webCheckoutEditRoles: normalizeWebCheckoutRoles(
+        rawDetailsModal?.webCheckoutEditRoles ??
+          base.detailsModal.webCheckoutEditRoles,
+      ),
       memoViewRoles: normalizeMemoRoles(
         rawDetailsModal?.memoViewRoles ?? base.detailsModal.memoViewRoles,
       ),

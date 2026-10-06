@@ -26,21 +26,15 @@ import {
   hasBookingServicesDisplay,
   type BookingServiceDisplayRow,
 } from "@/components/src/utils/bookingServicesDisplay";
-import {
-  BookingRow,
-  PageContextLevel,
-  PagePermission,
-} from "../../../../types";
-import {
-  canAccessWebCheckout,
-  hasAnyPermission,
-} from "../../../../utils/permissions";
-import { useTenantSchema } from "../SchemaProvider";
 import { BOOKING_MEMO_MAX_LEN } from "@/components/src/constants/bookingMemo";
 import {
   canAccessMemo,
+  canAccessWebCheckoutCart,
   isMemoContextAllowed,
+  isWebCheckoutContextAllowed,
 } from "@/components/src/utils/bookingMemoAccess";
+import { BookingRow, PageContextLevel } from "../../../../types";
+import { useTenantSchema } from "../SchemaProvider";
 import { formatTimeAmPm, formatDateTable } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
@@ -154,10 +148,12 @@ export default function MoreInfoModal({
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [webCheckoutData, setWebCheckoutData] = useState<any>(null);
 
-  // Check if user has permission to edit cart number
-  const canEditCart = canAccessWebCheckout(pagePermission);
+  // Both the page context and the caller's role must be inside the tenant's
+  // detailsModal.webCheckoutEditRoles to get the cart edit icon, the same way
+  // as the memo. POST /api/updateWebcheckoutCart enforces the same list.
   const canEditCartInContext =
-    canEditCart && pageContext !== PageContextLevel.USER;
+    isWebCheckoutContextAllowed(schema.detailsModal, pageContext, "edit") &&
+    canAccessWebCheckoutCart(schema.detailsModal, pagePermission, "edit");
 
   const handleSaveCartNumber = async () => {
     if (!canEditCartInContext) {
@@ -297,17 +293,19 @@ export default function MoreInfoModal({
   }, [booking.webcheckoutCartNumber]);
 
   const renderWebCheckoutSection = () => {
-    // Show WebCheckout section for PA/ADMIN/SUPER_ADMIN users.
-    // In USER context, show read-only cart details when a cart is assigned.
+    // Show WebCheckout section to detailsModal.webCheckoutViewRoles (and
+    // edit roles) on their own pages. In USER context, show read-only cart
+    // details when a cart is assigned.
     const canViewWebCheckout =
-      schema.detailsModal.showWebCheckout &&
-      (hasAnyPermission(pagePermission, [
-        PagePermission.PA,
-        PagePermission.ADMIN,
-        PagePermission.SUPER_ADMIN,
-      ]) ||
-      (pageContext === PageContextLevel.USER &&
-        Boolean(booking.webcheckoutCartNumber)));
+      (isWebCheckoutContextAllowed(schema.detailsModal, pageContext, "view") &&
+        canAccessWebCheckoutCart(
+          schema.detailsModal,
+          pagePermission,
+          "view",
+        )) ||
+      (schema.detailsModal.showWebCheckout &&
+        pageContext === PageContextLevel.USER &&
+        Boolean(booking.webcheckoutCartNumber));
 
     if (!canViewWebCheckout) {
       return null;

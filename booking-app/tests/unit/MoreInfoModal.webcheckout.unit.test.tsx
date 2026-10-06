@@ -152,11 +152,27 @@ const createMockDatabaseContext = (
   blackoutPeriods: [],
 });
 
+
+// The page each staff permission normally opens the modal from. WebCheckout
+// visibility and editing are scoped to the page context (detailsModal roles).
+const pageContextFor = (
+  permission: PagePermission,
+): PageContextLevel | undefined =>
+  ({
+    [PagePermission.PA]: PageContextLevel.PA,
+    [PagePermission.LIAISON]: PageContextLevel.LIAISON,
+    [PagePermission.SERVICES]: PageContextLevel.SERVICES,
+    [PagePermission.ADMIN]: PageContextLevel.ADMIN,
+    [PagePermission.SUPER_ADMIN]: PageContextLevel.ADMIN,
+  })[permission as string];
+
 const renderModal = (
   booking: BookingRow,
   databaseContext: any,
   closeModal = vi.fn(),
-  pageContext?: PageContextLevel
+  pageContext: PageContextLevel | undefined = pageContextFor(
+    databaseContext.pagePermission,
+  ),
 ) => {
   return render(
     <ThemeProvider theme={mockTheme}>

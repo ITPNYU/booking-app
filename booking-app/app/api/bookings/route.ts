@@ -63,13 +63,13 @@ import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 import {
   extractTenantFromRequest,
   getAffiliationDisplayValues,
   getOtherDisplayFields,
   toSendHTMLEmailContents,
 } from "./shared";
-import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 
 // Common function to create XState data structure
 export function createXStateData(
@@ -506,7 +506,7 @@ export async function POST(request: NextRequest) {
     data: postedData,
     isAutoApproval,
   } = await request.json();
-  // memo is written only through PUT /api/bookings/memo.
+  // memo and the cart number are written only through their dedicated routes.
   const rawData = omitStaffOnlyBookingFieldWrites(postedData);
 
   // Students cannot request auxiliary spaces — strip even if posted directly.

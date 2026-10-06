@@ -180,10 +180,18 @@ describe("bookingRedaction", () => {
       ).toBe("memo");
     });
 
-    it("ignores other booking fields", () => {
+    it("flags a WebCheckout cart number write, which has its own route", () => {
       expect(
         findStaffOnlyBookingFieldWrite(TableNames.BOOKING, {
           webcheckoutCartNumber: "CK-1",
+        }),
+      ).toBe("webcheckoutCartNumber");
+    });
+
+    it("ignores other booking fields", () => {
+      expect(
+        findStaffOnlyBookingFieldWrite(TableNames.BOOKING, {
+          equipmentCheckedOut: true,
           memoir: "not memo",
         }),
       ).toBeNull();
@@ -205,6 +213,15 @@ describe("bookingRedaction", () => {
       const out = omitStaffOnlyBookingFieldWrites(input);
       expect(out).toEqual({ title: "T", memoir: "keep" });
       expect(input.memo).toBe("WO-1");
+    });
+
+    it("drops the WebCheckout cart number", () => {
+      expect(
+        omitStaffOnlyBookingFieldWrites({
+          title: "T",
+          webcheckoutCartNumber: "CK-1",
+        }),
+      ).toEqual({ title: "T" });
     });
 
     it("returns the same object when there is nothing to drop", () => {

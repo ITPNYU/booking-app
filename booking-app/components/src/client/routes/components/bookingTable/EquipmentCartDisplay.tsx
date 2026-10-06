@@ -16,7 +16,8 @@ export default function EquipmentCartDisplay({
   pageContext,
   showCartNumber = true,
 }: Props) {
-  const canShowCartNumber = showCartNumber && pageContext >= PageContextLevel.PA;
+  const canShowCartNumber =
+    showCartNumber && pageContext >= PageContextLevel.PA;
 
   // If user is PA level or above and there's a cart number, display it as clickable text
   if (canShowCartNumber && booking.webcheckoutCartNumber) {

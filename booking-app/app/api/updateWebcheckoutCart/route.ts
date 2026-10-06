@@ -1,51 +1,56 @@
-import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import {
+  DEFAULT_TENANT,
+  isValidTenant,
+} from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
-import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
+import { canAccessWebCheckoutCart } from "@/components/src/utils/bookingMemoAccess";
+import { resolveCallerRole } from "@/lib/api/authz";
+import { getDetailsModalConfig } from "@/lib/api/bookingRedaction";
+import { requireSession } from "@/lib/api/requireSession";
 
 import { NextRequest, NextResponse } from "next/server";
 
+/**
+ * Sets `webcheckoutCartNumber` on a booking, looked up by calendarEventId. The
+ * tenant schema's `detailsModal.showWebCheckout` must be on and the caller's
+ * session role must satisfy `detailsModal.webCheckoutEditRoles`.
+ */
 export async function POST(req: NextRequest) {
+  const session = await requireSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const { calendarEventId, cartNumber, userEmail } = await req.json();
+    const { calendarEventId, cartNumber } = await req.json();
 
     // Get tenant from x-tenant header, fallback to default tenant
     const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
+    if (!isValidTenant(tenant)) {
+      return NextResponse.json({ error: "Invalid tenant" }, { status: 400 });
+    }
 
-    if (!calendarEventId || !userEmail) {
+    if (!calendarEventId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
       );
     }
 
-    // Check if user has PA, Admin, or Super Admin permissions
-    const [adminUsersRaw, paUsersRaw, superAdminUsersRaw] = await Promise.all([
-      serverFetchAllDataFromCollection(TableNames.ADMINS, [], tenant),
-      serverFetchAllDataFromCollection(TableNames.PAS, [], tenant),
-      serverFetchAllDataFromCollection(TableNames.SUPER_ADMINS, [], tenant),
-    ]);
-
-    const adminUsers = Array.isArray(adminUsersRaw) ? adminUsersRaw : [];
-    const paUsers = Array.isArray(paUsersRaw) ? paUsersRaw : [];
-    const superAdminUsers = Array.isArray(superAdminUsersRaw)
-      ? superAdminUsersRaw
-      : [];
-
-    const adminEmails = adminUsers.map((admin: any) => admin.email);
-    const paEmails = paUsers.map((pa: any) => pa.email);
-    const superAdminEmails = superAdminUsers.map((sa: any) => sa.email);
-
-    const isAuthorized =
-      adminEmails.includes(userEmail) ||
-      paEmails.includes(userEmail) ||
-      superAdminEmails.includes(userEmail);
-
-    if (!isAuthorized) {
+    const detailsModal = await getDetailsModalConfig(tenant);
+    if (!detailsModal.showWebCheckout) {
+      return NextResponse.json(
+        { error: "WebCheckout is not enabled for this tenant" },
+        { status: 403 },
+      );
+    }
+    const role = await resolveCallerRole(session, tenant);
+    if (!canAccessWebCheckoutCart(detailsModal, role, "edit")) {
       return NextResponse.json(
         {
           error:
-            "Unauthorized: Only PA, Admin, and Super Admin users can update cart numbers",
+            "Unauthorized: your role cannot update cart numbers for this tenant",
         },
         { status: 403 },
       );

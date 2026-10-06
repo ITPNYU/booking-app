@@ -1,46 +1,57 @@
 import {
   normalizeMemoRoles,
+  normalizeWebCheckoutRoles,
   type BookingDetailRole,
   type DetailsModalConfig,
 } from "@/components/src/client/routes/components/schemaTypes";
 import { PageContextLevel, PagePermission } from "@/components/src/types";
 import { hasAnyPermission } from "@/components/src/utils/permissions";
 
-export { normalizeMemoRoles };
+export { normalizeMemoRoles, normalizeWebCheckoutRoles };
 
+/** Reading a booking detail field, or editing it. */
+export type DetailAccess = "view" | "edit";
 /** Reading the memo, or editing it. */
-export type MemoAccess = "view" | "edit";
+export type MemoAccess = DetailAccess;
+
+/** A view and an edit role list from `detailsModal`. */
+type DetailRoleLists = {
+  viewRoles: BookingDetailRole[];
+  editRoles: BookingDetailRole[];
+};
 
 type MemoRoleConfig = Pick<
   DetailsModalConfig,
   "memoViewRoles" | "memoEditRoles"
 >;
 
+type WebCheckoutRoleConfig = Pick<
+  DetailsModalConfig,
+  "webCheckoutViewRoles" | "webCheckoutEditRoles"
+>;
+
 /** Roles granted `access`. Editing implies viewing, so view includes the edit roles. */
-function memoRolesFor(
-  config: MemoRoleConfig,
-  access: MemoAccess,
+function rolesFor(
+  lists: DetailRoleLists,
+  access: DetailAccess,
 ): BookingDetailRole[] {
-  if (access === "edit") return config.memoEditRoles;
-  return Array.from(
-    new Set([...config.memoViewRoles, ...config.memoEditRoles]),
-  );
+  if (access === "edit") return lists.editRoles;
+  return Array.from(new Set([...lists.viewRoles, ...lists.editRoles]));
 }
 
 /**
- * Whether a caller with `userPermission` has `access` to the memo under
- * `config`. Uses the permission hierarchy, so ADMIN satisfies a role list
- * that names only SERVICES.
+ * Whether `userPermission` satisfies the roles granted `access`. Uses the
+ * permission hierarchy, so ADMIN satisfies a role list that names only
+ * SERVICES.
  */
-export function canAccessMemo(
-  config: Pick<DetailsModalConfig, "showMemo"> & MemoRoleConfig,
+function canAccessDetail(
+  lists: DetailRoleLists,
   userPermission: PagePermission,
-  access: MemoAccess,
+  access: DetailAccess,
 ): boolean {
-  if (!config.showMemo) return false;
   return hasAnyPermission(
     userPermission,
-    memoRolesFor(config, access).map((r) => PagePermission[r]),
+    rolesFor(lists, access).map((r) => PagePermission[r]),
   );
 }
 
@@ -63,6 +74,45 @@ function rolesForContext(
 }
 
 /**
+ * Whether the page rendered for `pageContext` is one of the roles granted
+ * `access`. The USER context (My Bookings) never is.
+ */
+function isDetailContextAllowed(
+  lists: DetailRoleLists,
+  pageContext: PageContextLevel | undefined,
+  access: DetailAccess,
+): boolean {
+  if (pageContext === undefined) return false;
+  const roles = rolesForContext(pageContext);
+  if (!roles) return false;
+  const allowed = rolesFor(lists, access);
+  return roles.some((r) => allowed.includes(r));
+}
+
+const memoLists = (config: MemoRoleConfig): DetailRoleLists => ({
+  viewRoles: config.memoViewRoles,
+  editRoles: config.memoEditRoles,
+});
+
+const webCheckoutLists = (config: WebCheckoutRoleConfig): DetailRoleLists => ({
+  viewRoles: config.webCheckoutViewRoles,
+  editRoles: config.webCheckoutEditRoles,
+});
+
+/**
+ * Whether a caller with `userPermission` has `access` to the memo under
+ * `config`.
+ */
+export function canAccessMemo(
+  config: Pick<DetailsModalConfig, "showMemo"> & MemoRoleConfig,
+  userPermission: PagePermission,
+  access: MemoAccess,
+): boolean {
+  if (!config.showMemo) return false;
+  return canAccessDetail(memoLists(config), userPermission, access);
+}
+
+/**
  * Whether the page rendered for `pageContext` grants `access` to the memo.
  * The USER context (My Bookings) never does.
  */
@@ -71,9 +121,31 @@ export function isMemoContextAllowed(
   pageContext: PageContextLevel | undefined,
   access: MemoAccess,
 ): boolean {
-  if (pageContext === undefined) return false;
-  const roles = rolesForContext(pageContext);
-  if (!roles) return false;
-  const allowed = memoRolesFor(config, access);
-  return roles.some((r) => allowed.includes(r));
+  return isDetailContextAllowed(memoLists(config), pageContext, access);
+}
+
+/**
+ * Whether a caller with `userPermission` has `access` to the WebCheckout cart
+ * under `config`.
+ */
+export function canAccessWebCheckoutCart(
+  config: Pick<DetailsModalConfig, "showWebCheckout"> & WebCheckoutRoleConfig,
+  userPermission: PagePermission,
+  access: DetailAccess,
+): boolean {
+  if (!config.showWebCheckout) return false;
+  return canAccessDetail(webCheckoutLists(config), userPermission, access);
+}
+
+/**
+ * Whether the page rendered for `pageContext` grants staff `access` to the
+ * WebCheckout cart. The USER context (My Bookings) never does; the requester's
+ * read-only view of their own cart there is handled by the modal.
+ */
+export function isWebCheckoutContextAllowed(
+  config: WebCheckoutRoleConfig,
+  pageContext: PageContextLevel | undefined,
+  access: DetailAccess,
+): boolean {
+  return isDetailContextAllowed(webCheckoutLists(config), pageContext, access);
 }

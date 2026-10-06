@@ -140,6 +140,21 @@ describe("POST /api/firestore/mutate — staff-only booking fields", () => {
     expect(mocks.mockUpdate).not.toHaveBeenCalled();
   });
 
+  it("refuses a booking update that writes the WebCheckout cart number", async () => {
+    const res = await POST(
+      request({
+        op: "update",
+        collection: "bookings",
+        tenant: "mc",
+        docId: "b1",
+        data: { webcheckoutCartNumber: "CK-1" },
+      }),
+    );
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toContain("webcheckoutCartNumber");
+    expect(mocks.mockUpdate).not.toHaveBeenCalled();
+  });
+
   it("still allows other booking field writes", async () => {
     const res = await POST(
       request({

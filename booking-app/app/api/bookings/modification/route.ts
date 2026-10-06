@@ -37,13 +37,13 @@ import {
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 import {
   buildBookingContents,
   extractTenantFromRequest,
   getTenantFlags,
   getTenantRooms,
 } from "../shared";
-import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 
 type BookingWithId = Booking & { id?: string };
 
@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest) {
   } = await request.json();
   // Never trust a client-supplied actor; the session is the source of truth.
   const modifiedBy = session.email;
-  // memo is written only through PUT /api/bookings/memo.
+  // memo and the cart number are written only through their dedicated routes.
   const data = omitStaffOnlyBookingFieldWrites(rawData);
   const { isMediaCommons } = getTenantFlags(tenant);
 

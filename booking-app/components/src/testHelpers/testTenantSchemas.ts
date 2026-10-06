@@ -55,6 +55,8 @@ const baseMediaCommonsSchema: SchemaContextType = {
   },
   detailsModal: {
     showWebCheckout: true,
+    webCheckoutViewRoles: ["PA", "ADMIN", "SUPER_ADMIN"],
+    webCheckoutEditRoles: ["PA", "ADMIN", "SUPER_ADMIN"],
     showMemo: false,
     memoViewRoles: ["SERVICES", "ADMIN", "SUPER_ADMIN"],
     memoEditRoles: ["SERVICES", "ADMIN", "SUPER_ADMIN"],

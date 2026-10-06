@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import { PageContextLevel, PagePermission } from "@/components/src/types";
 import {
   DEFAULT_MEMO_ROLES,
+  DEFAULT_WEBCHECKOUT_ROLES,
   generateDefaultSchema,
 } from "@/components/src/client/routes/components/schemaTypes";
 import {
   canAccessMemo,
+  canAccessWebCheckoutCart,
   isMemoContextAllowed,
+  isWebCheckoutContextAllowed,
   normalizeMemoRoles,
+  normalizeWebCheckoutRoles,
 } from "@/components/src/utils/bookingMemoAccess";
 import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 
@@ -188,6 +192,8 @@ describe("coerceTenantSchema detailsModal", () => {
     );
     expect(out.detailsModal).toEqual({
       showWebCheckout: true,
+      webCheckoutViewRoles: [...DEFAULT_WEBCHECKOUT_ROLES],
+      webCheckoutEditRoles: [...DEFAULT_WEBCHECKOUT_ROLES],
       showMemo: true,
       memoViewRoles: ["PA"],
       memoEditRoles: ["ADMIN"],
@@ -240,5 +246,150 @@ describe("coerceTenantSchema detailsModal", () => {
     expect("showMemo" in out.form).toBe(false);
     expect(out.form.showSponsor).toBe(false);
     expect(out.detailsModal.showMemo).toBe(false);
+  });
+});
+
+describe("normalizeWebCheckoutRoles", () => {
+  it("returns the WebCheckout defaults only when the list is unset", () => {
+    expect(normalizeWebCheckoutRoles(undefined)).toEqual([
+      ...DEFAULT_WEBCHECKOUT_ROLES,
+    ]);
+    expect(normalizeWebCheckoutRoles(null)).toEqual([
+      ...DEFAULT_WEBCHECKOUT_ROLES,
+    ]);
+    expect([...DEFAULT_WEBCHECKOUT_ROLES]).toEqual(["PA", "ADMIN", "SUPER_ADMIN"]);
+  });
+
+  it("drops unknown roles and duplicates", () => {
+    expect(
+      normalizeWebCheckoutRoles(["SERVICES", "BOOKING", "SERVICES", "PA"]),
+    ).toEqual(["SERVICES", "PA"]);
+  });
+
+  it("fails closed on an empty, all-unknown, or malformed list", () => {
+    expect(normalizeWebCheckoutRoles([])).toEqual([]);
+    expect(normalizeWebCheckoutRoles(["pa", 1])).toEqual([]);
+    expect(normalizeWebCheckoutRoles("PA")).toEqual([]);
+  });
+});
+
+describe("WebCheckout cart access", () => {
+  const config = (
+    webCheckoutViewRoles: any[],
+    webCheckoutEditRoles: any[] = webCheckoutViewRoles,
+    showWebCheckout = true,
+  ) => ({ showWebCheckout, webCheckoutViewRoles, webCheckoutEditRoles });
+
+  it("is false for everyone when showWebCheckout is off", () => {
+    const off = config(["SUPER_ADMIN"], ["SUPER_ADMIN"], false);
+    for (const access of ["view", "edit"] as const) {
+      expect(
+        canAccessWebCheckoutCart(off, PagePermission.SUPER_ADMIN, access),
+      ).toBe(false);
+    }
+  });
+
+  it("separates view roles from edit roles and lets edit roles view", () => {
+    const c = config(["SERVICES"], ["PA"]);
+    expect(canAccessWebCheckoutCart(c, PagePermission.SERVICES, "view")).toBe(
+      true,
+    );
+    expect(canAccessWebCheckoutCart(c, PagePermission.SERVICES, "edit")).toBe(
+      false,
+    );
+    expect(canAccessWebCheckoutCart(c, PagePermission.PA, "view")).toBe(true);
+    expect(canAccessWebCheckoutCart(c, PagePermission.PA, "edit")).toBe(true);
+    expect(canAccessWebCheckoutCart(c, PagePermission.LIAISON, "view")).toBe(
+      false,
+    );
+  });
+
+  it("scopes to page contexts and never allows USER or a missing context", () => {
+    const c = config(["PA", "SERVICES"], ["PA"]);
+    expect(isWebCheckoutContextAllowed(c, PageContextLevel.PA, "edit")).toBe(
+      true,
+    );
+    expect(
+      isWebCheckoutContextAllowed(c, PageContextLevel.SERVICES, "view"),
+    ).toBe(true);
+    expect(
+      isWebCheckoutContextAllowed(c, PageContextLevel.SERVICES, "edit"),
+    ).toBe(false);
+    expect(isWebCheckoutContextAllowed(c, PageContextLevel.ADMIN, "view")).toBe(
+      false,
+    );
+    for (const access of ["view", "edit"] as const) {
+      expect(
+        isWebCheckoutContextAllowed(c, PageContextLevel.USER, access),
+      ).toBe(false);
+      expect(isWebCheckoutContextAllowed(c, undefined, access)).toBe(false);
+    }
+  });
+
+  it("keeps the pre-config access under the default schema", () => {
+    const { detailsModal } = generateDefaultSchema("mc");
+    const can = (
+      perm: PagePermission,
+      ctx: PageContextLevel,
+      access: "view" | "edit",
+    ) =>
+      isWebCheckoutContextAllowed(detailsModal, ctx, access) &&
+      canAccessWebCheckoutCart(detailsModal, perm, access);
+
+    expect(can(PagePermission.PA, PageContextLevel.PA, "edit")).toBe(true);
+    expect(can(PagePermission.ADMIN, PageContextLevel.ADMIN, "edit")).toBe(
+      true,
+    );
+    expect(
+      can(PagePermission.SUPER_ADMIN, PageContextLevel.ADMIN, "edit"),
+    ).toBe(true);
+    expect(can(PagePermission.ADMIN, PageContextLevel.PA, "edit")).toBe(true);
+    expect(
+      can(PagePermission.SERVICES, PageContextLevel.SERVICES, "view"),
+    ).toBe(false);
+    expect(can(PagePermission.LIAISON, PageContextLevel.LIAISON, "view")).toBe(
+      false,
+    );
+  });
+});
+
+describe("coerceTenantSchema detailsModal WebCheckout roles", () => {
+  it("defaults both WebCheckout role lists when unset", () => {
+    const out = coerceTenantSchema({ detailsModal: { showMemo: true } }, "mc");
+    expect(out.detailsModal.webCheckoutViewRoles).toEqual([
+      ...DEFAULT_WEBCHECKOUT_ROLES,
+    ]);
+    expect(out.detailsModal.webCheckoutEditRoles).toEqual([
+      ...DEFAULT_WEBCHECKOUT_ROLES,
+    ]);
+  });
+
+  it("normalizes stored lists and lets a tenant lock editing down to nobody", () => {
+    const out = coerceTenantSchema(
+      {
+        detailsModal: {
+          webCheckoutViewRoles: ["SERVICES", "bogus", "SERVICES"],
+          webCheckoutEditRoles: [],
+        },
+      },
+      "mc",
+    );
+    expect(out.detailsModal.webCheckoutViewRoles).toEqual(["SERVICES"]);
+    expect(out.detailsModal.webCheckoutEditRoles).toEqual([]);
+    expect(
+      canAccessWebCheckoutCart(
+        out.detailsModal,
+        PagePermission.SUPER_ADMIN,
+        "edit",
+      ),
+    ).toBe(false);
+  });
+
+  it("grants nobody when a stored list is malformed", () => {
+    const out = coerceTenantSchema(
+      { detailsModal: { webCheckoutEditRoles: "ADMIN" } },
+      "mc",
+    );
+    expect(out.detailsModal.webCheckoutEditRoles).toEqual([]);
   });
 });

@@ -45,9 +45,10 @@ export async function POST(req: NextRequest) {
       { status: 403 },
     );
   }
-  // Staff-only booking fields (e.g. memo) have a dedicated route that enforces
-  // a stricter role check plus trimming and length limits. Refuse them here so
-  // the generic paOrAbove booking write policy cannot bypass that route.
+  // Staff-only booking fields (e.g. memo) and the WebCheckout cart number have
+  // dedicated routes that enforce the tenant's detailsModal edit roles (plus
+  // trimming and length limits for memo). Refuse them here so the generic
+  // paOrAbove booking write policy cannot bypass those routes.
   const staffOnlyField = findStaffOnlyBookingFieldWrite(
     body.collection,
     "data" in body ? body.data : undefined,

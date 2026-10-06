@@ -320,13 +320,26 @@ export const DEFAULT_MEMO_ROLES: readonly BookingDetailRole[] = [
 ];
 
 /**
- * Normalize a stored memo role list, failing closed. Only an unset list
- * (undefined or null) gets the defaults; unknown entries and duplicates are
+ * Roles that see and edit the WebCheckout cart by default, matching the
+ * PA/Admin/Super Admin access WebCheckout had before it was configurable.
+ */
+export const DEFAULT_WEBCHECKOUT_ROLES: readonly BookingDetailRole[] = [
+  "PA",
+  "ADMIN",
+  "SUPER_ADMIN",
+];
+
+/**
+ * Normalize a stored booking detail role list, failing closed. Only an unset
+ * list (undefined or null) gets `defaults`; unknown entries and duplicates are
  * dropped, so an explicit `[]` or a list of only unknown roles grants nobody,
  * and a malformed non-array value grants nobody too.
  */
-export function normalizeMemoRoles(raw: unknown): BookingDetailRole[] {
-  if (raw === undefined || raw === null) return [...DEFAULT_MEMO_ROLES];
+function normalizeDetailRoles(
+  raw: unknown,
+  defaults: readonly BookingDetailRole[],
+): BookingDetailRole[] {
+  if (raw === undefined || raw === null) return [...defaults];
   if (!Array.isArray(raw)) return [];
   const roles = raw.filter(
     (r): r is BookingDetailRole =>
@@ -336,6 +349,16 @@ export function normalizeMemoRoles(raw: unknown): BookingDetailRole[] {
   return Array.from(new Set(roles));
 }
 
+/** Normalize a stored memo role list; see `normalizeDetailRoles`. */
+export function normalizeMemoRoles(raw: unknown): BookingDetailRole[] {
+  return normalizeDetailRoles(raw, DEFAULT_MEMO_ROLES);
+}
+
+/** Normalize a stored WebCheckout role list; see `normalizeDetailRoles`. */
+export function normalizeWebCheckoutRoles(raw: unknown): BookingDetailRole[] {
+  return normalizeDetailRoles(raw, DEFAULT_WEBCHECKOUT_ROLES);
+}
+
 /**
  * Booking detail modal configuration (Firestore `tenantSchema.detailsModal`).
  * Separate from `form`, which configures the request form.
@@ -343,6 +366,19 @@ export function normalizeMemoRoles(raw: unknown): BookingDetailRole[] {
 export type DetailsModalConfig = {
   /** Show the WebCheckout section and the cart number in the bookings table. */
   showWebCheckout: boolean;
+  /**
+   * Roles that can see the WebCheckout section. Roles in
+   * `webCheckoutEditRoles` can always see it too. Scoped to page contexts the
+   * same way as `memoViewRoles`. On My Bookings the requester still sees an
+   * assigned cart read-only while `showWebCheckout` is on.
+   */
+  webCheckoutViewRoles: BookingDetailRole[];
+  /**
+   * Roles that can edit the cart number, scoped to page contexts the same way
+   * as `memoEditRoles`. `POST /api/updateWebcheckoutCart` enforces the same
+   * list.
+   */
+  webCheckoutEditRoles: BookingDetailRole[];
   /**
    * Show the staff-only Memo section under WebCheckout, used to record e.g.
    * work order confirmation numbers.
@@ -597,6 +633,8 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
   },
   detailsModal: {
     showWebCheckout: true,
+    webCheckoutViewRoles: [...DEFAULT_WEBCHECKOUT_ROLES],
+    webCheckoutEditRoles: [...DEFAULT_WEBCHECKOUT_ROLES],
     showMemo: false,
     memoViewRoles: [...DEFAULT_MEMO_ROLES],
     memoEditRoles: [...DEFAULT_MEMO_ROLES],

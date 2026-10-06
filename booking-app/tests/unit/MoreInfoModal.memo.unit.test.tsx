@@ -84,6 +84,8 @@ const renderModal = ({
   memoViewRoles = memoRoles,
   memoEditRoles = memoRoles,
   showWebCheckout = true,
+  webCheckoutViewRoles,
+  webCheckoutEditRoles,
   updateBooking,
 }: {
   booking?: BookingRow;
@@ -95,6 +97,8 @@ const renderModal = ({
   memoViewRoles?: BookingDetailRole[];
   memoEditRoles?: BookingDetailRole[];
   showWebCheckout?: boolean;
+  webCheckoutViewRoles?: BookingDetailRole[];
+  webCheckoutEditRoles?: BookingDetailRole[];
   updateBooking?: (b: BookingRow) => void;
 }) => {
   const base = generateDefaultSchema("mc");
@@ -106,6 +110,8 @@ const renderModal = ({
       showWebCheckout,
       ...(memoViewRoles ? { memoViewRoles } : {}),
       ...(memoEditRoles ? { memoEditRoles } : {}),
+      ...(webCheckoutViewRoles ? { webCheckoutViewRoles } : {}),
+      ...(webCheckoutEditRoles ? { webCheckoutEditRoles } : {}),
     },
   };
   return render(
@@ -328,6 +334,67 @@ describe("MoreInfoModal - Memo section", () => {
         pageContext: PageContextLevel.ADMIN,
       });
       expect(screen.getByText("Cart Number")).toBeInTheDocument();
+    });
+  });
+
+  describe("WebCheckout roles", () => {
+    it("shows the cart read-only to a view-only role on its own page", () => {
+      renderModal({
+        booking: createMockBooking({ webcheckoutCartNumber: "CK-1" }),
+        permission: PagePermission.SERVICES,
+        pageContext: PageContextLevel.SERVICES,
+        webCheckoutViewRoles: ["SERVICES"],
+        webCheckoutEditRoles: ["PA", "ADMIN", "SUPER_ADMIN"],
+      });
+      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(
+        screen.queryByLabelText("Edit cart number"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("lets a tenant grant Services cart editing", () => {
+      renderModal({
+        permission: PagePermission.SERVICES,
+        pageContext: PageContextLevel.SERVICES,
+        webCheckoutEditRoles: ["SERVICES"],
+      });
+      expect(screen.getByLabelText("Edit cart number")).toBeInTheDocument();
+    });
+
+    it("hides the cart edit icon from an admin on a page outside webCheckoutEditRoles", () => {
+      renderModal({
+        permission: PagePermission.ADMIN,
+        pageContext: PageContextLevel.PA,
+        webCheckoutViewRoles: ["PA", "ADMIN"],
+        webCheckoutEditRoles: ["ADMIN"],
+      });
+      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(
+        screen.queryByLabelText("Edit cart number"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("hides the section from Services on the Services page by default", () => {
+      renderModal({
+        booking: createMockBooking({ webcheckoutCartNumber: "CK-1" }),
+        permission: PagePermission.SERVICES,
+        pageContext: PageContextLevel.SERVICES,
+      });
+      expect(screen.queryByText("Cart Number")).not.toBeInTheDocument();
+    });
+
+    it("still shows the requester their assigned cart read-only on My Bookings", () => {
+      renderModal({
+        booking: createMockBooking({ webcheckoutCartNumber: "CK-1" }),
+        permission: PagePermission.BOOKING,
+        pageContext: PageContextLevel.USER,
+        webCheckoutViewRoles: [],
+        webCheckoutEditRoles: [],
+      });
+      expect(screen.getByText("Cart Number")).toBeInTheDocument();
+      expect(
+        screen.queryByLabelText("Edit cart number"),
+      ).not.toBeInTheDocument();
     });
   });
 
