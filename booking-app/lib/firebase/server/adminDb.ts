@@ -16,7 +16,10 @@ import {
 
 import { BookingLog, BookingStatusLabel } from "@/components/src/types";
 import { traceDatabase } from "@/lib/newrelic-utils";
-import { serializedTimestampToMillis } from "@/lib/utils/timestampWire";
+import {
+  compareTimestampsAscending,
+  timestampToEpochMillis,
+} from "@/lib/utils/timestampWire";
 import admin from "./firebaseAdmin";
 
 const db = admin.firestore();
@@ -150,14 +153,17 @@ export const serverResolveResourceApproverEmails = async (
   for (const approver of approvers) {
     if (!requestedResourceIds.has(approver.resourceId)) continue;
     const email = normalizeEmail(approver.email);
-    const approverResourceIds = resourceIdsByEmail.get(email) ?? new Set<string>();
+    const approverResourceIds =
+      resourceIdsByEmail.get(email) ?? new Set<string>();
     approverResourceIds.add(approver.resourceId);
     resourceIdsByEmail.set(email, approverResourceIds);
   }
 
   const recipients = [...resourceIdsByEmail.entries()]
     .filter(([, approverResourceIds]) =>
-      uniqueResourceIds.every((resourceId) => approverResourceIds.has(resourceId)),
+      uniqueResourceIds.every((resourceId) =>
+        approverResourceIds.has(resourceId),
+      ),
     )
     .map(([email]) => email);
 
@@ -247,8 +253,10 @@ export const serverSaveDataToFirestore = async (
       collectionName as TableNames,
       tenant,
     );
-    const docRef = await traceDatabase("add", `Firestore/${tenantCollection}`, () =>
-      db.collection(tenantCollection).add(data),
+    const docRef = await traceDatabase(
+      "add",
+      `Firestore/${tenantCollection}`,
+      () => db.collection(tenantCollection).add(data),
     );
     console.log("Document successfully written with ID:", docRef.id);
     return docRef;
@@ -284,8 +292,10 @@ export const serverGetDocumentById = async <T extends DocumentData>(
   try {
     const tenantCollection = getServerTenantCollection(collectionName, tenant);
     const docRef = db.collection(tenantCollection).doc(docId);
-    const docSnap = await traceDatabase("get", `Firestore/${tenantCollection}`, () =>
-      docRef.get(),
+    const docSnap = await traceDatabase(
+      "get",
+      `Firestore/${tenantCollection}`,
+      () => docRef.get(),
     );
 
     if (docSnap.exists) {
@@ -448,9 +458,7 @@ const serverGetFinalApproverEmailFromDatabaseStrict = async (
 
 export const serverGetFinalApproverEmail = async (
   tenant?: string,
-): Promise<string | null> => {
-  return serverGetFinalApproverEmailFromDatabase(tenant);
-};
+): Promise<string | null> => serverGetFinalApproverEmailFromDatabase(tenant);
 
 export const logServerBookingChange = async ({
   bookingId,
@@ -514,11 +522,9 @@ export const getBookingLogs = async (
       } as BookingLog;
     });
 
-    // Sort by changedAt on the application side
-    results.sort((a, b) => {
-      if (!a.changedAt || !b.changedAt) return 0;
-      return a.changedAt.toMillis() - b.changedAt.toMillis();
-    });
+    results.sort((a, b) =>
+      compareTimestampsAscending(a.changedAt, b.changedAt),
+    );
 
     return results;
   } catch (error) {
@@ -547,11 +553,7 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 }
 
 function timestampToMillis(value: any): number | null {
-  if (value == null) return null;
-  if (typeof value.toMillis === "function") return value.toMillis();
-  if (typeof value.toDate === "function") return value.toDate().getTime();
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  return serializedTimestampToMillis(value);
+  return timestampToEpochMillis(value);
 }
 
 export const getLatestBookingStatusLogs = async (

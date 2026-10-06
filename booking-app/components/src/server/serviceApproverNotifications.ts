@@ -108,7 +108,9 @@ export const notifyServiceApproversForRequestedServices = async (
       if (!servicesRequested[serviceKey as keyof typeof servicesRequested]) {
         return [];
       }
-      if (typeof decisions[serviceKey as keyof typeof decisions] === "boolean") {
+      if (
+        typeof decisions[serviceKey as keyof typeof decisions] === "boolean"
+      ) {
         return [];
       }
 

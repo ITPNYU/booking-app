@@ -20,6 +20,12 @@ import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { styled } from "@mui/system";
 import { useParams } from "next/navigation";
 import React, { useContext, useState } from "react";
+import { mergeRoomIdsWithAnnex } from "@/components/src/utils/resourceServicesUtils";
+import {
+  getBookingServicesByRoom,
+  hasBookingServicesDisplay,
+  type BookingServiceDisplayRow,
+} from "@/components/src/utils/bookingServicesDisplay";
 import {
   BookingRow,
   PageContextLevel,
@@ -29,19 +35,13 @@ import {
   canAccessWebCheckout,
   hasAnyPermission,
 } from "../../../../utils/permissions";
-import { useTenantSchema } from "../../components/SchemaProvider";
+import { useTenantSchema } from "../SchemaProvider";
 import { formatTimeAmPm, formatDateTable } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
 import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
-import { mergeRoomIdsWithAnnex } from "@/components/src/utils/resourceServicesUtils";
-import {
-  getBookingServicesByRoom,
-  hasBookingServicesDisplay,
-  type BookingServiceDisplayRow,
-} from "@/components/src/utils/bookingServicesDisplay";
 
 interface Props {
   booking: BookingRow;
@@ -76,13 +76,17 @@ const StatusTable = styled(CustomTable)({
   width: "100%",
 });
 
-const SectionTitle = styled(Typography)({
+const SectionTitleBase = styled(Typography)({
   fontWeight: 700,
   margin: 0,
 });
-SectionTitle.defaultProps = {
-  variant: "subtitle1",
-};
+
+function SectionTitle({
+  variant = "subtitle1",
+  ...props
+}: React.ComponentProps<typeof SectionTitleBase>) {
+  return <SectionTitleBase variant={variant} {...props} />;
+}
 
 /** Title + table with the same gap used under Services. */
 const Section = styled(Box)(({ theme }) => ({
@@ -133,10 +137,7 @@ export default function MoreInfoModal({
   const historyRows = useSortBookingHistory(booking);
   const { pagePermission, userEmail } = useContext(DatabaseContext);
   const schema = useTenantSchema();
-  const servicesDisplay = getBookingServicesByRoom(
-    booking,
-    schema.resources,
-  );
+  const servicesDisplay = getBookingServicesByRoom(booking, schema.resources);
   const hasServices = hasBookingServicesDisplay(servicesDisplay);
 
   const [isEditingCart, setIsEditingCart] = useState(false);
@@ -513,144 +514,155 @@ export default function MoreInfoModal({
             <Section>
               <SectionTitle>Request</SectionTitle>
               <Table size="small">
-              <TableBody>
-                <TableRow>
-                  <LabelCell>Request #</LabelCell>
-                  <TableCell>{booking.requestNumber ?? BLANK}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Room(s)</LabelCell>
-                  <TableCell>
-                    {mergeRoomIdsWithAnnex(
-                      booking.roomId,
-                      booking.annexByRoom,
-                    ) || BLANK}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Date</LabelCell>
-                  <TableCell>
-                    {booking.startDate
-                      ? formatDateTable(booking.startDate.toDate())
-                      : BLANK}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Time</LabelCell>
-                  <TableCell>
-                    {booking.startDate && booking.endDate
-                      ? `${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(booking.endDate.toDate())} ET`
-                      : BLANK}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Status</LabelCell>
-                  <TableCell>{booking.status ?? BLANK}</TableCell>
-                </TableRow>
-                {booking.origin && (
+                <TableBody>
                   <TableRow>
-                    <LabelCell>Origin</LabelCell>
-                    <TableCell>{formatOrigin(booking.origin)}</TableCell>
+                    <LabelCell>Request #</LabelCell>
+                    <TableCell>{booking.requestNumber ?? BLANK}</TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  <TableRow>
+                    <LabelCell>Room(s)</LabelCell>
+                    <TableCell>
+                      {mergeRoomIdsWithAnnex(
+                        booking.roomId,
+                        booking.annexByRoom,
+                      ) || BLANK}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <LabelCell>Date</LabelCell>
+                    <TableCell>
+                      {booking.startDate
+                        ? formatDateTable(booking.startDate.toDate())
+                        : BLANK}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <LabelCell>Time</LabelCell>
+                    <TableCell>
+                      {booking.startDate && booking.endDate
+                        ? `${formatTimeAmPm(booking.startDate.toDate())} - ${formatTimeAmPm(booking.endDate.toDate())} ET`
+                        : BLANK}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <LabelCell>Status</LabelCell>
+                    <TableCell>{booking.status ?? BLANK}</TableCell>
+                  </TableRow>
+                  {booking.origin && (
+                    <TableRow>
+                      <LabelCell>Origin</LabelCell>
+                      <TableCell>{formatOrigin(booking.origin)}</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </Section>
 
             <Section>
               <SectionTitle>Requester</SectionTitle>
               <Table size="small">
-              <TableBody>
-                <TableRow>
-                  <LabelCell>NetID</LabelCell>
-                  <TableCell>{booking.netId ?? BLANK}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Name</LabelCell>
-                  <TableCell>
-                    {`${booking.firstName ?? ""} ${booking.lastName ?? ""}`.trim() ||
-                      BLANK}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Department</LabelCell>
-                  <TableCell>
-                    {booking.department === "Other" && booking.otherDepartment
-                      ? booking.otherDepartment
-                      : (booking.department ?? BLANK)}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Role</LabelCell>
-                  <TableCell>{booking.role ?? BLANK}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Email</LabelCell>
-                  <TableCell>{booking.email ?? BLANK}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Phone</LabelCell>
-                  <TableCell>{booking.phoneNumber ?? BLANK}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Secondary Contact Name</LabelCell>
-                  <TableCell>
-                    {`${booking.secondaryFirstName ?? ""} ${booking.secondaryLastName ?? ""}`.trim() ||
-                      booking.secondaryName ||
-                      BLANK}
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Secondary Contact Email</LabelCell>
-                  <TableCell>{booking.secondaryEmail || BLANK}</TableCell>
-                </TableRow>
-                {schema.form.showSponsor && (
+                <TableBody>
                   <TableRow>
-                    <LabelCell>Sponsor Name</LabelCell>
+                    <LabelCell>NetID</LabelCell>
+                    <TableCell>{booking.netId ?? BLANK}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <LabelCell>Name</LabelCell>
                     <TableCell>
-                      {`${booking.sponsorFirstName ?? ""} ${booking.sponsorLastName ?? ""}`.trim() ||
+                      {`${booking.firstName ?? ""} ${booking.lastName ?? ""}`.trim() ||
                         BLANK}
                     </TableCell>
                   </TableRow>
-                )}
-                {schema.form.showSponsor && (
                   <TableRow>
-                    <LabelCell>Sponsor Email</LabelCell>
-                    <TableCell>{booking.sponsorEmail || BLANK}</TableCell>
+                    <LabelCell>Department</LabelCell>
+                    <TableCell>
+                      {booking.department === "Other" && booking.otherDepartment
+                        ? booking.otherDepartment
+                        : (booking.department ?? BLANK)}
+                    </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  <TableRow>
+                    <LabelCell>Role</LabelCell>
+                    <TableCell>{booking.role ?? BLANK}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <LabelCell>Email</LabelCell>
+                    <TableCell>{booking.email ?? BLANK}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <LabelCell>Phone</LabelCell>
+                    <TableCell>{booking.phoneNumber ?? BLANK}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <LabelCell>Secondary Contact Name</LabelCell>
+                    <TableCell>
+                      {`${booking.secondaryFirstName ?? ""} ${booking.secondaryLastName ?? ""}`.trim() ||
+                        booking.secondaryName ||
+                        BLANK}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <LabelCell>Secondary Contact Email</LabelCell>
+                    <TableCell>{booking.secondaryEmail || BLANK}</TableCell>
+                  </TableRow>
+                  {schema.form.showSponsor && (
+                    <TableRow>
+                      <LabelCell>Sponsor Name</LabelCell>
+                      <TableCell>
+                        {`${booking.sponsorFirstName ?? ""} ${booking.sponsorLastName ?? ""}`.trim() ||
+                          BLANK}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {schema.form.showSponsor && (
+                    <TableRow>
+                      <LabelCell>Sponsor Email</LabelCell>
+                      <TableCell>{booking.sponsorEmail || BLANK}</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </Section>
 
             <Section>
               <SectionTitle>Details</SectionTitle>
               <Table size="small">
-              <TableBody>
-                <TableRow>
-                  <LabelCell>Title</LabelCell>
-                  <TableCell>{booking.title ?? BLANK}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Description</LabelCell>
-                  <TableCell>{booking.description ?? BLANK}</TableCell>
-                </TableRow>
-                {schema.form.showBookingType && (
+                <TableBody>
                   <TableRow>
-                    <LabelCell>Booking Type</LabelCell>
-                    <TableCell>{booking.bookingType ?? BLANK}</TableCell>
+                    <LabelCell>Title</LabelCell>
+                    <TableCell>{booking.title ?? BLANK}</TableCell>
                   </TableRow>
-                )}
-                <TableRow>
-                  <LabelCell>Expected Attendance</LabelCell>
-                  <TableCell>{booking.expectedAttendance ?? BLANK}</TableCell>
-                </TableRow>
-                <TableRow>
-                  <LabelCell>Attendee Affiliation</LabelCell>
-                  <TableCell>{booking.attendeeAffiliation ?? BLANK}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+                  <TableRow>
+                    <LabelCell>Description</LabelCell>
+                    <TableCell>{booking.description ?? BLANK}</TableCell>
+                  </TableRow>
+                  {schema.form.showBookingType && (
+                    <TableRow>
+                      <LabelCell>Booking Type</LabelCell>
+                      <TableCell>{booking.bookingType ?? BLANK}</TableCell>
+                    </TableRow>
+                  )}
+                  <TableRow>
+                    <LabelCell>Expected Attendance</LabelCell>
+                    <TableCell>{booking.expectedAttendance ?? BLANK}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <LabelCell>Attendee Affiliation</LabelCell>
+                    <TableCell>
+                      {booking.attendeeAffiliation ?? BLANK}
+                    </TableCell>
+                  </TableRow>
+                  {booking.productionSchedule?.trim() && (
+                    <TableRow>
+                      <LabelCell>
+                        {schema.form.productionSchedule?.label ||
+                          "Production Schedule"}
+                      </LabelCell>
+                      <TableCell>{booking.productionSchedule}</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </Section>
 
             {hasServices && (

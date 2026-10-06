@@ -24,6 +24,12 @@ import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import {
   logServerBookingChange,
   serverGetDataByCalendarEventId,
@@ -141,6 +147,27 @@ export async function PUT(request: NextRequest) {
     );
   }
 
+  const tenantSchema = await getCachedTenantSchema(tenant ?? DEFAULT_TENANT);
+  const productionScheduleConfig = tenantSchema?.form?.productionSchedule;
+  if (
+    isProductionScheduleMissingWhenRequired({
+      enabled: productionScheduleConfig?.enabled,
+      requiredAboveHours: productionScheduleConfig?.requiredAboveHours,
+      start: bookingCalendarInfo?.start ?? bookingCalendarInfo?.startStr,
+      end: bookingCalendarInfo?.end ?? bookingCalendarInfo?.endStr,
+      productionSchedule: data?.productionSchedule,
+    })
+  ) {
+    return NextResponse.json(
+      {
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
+      },
+      { status: 400 },
+    );
+  }
+
   try {
     // Get existing booking data
     const existingBookingData = await serverGetDataByCalendarEventId<Booking>(
@@ -252,7 +279,7 @@ export async function PUT(request: NextRequest) {
         ...otherRooms.map((r: { calendarId: string }) => r.calendarId),
         ...annexCalendarIds,
       ]),
-    ].filter((email) => email && email !== calendarId);
+    ].filter(email => email && email !== calendarId);
 
     const truncatedTitle =
       data.title.length > 25 ? `${data.title.substring(0, 25)}...` : data.title;
@@ -387,8 +414,7 @@ export async function PUT(request: NextRequest) {
           cleaning: existingBookingData.cleaningServiceApproved || false,
           security: existingBookingData.securityServiceApproved || false,
           setup: existingBookingData.setupServiceApproved || false,
-          furnishings:
-            existingBookingData.furnishingsServiceApproved || false,
+          furnishings: existingBookingData.furnishingsServiceApproved || false,
         }
       : undefined;
 

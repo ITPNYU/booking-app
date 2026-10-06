@@ -4,16 +4,16 @@ import Grid from "@mui/material/Unstable_Grid2/Grid2";
 import { Timestamp } from "firebase/firestore";
 import { useCallback, useContext, useEffect, useState } from "react";
 
-import ListTable from "../../components/ListTable";
-import { SchemaContext } from "../../components/SchemaProvider";
-import { formatDate } from "../../../utils/date";
-import { TableNames } from "../../../../policy";
 import {
   UserRightFlagField,
   clientClearUserRightFlag,
   clientFetchAllDataFromCollection,
   clientUpsertUserRightFlag,
 } from "@/lib/firebase/firebase";
+import ListTable from "../../components/ListTable";
+import { SchemaContext } from "../../components/SchemaProvider";
+import { formatDate } from "../../../utils/date";
+import { TableNames } from "../../../../policy";
 
 type UserRightsRecord = {
   id: string;

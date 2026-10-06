@@ -36,7 +36,7 @@ export default function BookingTableRow({
   pageContext,
   setModalData,
 }: Props) {
-  const titleRef = useRef();
+  const titleRef = useRef<HTMLParagraphElement>(null);
   const theme = useTheme();
   const params = useParams();
   const tenant = params?.tenant as string;

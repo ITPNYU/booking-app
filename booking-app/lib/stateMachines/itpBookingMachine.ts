@@ -3,7 +3,10 @@ import "server-only";
 import { setup, assign } from "xstate";
 import { Role } from "@/components/src/types";
 import { evaluateItpShouldAutoApprove } from "@/lib/stateMachines/autoApprovalGuards";
-import { logAutomaticCancellationTransition, type AutomaticCancellationReason } from "@/lib/stateMachines/logAutomaticCancellationTransition";
+import {
+  logAutomaticCancellationTransition,
+  type AutomaticCancellationReason,
+} from "@/lib/stateMachines/logAutomaticCancellationTransition";
 
 // Define context type for type safety
 interface BookingContext {
@@ -37,8 +40,7 @@ export const itpBookingMachine = setup({
       | { type: "autoCloseScript" },
   },
   guards: {
-    shouldAutoApprove: ({ context }) =>
-      evaluateItpShouldAutoApprove(context),
+    shouldAutoApprove: ({ context }) => evaluateItpShouldAutoApprove(context),
   },
   actions: {
     createCalendarEvent: ({ context, event }) => {
@@ -76,9 +78,7 @@ export const itpBookingMachine = setup({
         "cancelProcessing",
       ],
     }),
-    logCanceledAfterAutomaticTransition: async (
-      { context },
-    ): Promise<void> => {
+    logCanceledAfterAutomaticTransition: async ({ context }): Promise<void> => {
       await logAutomaticCancellationTransition(context);
     },
   },

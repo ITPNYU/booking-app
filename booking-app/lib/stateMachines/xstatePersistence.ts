@@ -7,9 +7,7 @@ import {
   getMediaCommonsServices,
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
-import {
-  serverGetDataByCalendarEventId,
-} from "@/lib/firebase/server/adminDb";
+import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { createActor } from "xstate";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { itpBookingMachine } from "./itpBookingMachine";

@@ -93,21 +93,30 @@ export const SERVICE_REQUEST_FIELD_SETS: Record<
   catering: {
     byRoom: [
       { field: "cateringByRoom", legacy: ["catering"] },
-      { field: "chartFieldForCateringByRoom", legacy: ["chartFieldForCatering"] },
+      {
+        field: "chartFieldForCateringByRoom",
+        legacy: ["chartFieldForCatering"],
+      },
     ],
     flat: ["cateringService"],
   },
   cleaning: {
     byRoom: [
       { field: "cleaningByRoom", legacy: ["cleaningService"] },
-      { field: "chartFieldForCleaningByRoom", legacy: ["chartFieldForCleaning"] },
+      {
+        field: "chartFieldForCleaningByRoom",
+        legacy: ["chartFieldForCleaning"],
+      },
     ],
     flat: [],
   },
   security: {
     byRoom: [
       { field: "hireSecurityByRoom", legacy: ["hireSecurity"] },
-      { field: "chartFieldForSecurityByRoom", legacy: ["chartFieldForSecurity"] },
+      {
+        field: "chartFieldForSecurityByRoom",
+        legacy: ["chartFieldForSecurity"],
+      },
     ],
     flat: [],
   },
@@ -168,7 +177,9 @@ function normalizeAnswer(value: unknown): string {
 function normalizeMap(value: unknown): Map<string, string> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const rooms = new Map<string, string>();
-  for (const [roomId, answer] of Object.entries(value as Record<string, unknown>)) {
+  for (const [roomId, answer] of Object.entries(
+    value as Record<string, unknown>,
+  )) {
     const normalized = normalizeAnswer(answer);
     if (normalized !== "") rooms.set(roomId, normalized);
   }
@@ -176,7 +187,8 @@ function normalizeMap(value: unknown): Map<string, string> | null {
 }
 
 const sameMap = (a: Map<string, string>, b: Map<string, string>): boolean =>
-  a.size === b.size && [...a].every(([roomId, answer]) => b.get(roomId) === answer);
+  a.size === b.size &&
+  [...a].every(([roomId, answer]) => b.get(roomId) === answer);
 
 /**
  * Whether a per-room map on one side matches the booking-level answer on the
@@ -210,7 +222,8 @@ function byRoomFieldChanged(
   if (before && after) return !sameMap(before, after);
   if (!before && !after) {
     return legacy.some(
-      (flat) => normalizeAnswer(saved[flat]) !== normalizeAnswer(submitted[flat]),
+      (flat) =>
+        normalizeAnswer(saved[flat]) !== normalizeAnswer(submitted[flat]),
     );
   }
   return after

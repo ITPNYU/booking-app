@@ -28,6 +28,12 @@ import {
   SERVICE_APPROVAL_FIELDS,
 } from "@/components/src/utils/serviceDecisions";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { callXStateTransitionAPI } from "@/components/src/server/db";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
@@ -215,6 +221,27 @@ export async function PUT(request: NextRequest) {
     );
   }
 
+  const tenantSchema = await getCachedTenantSchema(tenant ?? DEFAULT_TENANT);
+  const productionScheduleConfig = tenantSchema?.form?.productionSchedule;
+  if (
+    isProductionScheduleMissingWhenRequired({
+      enabled: productionScheduleConfig?.enabled,
+      requiredAboveHours: productionScheduleConfig?.requiredAboveHours,
+      start: bookingCalendarInfo?.start ?? bookingCalendarInfo?.startStr,
+      end: bookingCalendarInfo?.end ?? bookingCalendarInfo?.endStr,
+      productionSchedule: data?.productionSchedule,
+    })
+  ) {
+    return NextResponse.json(
+      {
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
+      },
+      { status: 400 },
+    );
+  }
+
   try {
     // Get existing booking
     const existingContents = await serverBookingContents(
@@ -242,7 +269,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    let wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
+    const wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
     if (usesXState) {
       console.log(
         `🔍 EDIT: Current booking status [${tenant?.toUpperCase()}]:`,
@@ -325,7 +352,7 @@ export async function PUT(request: NextRequest) {
         ...otherRooms.map((r: { calendarId: string }) => r.calendarId),
         ...annexCalendarIds,
       ]),
-    ].filter((email) => email && email !== calendarId);
+    ].filter(email => email && email !== calendarId);
 
     const truncatedTitle =
       data.title.length > 25 ? `${data.title.substring(0, 25)}...` : data.title;
@@ -378,14 +405,17 @@ export async function PUT(request: NextRequest) {
     const changedServices = getChangedServiceKeys(existingContents, data);
     const previousDecisions = getServiceDecisions(existingContents);
     const clearedDecisionFields = changedServices
-      .filter((service) => typeof previousDecisions[service] === "boolean")
-      .map((service) => SERVICE_APPROVAL_FIELDS[service]);
-    console.log(`🧮 EDIT: Service request changes [${tenant?.toUpperCase()}]:`, {
-      calendarEventId,
-      changedServices,
-      previousDecisions,
-      clearedDecisionFields,
-    });
+      .filter(service => typeof previousDecisions[service] === "boolean")
+      .map(service => SERVICE_APPROVAL_FIELDS[service]);
+    console.log(
+      `🧮 EDIT: Service request changes [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId,
+        changedServices,
+        previousDecisions,
+        clearedDecisionFields,
+      },
+    );
 
     // If booking was declined, clear the declinedAt timestamp to ensure status shows as REQUESTED
     if (existingContents.declinedAt) {
