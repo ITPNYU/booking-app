@@ -25,7 +25,8 @@ import {
 } from "../../components/SchemaProvider";
 import { isProductionScheduleRequired } from "../utils/productionSchedule";
 
-const formatHours = (hours: number) => `${hours} ${hours === 1 ? "hour" : "hours"}`;
+const formatHours = (hours: number) =>
+  `${hours} ${hours === 1 ? "hour" : "hours"}`;
 
 interface Props {
   formContext: FormContextLevel;
@@ -225,8 +226,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
               ? `is shorter than the minimum required duration (${limit})`
               : `exceeds the maximum allowed duration (${limit})`}{" "}
             for {durationError.roomName} based on your {durationError.role}{" "}
-            role. Please select a {isBelowMin ? "longer" : "shorter"} time
-            slot.
+            role. Please select a {isBelowMin ? "longer" : "shorter"} time slot.
           </p>
         ),
         severity: "error",

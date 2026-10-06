@@ -902,4 +902,46 @@ describe("BookingStatusBar - Duration Limits", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("formats fractional limits in hours", () => {
+    mockUseCheckDurationLimits.mockReturnValue({
+      durationError: durationError({
+        currentDuration: 1,
+        minDuration: 1.5,
+        errorType: "min",
+      }),
+    });
+    renderComponent();
+
+    expect(
+      screen.getByText(
+        /Event duration \(1\.0 hours\) is shorter than the minimum required duration \(1\.5 hours\)/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: /next/i })
+        .closest(
+          '[aria-label="Duration is below minimum required for your role (1.5 hours)"]',
+        ),
+    ).toBeInTheDocument();
+  });
+
+  it("singularizes a one-hour maximum", () => {
+    mockUseCheckDurationLimits.mockReturnValue({
+      durationError: durationError({
+        currentDuration: 1.5,
+        maxDuration: 1,
+        minDuration: 0.5,
+        errorType: "max",
+      }),
+    });
+    renderComponent();
+
+    expect(
+      screen.getByText(
+        /Event duration \(1\.5 hours\) exceeds the maximum allowed duration \(1 hour\)/,
+      ),
+    ).toBeInTheDocument();
+  });
 });
