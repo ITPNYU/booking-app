@@ -76,6 +76,37 @@ function ApprovalWhyButton({ errorMessage }: { errorMessage: string }) {
   );
 }
 
+function userApprovalStatus(
+  isAutoApproval: boolean,
+  errorMessage: string | null,
+) {
+  if (isAutoApproval) {
+    return {
+      btnDisabled: false,
+      btnDisabledMessage: null,
+      message: <p>Yay! This request is eligible for automatic approval</p>,
+      severity: "success" as const,
+      icon: <Check fontSize="inherit" />,
+    };
+  }
+  return {
+    btnDisabled: false,
+    btnDisabledMessage: null,
+    message: (
+      <p>
+        This request will require approval.
+        {errorMessage && (
+          <>
+            {" "}
+            <ApprovalWhyButton errorMessage={errorMessage} />
+          </>
+        )}
+      </p>
+    ),
+    severity: "warning" as const,
+  };
+}
+
 function NoticeAlerts({
   alertsConfigured,
   notices,
@@ -303,32 +334,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     if (formContext !== FormContextLevel.MODIFICATION) {
       if (!alertsConfigured) {
         if (approvalRequiredBlock) return approvalRequiredBlock;
-        if (isAutoApproval)
-          return {
-            btnDisabled: false,
-            btnDisabledMessage: null,
-            message: (
-              <p>Yay! This request is eligible for automatic approval</p>
-            ),
-            severity: "success",
-            icon: <Check fontSize="inherit" />,
-          };
-        return {
-          btnDisabled: false,
-          btnDisabledMessage: null,
-          message: (
-            <p>
-              This request will require approval.
-              {errorMessage && (
-                <>
-                  {" "}
-                  <ApprovalWhyButton errorMessage={errorMessage} />
-                </>
-              )}
-            </p>
-          ),
-          severity: "warning",
-        };
+        return userApprovalStatus(isAutoApproval, errorMessage);
       }
 
       const statusAlert = resolvedAlerts?.status;
@@ -355,6 +361,13 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
               <Check fontSize="inherit" />
             ) : undefined,
         };
+      }
+
+      // A stored list can omit the status row for this approval state.
+      // Regular users still need the approval banner; walk-in and VIP can
+      // hide it by leaving their origin unmatched.
+      if (!isWalkIn && !isVIP) {
+        return userApprovalStatus(isAutoApproval, errorMessage);
       }
     }
 

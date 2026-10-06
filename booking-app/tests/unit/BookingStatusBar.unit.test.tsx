@@ -924,6 +924,44 @@ describe("BookingStatusBar - schema form alerts", () => {
     expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
   });
 
+  it("falls back to the approval banner for users when no status alert matches", () => {
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: false,
+      errorMessage: "Duration is too long",
+    });
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        {
+          ...defaultFormAlerts[2],
+          message: "Include setup time.",
+        },
+      ]),
+    );
+
+    renderComponent();
+
+    expect(
+      screen
+        .getByText(/This request will require approval/)
+        .closest('[role="alert"]'),
+    ).toHaveClass("MuiAlert-filledWarning");
+    expect(screen.getByText("Include setup time.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /next/i })).not.toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Why\? Duration is too long/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to the eligible banner for users when the alerts list is empty", () => {
+    mockUseTenantSchema.mockReturnValue(schemaWithAlerts([]));
+
+    renderComponent();
+
+    expect(
+      screen.getByText(/Yay! This request is eligible for automatic approval/),
+    ).toBeInTheDocument();
+  });
+
   it("drops a notice whose origin is turned off", () => {
     mockUseTenantSchema.mockReturnValue(
       schemaWithAlerts([
