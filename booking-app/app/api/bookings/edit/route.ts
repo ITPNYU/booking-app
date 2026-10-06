@@ -21,7 +21,10 @@ import {
   BookingStatusLabel,
 } from "@/components/src/types";
 import { getSecondaryContactName } from "@/components/src/utils/formatters";
-import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
+import {
+  resolveAnnexCalendarIds,
+  resolveSelectedRoomCalendars,
+} from "@/components/src/utils/resourceServicesUtils";
 import {
   getChangedServiceKeys,
   getServiceDecisions,
@@ -300,14 +303,24 @@ export async function PUT(request: NextRequest) {
       data?.annexByRoom,
       tenantResources,
     );
+    const { rooms: bookedRooms, missingRoomId } = resolveSelectedRoomCalendars(
+      selectedRooms,
+      tenantResources,
+    );
+    if (missingRoomId) {
+      return NextResponse.json(
+        { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
+        { status: 500 },
+      );
+    }
     const overlapResponse = await calendarOverlapResponse({
       tenant,
-      rooms: selectedRooms,
+      rooms: bookedRooms,
       extraCalendarIds: annexCalendarIds,
       sourceRooms: oldRooms,
       bookingCalendarInfo,
       excludeCalendarEventId: calendarEventId,
-      roomIds: selectedRooms?.map((r: { roomId?: string | number }) => r.roomId),
+      roomIds: bookedRooms.map((room) => room.roomId),
     });
     if (overlapResponse) return overlapResponse;
 
@@ -343,7 +356,7 @@ export async function PUT(request: NextRequest) {
       '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
     // Create calendar event
-    const [room, ...otherRooms] = selectedRooms;
+    const [room, ...otherRooms] = bookedRooms;
     const { calendarId } = room;
 
     if (calendarId == null) {

@@ -288,12 +288,35 @@ describe("submit conflict check", () => {
     expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
   });
 
-  it("rejects a user request when the slot is already booked", async () => {
+  it("rejects a user request against the schema calendar, not the client calendar id", async () => {
+    const list = vi.fn().mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: "someone-else",
+            iCalUID: "other-ical",
+            summary: "[APPROVED] 202 Taken",
+            start: { dateTime: "2026-05-05T15:00:00.000Z" },
+            end: { dateTime: "2026-05-05T17:00:00.000Z" },
+          },
+        ],
+      },
+    });
+    vi.mocked(getCalendarClient).mockResolvedValue({
+      events: { list, get: vi.fn().mockResolvedValue({ data: {} }) },
+    } as never);
+
     const response = await POST(post("http://localhost:3000/api/bookings"));
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({
       error: "Time slot no longer available",
     });
+    expect(list).toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: "server-cal" }),
+    );
+    expect(list).not.toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: "room-cal" }),
+    );
     expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
   });
 });

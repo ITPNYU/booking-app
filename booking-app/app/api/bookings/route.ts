@@ -21,13 +21,15 @@ import {
   BookingOrigin,
   BookingStatusLabel,
   FormContextLevel,
-  RoomSetting,
 } from "@/components/src/types";
 import {
   formatOrigin,
   getSecondaryContactName,
 } from "@/components/src/utils/formatters";
-import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
+import {
+  resolveAnnexCalendarIds,
+  resolveSelectedRoomCalendars,
+} from "@/components/src/utils/resourceServicesUtils";
 import { canRequestAuxiliarySpaces } from "@/components/src/utils/roleUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
@@ -192,7 +194,7 @@ const buildBookingContents = (
   }) as unknown as BookingFormDetails;
 
 async function createBookingCalendarEvent(
-  selectedRooms: RoomSetting[],
+  selectedRooms: Array<{ roomId: string; calendarId: string }>,
   _department: string,
   title: string,
   bookingCalendarInfo: DateSelectArg,
@@ -504,6 +506,16 @@ export async function POST(request: NextRequest) {
     data?.annexByRoom,
     tenantResources,
   );
+  const { rooms: bookedRooms, missingRoomId } = resolveSelectedRoomCalendars(
+    selectedRooms,
+    tenantResources,
+  );
+  if (missingRoomId) {
+    return NextResponse.json(
+      { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
+      { status: 500 },
+    );
+  }
 
   // Get tenant-specific flags
   const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
@@ -542,10 +554,10 @@ export async function POST(request: NextRequest) {
 
   const overlapResponse = await calendarOverlapResponse({
     tenant,
-    rooms: selectedRooms,
+    rooms: bookedRooms,
     extraCalendarIds: annexCalendarIds,
     bookingCalendarInfo,
-    roomIds: selectedRooms?.map((r: { roomId?: string | number }) => r.roomId),
+    roomIds: bookedRooms.map((room) => room.roomId),
   });
   if (overlapResponse) return overlapResponse;
 
@@ -839,7 +851,7 @@ export async function POST(request: NextRequest) {
   let calendarEventId: string;
   try {
     calendarEventId = await createBookingCalendarEvent(
-      selectedRooms,
+      bookedRooms,
       data.department,
       data.title,
       bookingCalendarInfo,

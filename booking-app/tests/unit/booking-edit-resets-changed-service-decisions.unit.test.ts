@@ -60,7 +60,10 @@ vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
 }));
 
 vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
-  serverGetTenantResources: vi.fn().mockResolvedValue([]),
+  serverGetTenantResources: vi.fn().mockResolvedValue([
+    { resourceId: "202", calendarId: "cal-room-202" },
+    { resourceId: "203", calendarId: "cal-room-203" },
+  ]),
 }));
 
 vi.mock("@/components/src/server/db", () => ({
@@ -105,6 +108,7 @@ vi.mock("@/app/api/bookings/shared", () => ({
 }));
 
 import { PUT } from "@/app/api/bookings/edit/route";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { NextRequest } from "next/server";
 
 const createRequest = (body: any) =>
@@ -285,21 +289,25 @@ describe("Edit resets only the service decisions of changed services", () => {
 
     it("rejects a conflicting slot before deleting the existing event", async () => {
       mockServerBookingContents.mockResolvedValue(savedBooking());
+      vi.mocked(serverGetTenantResources).mockResolvedValueOnce([
+        { resourceId: "202", calendarId: "schema-cal" },
+      ] as never);
+      const list = vi.fn().mockResolvedValue({
+        data: {
+          items: [
+            {
+              id: "someone-else",
+              iCalUID: "other-ical",
+              summary: "[APPROVED] 202 Taken",
+              start: { dateTime: "2026-05-05T10:30:00.000Z" },
+              end: { dateTime: "2026-05-05T11:30:00.000Z" },
+            },
+          ],
+        },
+      });
       mockGetCalendarClient.mockResolvedValue({
         events: {
-          list: vi.fn().mockResolvedValue({
-            data: {
-              items: [
-                {
-                  id: "someone-else",
-                  iCalUID: "other-ical",
-                  summary: "[APPROVED] 202 Taken",
-                  start: { dateTime: "2026-05-05T10:30:00.000Z" },
-                  end: { dateTime: "2026-05-05T11:30:00.000Z" },
-                },
-              ],
-            },
-          }),
+          list,
           get: vi.fn().mockResolvedValue({ data: { iCalUID: "own-ical" } }),
         },
       });
@@ -309,6 +317,12 @@ describe("Edit resets only the service decisions of changed services", () => {
       await expect(res.json()).resolves.toEqual({
         error: "Time slot no longer available",
       });
+      expect(list).toHaveBeenCalledWith(
+        expect.objectContaining({ calendarId: "schema-cal" }),
+      );
+      expect(list).not.toHaveBeenCalledWith(
+        expect.objectContaining({ calendarId: "cal-room-202" }),
+      );
       expect(mockDeleteEvent).not.toHaveBeenCalled();
       expect(mockInsertEvent).not.toHaveBeenCalled();
     });
