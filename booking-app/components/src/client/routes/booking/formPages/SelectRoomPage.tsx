@@ -15,13 +15,21 @@ import { useTenantSchema } from "../../components/SchemaProvider";
 import { getStartHour } from "../utils/getStartHour";
 import { getSlotUnit } from "../utils/getSlotUnit";
 import { getBookingHourLimits } from "../utils/bookingHourLimits";
+import { compareResourceIds } from "../../../../utils/resourceOrder";
 
 const CalendarVerticalResource = dynamic(
   () => import("../components/CalendarVerticalResource"),
   {
     ssr: false,
     loading: () => (
-      <Box sx={{ minHeight: 400, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box
+        sx={{
+          minHeight: 400,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         Loading calendar...
       </Box>
     ),
@@ -117,9 +125,7 @@ export default function SelectRoomPage({
     // reservation" bar is drawn on the first room and stretched rightward
     // across the rest, so array order must match column order.
     return [...selectedRooms, ...annexRooms].sort((a, b) =>
-      String(a.roomId).localeCompare(String(b.roomId), undefined, {
-        numeric: true,
-      }),
+      compareResourceIds(a.roomId, b.roomId),
     );
   }, [selectedRooms, annexByRoom, schema.resources]);
 

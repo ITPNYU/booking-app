@@ -1,6 +1,7 @@
 import { Department, Inputs, Role } from "@/components/src/types";
 import { toBookingCalendarStr } from "@/components/src/client/utils/date";
 import { getServiceSectionConfig } from "@/components/src/utils/resourceServicesUtils";
+import { getServiceDecisions } from "@/components/src/utils/serviceDecisions";
 
 import { useContext } from "react";
 import { BookingContext } from "../../booking/bookingProvider";
@@ -13,7 +14,11 @@ export default function useExistingBooking() {
     setSelectedRooms,
     setBookingCalendarInfo,
     setFormData,
+    setIsDetailsValid,
+    resetServiceRuleMemory,
+    setCheckedAgreements,
     setAnnexByRoom,
+    setServiceDecisions,
   } = useContext(BookingContext);
   const { allBookings, roomSettings } = useContext(DatabaseContext);
 
@@ -95,7 +100,8 @@ export default function useExistingBooking() {
       if (existing && Object.keys(existing).length > 0) {
         return { map: existing, chart: existingChart };
       }
-      if (!isRequested(legacyValue)) return { map: existing, chart: existingChart };
+      if (!isRequested(legacyValue))
+        return { map: existing, chart: existingChart };
       const targetIds = rooms
         .filter((room) => !!getServiceSectionConfig(room, key))
         .map((room) => String(room.roomId));
@@ -150,8 +156,7 @@ export default function useExistingBooking() {
     const setupTargetIds = setupTargetRooms.map((room) => String(room.roomId));
 
     const roomSetupByRoom =
-      booking.roomSetupByRoom &&
-      Object.keys(booking.roomSetupByRoom).length > 0
+      booking.roomSetupByRoom && Object.keys(booking.roomSetupByRoom).length > 0
         ? booking.roomSetupByRoom
         : legacySetupRequested && setupTargetIds.length === 1
           ? (() => {
@@ -206,6 +211,7 @@ export default function useExistingBooking() {
       sponsorEmail: booking.sponsorEmail,
       title: booking.title,
       description: booking.description,
+      productionSchedule: booking.productionSchedule ?? "",
       bookingType: booking.bookingType,
       attendeeAffiliation: booking.attendeeAffiliation,
       roomSetup: booking.roomSetup,
@@ -264,6 +270,13 @@ export default function useExistingBooking() {
     };
 
     setFormData(formValues);
+    // Service decisions travel beside the answers so the Services step can
+    // mark decided sections without them ever entering the form.
+    setServiceDecisions(getServiceDecisions(booking));
+    // The saved answers are re-validated when the Details step mounts.
+    setIsDetailsValid(false);
+    resetServiceRuleMemory();
+    setCheckedAgreements({});
   };
 
   return loadExistingBookingData;

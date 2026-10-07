@@ -23,10 +23,13 @@ vi.mock(
 );
 
 // Mock the duration limits hook
+const { mockUseCheckDurationLimits } = vi.hoisted(() => ({
+  mockUseCheckDurationLimits: vi.fn(),
+}));
 vi.mock(
   "@/components/src/client/routes/booking/hooks/useCheckDurationLimits",
   () => ({
-    default: () => ({ durationError: null }),
+    default: () => mockUseCheckDurationLimits(),
   })
 );
 
@@ -114,6 +117,10 @@ const defaultProps = {
   hideNextButton: false,
 };
 
+beforeEach(() => {
+  mockUseCheckDurationLimits.mockReturnValue({ durationError: null });
+});
+
 const renderComponent = (contextOverrides = {}, propsOverrides = {}) => {
   const context = { ...mockBookingContext, ...contextOverrides };
   const props = { ...defaultProps, ...propsOverrides };
@@ -134,6 +141,18 @@ describe("BookingStatusBar - Blackout Period Handling", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
+      form: {
+        productionSchedule: {
+          enabled: false,
+          requiredAboveHours: 4,
+          label: "Production Schedule",
+          description: "",
+          templateLink: "",
+          templateLinkText: "",
+          calendarBannerMessage:
+            "This request is greater than four hours. You will need to provide a production schedule on the next page to continue.",
+        },
+      },
       calendarConfig: {
         timeSensitiveRequestWarning: {
           hours: 48,
@@ -291,6 +310,23 @@ describe("BookingStatusBar - Blackout Period Handling", () => {
     expect(screen.getByText(/blackout period/)).toBeInTheDocument();
   });
 
+  it("does not block modification on missing safety training", () => {
+    renderComponent(
+      {
+        needsSafetyTraining: true,
+      },
+      {
+        formContext: FormContextLevel.MODIFICATION,
+      }
+    );
+
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    expect(nextButton).not.toBeDisabled();
+    expect(
+      screen.queryByText(/You have not taken safety training/)
+    ).not.toBeInTheDocument();
+  });
+
   it("renders back button when not hidden", () => {
     renderComponent();
 
@@ -381,6 +417,14 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
       name: "Media Commons",
+      form: {
+        productionSchedule: {
+          enabled: false,
+          requiredAboveHours: 4,
+          calendarBannerMessage:
+            "This request is greater than four hours. You will need to provide a production schedule on the next page to continue.",
+        },
+      },
       calendarConfig: {
         timeSensitiveRequestWarning: {
           hours: 48,
@@ -705,5 +749,199 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     });
 
     expect(screen.queryByText("Learn more")).not.toBeInTheDocument();
+  });
+});
+
+describe("BookingStatusBar - Production Schedule Banner", () => {
+  const bannerMessage =
+    "This request is greater than four hours. You will need to provide a production schedule on the next page to continue.";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(usePathname).mockReturnValue("/test/book/selectRoom");
+    mockUseTenantSchema.mockReturnValue({
+      tenant: "media-commons",
+      name: "Media Commons",
+      form: {
+        productionSchedule: {
+          enabled: true,
+          requiredAboveHours: 4,
+          calendarBannerMessage: bannerMessage,
+        },
+      },
+      calendarConfig: {
+        timeSensitiveRequestWarning: {
+          hours: 48,
+          isActive: false,
+          message: "",
+          policyLink: "",
+        },
+      },
+    });
+  });
+
+  it("shows the banner when enabled and duration exceeds the threshold", () => {
+    const start = new Date("2026-09-22T09:00:00");
+    const end = new Date("2026-09-22T14:00:00"); // 5 hours
+    renderComponent({
+      bookingCalendarInfo: {
+        ...mockBookingContext.bookingCalendarInfo,
+        start,
+        end,
+        startStr: start.toISOString(),
+        endStr: end.toISOString(),
+      },
+    });
+
+    expect(screen.getByText(bannerMessage)).toBeInTheDocument();
+  });
+
+  it("hides the banner when duration is at or below the threshold", () => {
+    const start = new Date("2026-09-22T09:00:00");
+    const end = new Date("2026-09-22T13:00:00"); // 4 hours
+    renderComponent({
+      bookingCalendarInfo: {
+        ...mockBookingContext.bookingCalendarInfo,
+        start,
+        end,
+        startStr: start.toISOString(),
+        endStr: end.toISOString(),
+      },
+    });
+
+    expect(screen.queryByText(bannerMessage)).not.toBeInTheDocument();
+  });
+
+  it("hides the banner when the feature is disabled", () => {
+    mockUseTenantSchema.mockReturnValue({
+      tenant: "itp",
+      form: {
+        productionSchedule: {
+          enabled: false,
+          requiredAboveHours: 4,
+          calendarBannerMessage: bannerMessage,
+        },
+      },
+      calendarConfig: { timeSensitiveRequestWarning: { isActive: false } },
+    });
+
+    const start = new Date("2026-09-22T09:00:00");
+    const end = new Date("2026-09-22T15:00:00");
+    renderComponent({
+      bookingCalendarInfo: {
+        ...mockBookingContext.bookingCalendarInfo,
+        start,
+        end,
+        startStr: start.toISOString(),
+        endStr: end.toISOString(),
+      },
+    });
+
+    expect(screen.queryByText(bannerMessage)).not.toBeInTheDocument();
+  });
+});
+
+describe("BookingStatusBar - Duration Limits", () => {
+  const durationError = (overrides: Record<string, unknown>) => ({
+    roomId: 101,
+    roomName: "Room 101",
+    maxDuration: 4,
+    minDuration: 1,
+    role: Role.STUDENT,
+    isWalkIn: false,
+    ...overrides,
+  });
+
+  beforeEach(() => {
+    mockUseTenantSchema.mockReturnValue({
+      tenant: "media-commons",
+      name: "Media Commons",
+      calendarConfig: {},
+    });
+  });
+
+  it("explains a slot that is shorter than the minimum duration", () => {
+    mockUseCheckDurationLimits.mockReturnValue({
+      durationError: durationError({ currentDuration: 0.5, errorType: "min" }),
+    });
+    renderComponent();
+
+    expect(
+      screen.getByText(
+        /Event duration \(0\.5 hours\) is shorter than the minimum required duration \(1 hour\) for Room 101 based on your Student role\. Please select a longer time slot\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/maximum/)).not.toBeInTheDocument();
+
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    expect(nextButton).toBeDisabled();
+    expect(
+      nextButton.closest(
+        '[aria-label="Duration is below minimum required for your role (1 hour)"]',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("explains a slot that is longer than the maximum duration", () => {
+    mockUseCheckDurationLimits.mockReturnValue({
+      durationError: durationError({ currentDuration: 5, errorType: "max" }),
+    });
+    renderComponent();
+
+    expect(
+      screen.getByText(
+        /Event duration \(5\.0 hours\) exceeds the maximum allowed duration \(4 hours\) for Room 101 based on your Student role\. Please select a shorter time slot\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/minimum/)).not.toBeInTheDocument();
+
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    expect(
+      nextButton.closest(
+        '[aria-label="Duration exceeds maximum allowed for your role (4 hours)"]',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("formats fractional limits in hours", () => {
+    mockUseCheckDurationLimits.mockReturnValue({
+      durationError: durationError({
+        currentDuration: 1,
+        minDuration: 1.5,
+        errorType: "min",
+      }),
+    });
+    renderComponent();
+
+    expect(
+      screen.getByText(
+        /Event duration \(1\.0 hours\) is shorter than the minimum required duration \(1\.5 hours\)/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: /next/i })
+        .closest(
+          '[aria-label="Duration is below minimum required for your role (1.5 hours)"]',
+        ),
+    ).toBeInTheDocument();
+  });
+
+  it("singularizes a one-hour maximum", () => {
+    mockUseCheckDurationLimits.mockReturnValue({
+      durationError: durationError({
+        currentDuration: 1.5,
+        maxDuration: 1,
+        minDuration: 0.5,
+        errorType: "max",
+      }),
+    });
+    renderComponent();
+
+    expect(
+      screen.getByText(
+        /Event duration \(1\.5 hours\) exceeds the maximum allowed duration \(1 hour\)/,
+      ),
+    ).toBeInTheDocument();
   });
 });

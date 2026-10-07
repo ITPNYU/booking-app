@@ -115,6 +115,22 @@ const serviceApprovedGuard =
     return approved;
   };
 
+/**
+ * A requested service that already holds the given decision: an unchanged
+ * service on a resubmitted edit keeps its decision and skips the pending
+ * state when the booking re-enters "Services Request" (ADR-0001). A stale
+ * decision for a service that is no longer requested is ignored.
+ */
+const serviceAlreadyDecidedGuard =
+  (service: MediaCommonsServiceKey, decision: boolean, guardName: string) =>
+  ({ context }: { context: MediaCommonsBookingContext }) => {
+    const requested = context.servicesRequested?.[service] === true;
+    const decided = context.servicesApproved?.[service] === decision;
+    const result = requested && decided;
+    console.log(`🎯 XSTATE GUARD: ${guardName}: ${result}`);
+    return result;
+  };
+
 export const mcBookingActions = {
   /**
    * Generic state-entry log. Every state declares this with a `label` so the
@@ -307,8 +323,22 @@ export const mcBookingActions = {
   approveFurnishingsService: serviceApprovalAction("furnishings", true),
   declineFurnishingsService: serviceApprovalAction("furnishings", false),
 
+  /**
+   * Drop the decisions of the services the edit changed; unchanged services
+   * keep theirs (ADR-0001). Without `changedServices` on the event nothing is
+   * dropped: the restore path already rebuilt `servicesApproved` from the
+   * booking's approval flags, which the edit endpoint pruned.
+   */
   resetServiceDecisionsOnEdit: mcAssign({
-    servicesApproved: () => ({}),
+    servicesApproved: ({ context, event }) => {
+      const changed =
+        event.type === "edit" && Array.isArray(event.changedServices)
+          ? event.changedServices
+          : [];
+      const kept = { ...context.servicesApproved };
+      for (const service of changed) delete kept[service];
+      return kept;
+    },
   }),
 
   // Close processing is now handled by callers (db.ts, cron, /api/services) after XState transition
@@ -465,5 +495,78 @@ export const mcBookingGuards = {
   furnishingsApproved: serviceApprovedGuard(
     "furnishings",
     "furnishingsApproved",
+  ),
+
+  // Already-decided guards for the "Evaluate <Service> Request" step. One
+  // pair per service region.
+  staffAlreadyApproved: serviceAlreadyDecidedGuard(
+    "staff",
+    true,
+    "staffAlreadyApproved",
+  ),
+  staffAlreadyDeclined: serviceAlreadyDecidedGuard(
+    "staff",
+    false,
+    "staffAlreadyDeclined",
+  ),
+  cateringAlreadyApproved: serviceAlreadyDecidedGuard(
+    "catering",
+    true,
+    "cateringAlreadyApproved",
+  ),
+  cateringAlreadyDeclined: serviceAlreadyDecidedGuard(
+    "catering",
+    false,
+    "cateringAlreadyDeclined",
+  ),
+  setupAlreadyApproved: serviceAlreadyDecidedGuard(
+    "setup",
+    true,
+    "setupAlreadyApproved",
+  ),
+  setupAlreadyDeclined: serviceAlreadyDecidedGuard(
+    "setup",
+    false,
+    "setupAlreadyDeclined",
+  ),
+  cleaningAlreadyApproved: serviceAlreadyDecidedGuard(
+    "cleaning",
+    true,
+    "cleaningAlreadyApproved",
+  ),
+  cleaningAlreadyDeclined: serviceAlreadyDecidedGuard(
+    "cleaning",
+    false,
+    "cleaningAlreadyDeclined",
+  ),
+  securityAlreadyApproved: serviceAlreadyDecidedGuard(
+    "security",
+    true,
+    "securityAlreadyApproved",
+  ),
+  securityAlreadyDeclined: serviceAlreadyDecidedGuard(
+    "security",
+    false,
+    "securityAlreadyDeclined",
+  ),
+  equipmentAlreadyApproved: serviceAlreadyDecidedGuard(
+    "equipment",
+    true,
+    "equipmentAlreadyApproved",
+  ),
+  equipmentAlreadyDeclined: serviceAlreadyDecidedGuard(
+    "equipment",
+    false,
+    "equipmentAlreadyDeclined",
+  ),
+  furnishingsAlreadyApproved: serviceAlreadyDecidedGuard(
+    "furnishings",
+    true,
+    "furnishingsAlreadyApproved",
+  ),
+  furnishingsAlreadyDeclined: serviceAlreadyDecidedGuard(
+    "furnishings",
+    false,
+    "furnishingsAlreadyDeclined",
   ),
 };

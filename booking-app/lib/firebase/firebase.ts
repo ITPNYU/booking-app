@@ -11,6 +11,7 @@ import { getE2EOverride } from "@/lib/e2e/clientOverrides";
 
 import { reviveSerializedTimestamps } from "@/lib/utils/timestampWire";
 import { Filters } from "@/components/src/types";
+import { compareResourceIds } from "@/components/src/utils/resourceOrder";
 import type { SchemaContextType } from "@/components/src/client/routes/components/schemaTypes";
 import {
   USER_RIGHT_FLAG_FIELDS,
@@ -200,7 +201,7 @@ export const clientListServiceApprovers = async (
     tenant,
   );
   return docs.sort((a, b) => {
-    const resourceCompare = a.resourceId.localeCompare(b.resourceId);
+    const resourceCompare = compareResourceIds(a.resourceId, b.resourceId);
     if (resourceCompare !== 0) return resourceCompare;
     const serviceCompare = a.service.localeCompare(b.service);
     if (serviceCompare !== 0) return serviceCompare;
@@ -403,14 +404,17 @@ export const clientResolveResourceApproverEmails = async (
   for (const approver of approvers) {
     if (!requestedResourceIds.has(approver.resourceId)) continue;
     const email = normalizeEmail(approver.email);
-    const approverResourceIds = resourceIdsByEmail.get(email) ?? new Set<string>();
+    const approverResourceIds =
+      resourceIdsByEmail.get(email) ?? new Set<string>();
     approverResourceIds.add(approver.resourceId);
     resourceIdsByEmail.set(email, approverResourceIds);
   }
 
   const recipients = [...resourceIdsByEmail.entries()]
     .filter(([, approverResourceIds]) =>
-      uniqueResourceIds.every((resourceId) => approverResourceIds.has(resourceId)),
+      uniqueResourceIds.every((resourceId) =>
+        approverResourceIds.has(resourceId),
+      ),
     )
     .map(([email]) => email);
 
@@ -453,7 +457,8 @@ export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
 
 export const getPaginatedData = async <T>(
   collectionName: string,
-  itemsPerPage: number = 10,
+  /** `null` fetches the whole filtered range (no LIMIT). */
+  itemsPerPage: number | null = 10,
   filters: Filters,
   lastVisible: Record<string, unknown> | null = null,
   tenant?: string,
@@ -499,7 +504,7 @@ export const getPaginatedData = async <T>(
         searchQuery: filters.searchQuery,
         userEmail: filters.userEmail,
       },
-      limit: itemsPerPage,
+      limit: itemsPerPage ?? undefined,
       lastVisible: serializedLast,
     });
     return docs as unknown as T[];
@@ -542,9 +547,7 @@ export const clientGetDataByCalendarEventId = async <T>(
     >("/api/firestore/list", {
       collection: collectionName,
       tenant: resolveTenantArg(tenant),
-      where: [
-        { field: "calendarEventId", op: "==", value: calendarEventId },
-      ],
+      where: [{ field: "calendarEventId", op: "==", value: calendarEventId }],
       limit: 1,
     });
     if (docs.length === 0) return null;

@@ -53,6 +53,7 @@ import {
   applyE2EMockPaUsers,
   applyE2EMockSafetyUsers,
 } from "./e2eMockUtils";
+import { compareResourceIds } from "../../../utils/resourceOrder";
 
 export interface DatabaseContextType {
   adminUsers: AdminUser[];
@@ -351,9 +352,7 @@ export const DatabaseProvider = ({
           isEquipment: resource.isEquipment || false,
           services: resource.services || [],
         }))
-        .sort((a, b) =>
-          a.roomId.localeCompare(b.roomId, undefined, { numeric: true }),
-        );
+        .sort((a, b) => compareResourceIds(a.roomId, b.roomId));
       setRoomSettings(rooms);
     }
   }, [schemaContext?.resources]);
@@ -401,6 +400,9 @@ export const DatabaseProvider = ({
       // is the USER /my-bookings tab, regardless of the caller's role. Forward
       // it to the paginated route so a user's own booking isn't crowded out of
       // the LIMIT-bounded result set by tenant-wide far-future bookings.
+      // LIMIT applies to bounded date ranges only; `fetchAllBookings` fetches
+      // the open-ended "All Future" range whole so the client-side status
+      // chips see every future booking.
       const bookingsResponse: Booking[] = await fetchAllBookings(
         pagePermission,
         LIMIT,

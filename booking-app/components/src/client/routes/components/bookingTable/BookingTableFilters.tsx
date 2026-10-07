@@ -7,7 +7,7 @@ import {
   TextField,
 } from "@mui/material";
 import {
-  RoomService,
+  RoomPreferences,
   TableBar,
   Headset,
   PeopleAlt,
@@ -15,9 +15,15 @@ import {
   CleaningServices,
   LocalPolice,
 } from "@mui/icons-material";
-import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { BookingStatusLabel, PageContextLevel } from "../../../../types";
-import { useTenantSchema } from "../../components/SchemaProvider";
+import { useTenantSchema } from "../SchemaProvider";
 
 import { debounce } from "../../../utils/debounce";
 import Dropdown from "../../booking/components/Dropdown";
@@ -26,6 +32,7 @@ import { DateRangeFilter } from "./hooks/getDateFilter";
 import MultiSelectDropdown from "../../booking/components/MultiSelectDropdown";
 import StatusMultiSelectDropdown from "../../booking/components/StatusMultiSelectDropdown";
 import ServicesMultiSelectDropdown from "../../booking/components/ServicesMultiSelectDropdown";
+import { SERVICE_ORDER } from "../../../utils/serviceOrder";
 import StatusChip from "./StatusChip";
 import FilterChip from "./FilterChip";
 
@@ -135,7 +142,7 @@ export default function BookingTableFilters({
   );
 
   const serviceIcons: Record<string, React.ElementType> = {
-    Setup: RoomService,
+    Setup: RoomPreferences,
     Equipment: Headset,
     Staffing: PeopleAlt,
     Catering: LocalDining,
@@ -220,38 +227,40 @@ export default function BookingTableFilters({
           sx={{ marginLeft: "4px", color: "rgba(0,0,0,0.8)", marginTop: "4px" }}
         />
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          {pageContext !== PageContextLevel.USER && <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              flexWrap: "wrap",
-              rowGap: 1.5,
-            }}
-          >
-            {originFilters.map((origin) => (
-              <Box
-                onClick={() =>
-                  setSelectedOrigins?.((prev: string[] | null) => {
-                    if (prev?.includes(origin)) {
-                      return prev?.filter((o) => o !== origin);
-                    }
-                    return [...(prev || []), origin];
-                  })
-                }
-                key={origin}
-                sx={{
-                  cursor: "pointer",
-                  display: "inline-block",
-                  padding: "0px 8px 0px 4px",
-                }}
-              >
-                <FilterChip
-                  selected={selectedOrigins?.includes(origin)}
-                  text={origin}
-                />
-              </Box>
-            ))}
-          </Box>}
+          {pageContext !== PageContextLevel.USER && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                flexWrap: "wrap",
+                rowGap: 1.5,
+              }}
+            >
+              {originFilters.map((origin) => (
+                <Box
+                  onClick={() =>
+                    setSelectedOrigins?.((prev: string[] | null) => {
+                      if (prev?.includes(origin)) {
+                        return prev?.filter((o) => o !== origin);
+                      }
+                      return [...(prev || []), origin];
+                    })
+                  }
+                  key={origin}
+                  sx={{
+                    cursor: "pointer",
+                    display: "inline-block",
+                    padding: "0px 8px 0px 4px",
+                  }}
+                >
+                  <FilterChip
+                    selected={selectedOrigins?.includes(origin)}
+                    text={origin}
+                  />
+                </Box>
+              ))}
+            </Box>
+          )}
           <Box
             sx={{
               display: "flex",
@@ -327,49 +336,46 @@ export default function BookingTableFilters({
                 </Box>
               ))}
           </Box>
-          {pageContext !== PageContextLevel.USER && (schema.form.services.showSetup || schema.form.services.showEquipment || schema.form.services.showStaffing || schema.form.services.showCatering || schema.form.services.showSecurity) && (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                flexWrap: "wrap",
-                rowGap: 1.5,
-              }}
-            >
-              {[
-                "Setup",
-                "Equipment",
-                "Staffing",
-                "Catering",
-                "Cleaning",
-                "Security",
-                "Furniture",
-              ].map((service) => (
-                <Box
-                  onClick={() =>
-                    setSelectedServices?.((prev: string[] | null) => {
-                      if (prev?.includes(service)) {
-                        return prev?.filter((x) => x !== service);
-                      }
-                      return [...(prev || []), service];
-                    })
-                  }
-                  key={service}
-                  sx={{
-                    cursor: "pointer",
-                    display: "inline-block",
-                    padding: "0px 8px 0px 4px",
-                  }}
-                >
-                  <FilterChip
-                    selected={selectedServices?.includes(service)}
-                    text={service}
-                    icon={serviceIcons[service]}
-                  />
-                </Box>
-              ))}
-            </Box>
-          )}
+          {pageContext !== PageContextLevel.USER &&
+            (schema.form.services.showSetup ||
+              schema.form.services.showEquipment ||
+              schema.form.services.showStaffing ||
+              schema.form.services.showCatering ||
+              schema.form.services.showSecurity) && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  rowGap: 1.5,
+                }}
+              >
+                {SERVICE_ORDER.map((service) => (
+                  <Box
+                    onClick={() =>
+                      setSelectedServices?.((prev: string[] | null) => {
+                        if (prev?.includes(service)) {
+                          return prev?.filter((x) => x !== service);
+                        }
+                        return [...(prev || []), service];
+                      })
+                    }
+                    key={service}
+                    sx={{
+                      cursor: "pointer",
+                      display: "inline-block",
+                      padding: "0px 8px 0px 4px",
+                    }}
+                  >
+                    <FilterChip
+                      selected={selectedServices?.includes(service)}
+                      text={service}
+                      icon={serviceIcons[service]}
+                    />
+                  </Box>
+                ))}
+              </Box>
+            )}
         </Box>
       </Box>
       <Box

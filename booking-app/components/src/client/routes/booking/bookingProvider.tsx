@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type React from "react";
 
 import { DateSelectArg } from "@fullcalendar/core";
@@ -15,8 +23,24 @@ import {
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
 import { canAccessAdmin } from "../../../utils/permissions";
+import {
+  getServiceResourceId,
+  getServiceRooms,
+} from "../../../utils/resourceServicesUtils";
+import type { ServiceDecisions } from "../../../utils/serviceDecisions";
+import {
+  createServiceRuleMemory,
+  pruneServiceRequestsToRooms,
+  pruneServiceRuleMemoryToRooms,
+  ServiceRuleMemory,
+} from "../../../utils/serviceSections";
 import { DatabaseContext } from "../components/Provider";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
+import {
+  getBookingFlowKey,
+  isBookingStepPath,
+  parseBookingUrl,
+} from "./utils/bookingUrlParser";
 import { useTenantSchema } from "../components/SchemaProvider";
 
 export interface BookingContextType {
@@ -24,6 +48,31 @@ export interface BookingContextType {
   department: Department | undefined;
   existingCalendarEvents: CalendarEvent[];
   formData: Inputs | undefined;
+  /**
+   * Whether the Details step's answer set passed its validation. Recorded
+   * by the Details page when Next validates it and withdrawn on any later
+   * edit; the missing-data guard reads it before letting a request land on
+   * the Services step. Holds only for the request
+   * (tenant, flow, booking id and attempt), role and rooms it was validated
+   * against.
+   */
+  isDetailsValid: boolean;
+  /** Which service answers a rule switched on; survives leaving the Services step. */
+  serviceRuleMemory: ServiceRuleMemory;
+  resetServiceRuleMemory: () => void;
+  /**
+   * Agreement attestations ticked so far, by attestation id. Kept here so
+   * they survive the submit block remounting within a request. Hold only
+   * for the request they were ticked in.
+   */
+  checkedAgreements: Record<string, boolean>;
+  /**
+   * The loaded booking's service decisions (edit and modification contexts),
+   * kept beside formData so they never enter the answer set. Cleared with
+   * the rest of the form.
+   */
+  serviceDecisions: ServiceDecisions;
+  setServiceDecisions: (x: ServiceDecisions) => void;
   hasShownMocapModal: boolean;
   isBanned: boolean;
   isSafetyTrained: boolean;
@@ -37,10 +86,14 @@ export interface BookingContextType {
   setBookingCalendarInfo: (x: DateSelectArg) => void;
   setDepartment: (x: Department) => void;
   setFormData: (x: Inputs) => void;
+  setIsDetailsValid: (x: boolean) => void;
+  setCheckedAgreements: (x: Record<string, boolean>) => void;
   setHasShownMocapModal: (x: boolean) => void;
   setRole: (x: Role) => void;
   setSelectedRooms: (x: RoomSetting[]) => void;
-  setAnnexByRoom: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
+  setAnnexByRoom: React.Dispatch<
+    React.SetStateAction<Record<string, string[]>>
+  >;
   setSubmitting: (x: SubmitStatus) => void;
   submitting: SubmitStatus;
   fetchingStatus: "loading" | "loaded" | "error" | null;
@@ -53,6 +106,12 @@ export const BookingContext = createContext<BookingContextType>({
   department: undefined,
   existingCalendarEvents: [],
   formData: undefined,
+  isDetailsValid: false,
+  serviceRuleMemory: createServiceRuleMemory(),
+  resetServiceRuleMemory: () => {},
+  checkedAgreements: {},
+  serviceDecisions: {},
+  setServiceDecisions: (x: ServiceDecisions) => {},
   hasShownMocapModal: false,
   isBanned: false,
   isSafetyTrained: true,
@@ -65,6 +124,8 @@ export const BookingContext = createContext<BookingContextType>({
   setBookingCalendarInfo: (x: DateSelectArg) => {},
   setDepartment: (x: Department) => {},
   setFormData: (x: Inputs) => {},
+  setIsDetailsValid: (x: boolean) => {},
+  setCheckedAgreements: (x: Record<string, boolean>) => {},
   setHasShownMocapModal: (x: boolean) => {},
   setRole: (x: Role) => {},
   setSelectedRooms: (x: RoomSetting[]) => {},
@@ -75,6 +136,9 @@ export const BookingContext = createContext<BookingContextType>({
   error: null,
   setError: (x: Error | null) => {},
 });
+
+const NO_AGREEMENTS: Record<string, boolean> = {};
+const INITIAL_SUBMIT_STATUS: SubmitStatus = "error";
 
 export function BookingProvider({ children }) {
   const {
@@ -93,11 +157,102 @@ export function BookingProvider({ children }) {
     useState<DateSelectArg>();
   const [department, setDepartment] = useState<Department>();
   const [formData, setFormData] = useState<Inputs>(undefined);
-  const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [role, setRole] = useState<Role>();
   const [selectedRooms, setSelectedRooms] = useState<RoomSetting[]>([]);
+  // This provider outlives a request: moving from one flow or booking to
+  // another keeps it mounted. Details validity, the service rule memory, the
+  // ticked agreements and the submit status are tied to the request they were
+  // recorded in, so another request never inherits them, whether or not its
+  // entry point cleared them.
+  //
+  // A new request has no booking id, so two attempts at the same flow share a
+  // pathname. Leaving the flow's steps, for its landing page or any other
+  // page, ends the attempt: the steps reached afterwards belong to a new one.
+  //
+  // The confirmation page closes the request that redirected to it, under a
+  // pathname of its own: an edit lands on book/confirmation and a
+  // modification on one without the booking id. It keeps that request's key,
+  // so the submission still settling there is reported on it. Leaving it
+  // ends the attempt, even for a step of the same flow (browser Back).
+  const [attempt, setAttempt] = useState({
+    pathname,
+    count: 0,
+    request: getBookingFlowKey(pathname),
+  });
+  if (attempt.pathname !== pathname) {
+    setAttempt(
+      parseBookingUrl(pathname ?? "").step === "confirmation"
+        ? { ...attempt, pathname }
+        : {
+            pathname,
+            count:
+              isBookingStepPath(pathname) &&
+              parseBookingUrl(attempt.pathname ?? "").step !== "confirmation"
+                ? attempt.count
+                : attempt.count + 1,
+            request: getBookingFlowKey(pathname),
+          },
+    );
+  }
+  const flowKey = `${attempt.request}#${attempt.count}`;
+  // Details validation also reads the role (sponsor) and the rooms' capacity
+  // (expected attendance), which change on other steps. Validity holds only
+  // for the values it was checked against, so changing them sends the
+  // request back through Details even if that step was skipped on the way.
+  const detailsValidityKey = [
+    flowKey,
+    role ?? "",
+    ...selectedRooms.map((room) => `${room.roomId}:${room.capacity}`),
+  ].join("|");
+  const [detailsValidKey, setDetailsValidKey] = useState<string | null>(null);
+  const isDetailsValid = detailsValidKey === detailsValidityKey;
+  const setIsDetailsValid = useCallback(
+    (x: boolean) => setDetailsValidKey(x ? detailsValidityKey : null),
+    [detailsValidityKey],
+  );
+  const serviceRuleMemory = useRef(createServiceRuleMemory());
+  const resetServiceRuleMemory = () => {
+    Object.assign(serviceRuleMemory.current, createServiceRuleMemory());
+  };
+  // Reset while rendering, not in an effect: the Services step reads the
+  // memory in its own effects, which run before this provider's.
+  // The room set the service answers were last pruned against. A new request
+  // starts without one, so the saved booking it loads is kept as it arrives
+  // however many were opened before it.
+  const previousServiceRoomKey = useRef<string | null>(null);
+  const serviceRuleMemoryFlowKey = useRef(flowKey);
+  if (serviceRuleMemoryFlowKey.current !== flowKey) {
+    serviceRuleMemoryFlowKey.current = flowKey;
+    resetServiceRuleMemory();
+    previousServiceRoomKey.current = null;
+  }
+  const [agreements, setAgreements] = useState<{
+    flowKey: string;
+    checked: Record<string, boolean>;
+  } | null>(null);
+  const checkedAgreements =
+    agreements?.flowKey === flowKey ? agreements.checked : NO_AGREEMENTS;
+  const setCheckedAgreements = useCallback(
+    (checked: Record<string, boolean>) => setAgreements({ flowKey, checked }),
+    [flowKey],
+  );
+  const [serviceDecisions, setServiceDecisions] = useState<ServiceDecisions>(
+    {},
+  );
+  const [hasShownMocapModal, setHasShownMocapModal] = useState(false);
   const [annexByRoom, setAnnexByRoom] = useState<Record<string, string[]>>({});
-  const [submitting, setSubmitting] = useState<SubmitStatus>("error");
+  // A finished submission is terminal for its own attempt only: "success"
+  // switches off the missing-data guard, which the next request needs back.
+  const [submission, setSubmission] = useState<{
+    flowKey: string;
+    status: SubmitStatus;
+  } | null>(null);
+  const submitting =
+    submission?.flowKey === flowKey ? submission.status : INITIAL_SUBMIT_STATUS;
+  const setSubmitting = useCallback(
+    (status: SubmitStatus) => setSubmission({ flowKey, status }),
+    [flowKey],
+  );
   const {
     existingCalendarEvents,
     reloadExistingCalendarEvents,
@@ -123,6 +278,35 @@ export function BookingProvider({ children }) {
       reloadSafetyTrainedUsers();
     }
   }, [selectedRooms, reloadSafetyTrainedUsers]);
+
+  // Service requests are answered per room. When the room set changes, the
+  // answers for rooms no longer part of the request are dropped right away so
+  // they never reach the Services step or the submission. Rooms and answers
+  // that arrive together (loading a saved booking) are left as they are.
+  const serviceRooms = useMemo(
+    () => getServiceRooms(selectedRooms, annexByRoom, schema.resources ?? []),
+    [selectedRooms, annexByRoom, schema.resources],
+  );
+  const tenantShowSetup = schema.form?.services?.showSetup ?? false;
+  const serviceRoomKey = serviceRooms.map(getServiceResourceId).join(",");
+  useEffect(() => {
+    const previous = previousServiceRoomKey.current;
+    previousServiceRoomKey.current = serviceRoomKey;
+    // No rooms before means nothing was answered yet: a saved booking's
+    // rooms and answers arrive together and must be kept.
+    if (!previous || previous === serviceRoomKey) return;
+    // The rule memory of a dropped room goes with its answers.
+    pruneServiceRuleMemoryToRooms(serviceRuleMemory.current, serviceRooms);
+    if (!formData) return;
+    const pruned = pruneServiceRequestsToRooms(
+      formData,
+      serviceRooms,
+      tenantShowSetup,
+    );
+    if (pruned !== formData) setFormData(pruned);
+    // formData is read, not watched: pruning runs only when the rooms change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceRoomKey]);
 
   const isBanned = useMemo<boolean>(() => {
     const bannedEmails = bannedUsers.map((bannedUser) => bannedUser.email);
@@ -191,6 +375,12 @@ export function BookingProvider({ children }) {
         existingCalendarEvents,
         reloadExistingCalendarEvents,
         formData,
+        isDetailsValid,
+        serviceRuleMemory: serviceRuleMemory.current,
+        resetServiceRuleMemory,
+        checkedAgreements,
+        serviceDecisions,
+        setServiceDecisions,
         hasShownMocapModal,
         isBanned,
         isSafetyTrained,
@@ -202,6 +392,8 @@ export function BookingProvider({ children }) {
         setBookingCalendarInfo,
         setDepartment,
         setFormData,
+        setIsDetailsValid,
+        setCheckedAgreements,
         setHasShownMocapModal,
         setRole,
         setSelectedRooms,

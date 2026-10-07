@@ -11,7 +11,14 @@ import type { HandlerContext, StateHandler } from "./types";
 export const handleCanceledEntry: StateHandler = async (
   ctx: HandlerContext,
 ) => {
-  const { calendarEventId, email, tenant, previousState, newState, firestoreUpdates } = ctx;
+  const {
+    calendarEventId,
+    email,
+    tenant,
+    previousState,
+    newState,
+    firestoreUpdates,
+  } = ctx;
 
   firestoreUpdates.canceledAt = admin.firestore.Timestamp.now();
   if (email) {

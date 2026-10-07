@@ -1,4 +1,10 @@
-import { Box, Checkbox, FormControlLabel, FormGroup, Tooltip } from "@mui/material";
+import {
+  Box,
+  Checkbox,
+  FormControlLabel,
+  FormGroup,
+  Tooltip,
+} from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import dayjs from "dayjs";
@@ -11,6 +17,7 @@ import { getAnnexOptions } from "../../../../utils/resourceServicesUtils";
 import { canRequestAuxiliarySpaces } from "../../../../utils/roleUtils";
 import { BookingContext } from "../bookingProvider";
 import { useBookingDateRestrictions } from "../hooks/useBookingDateRestrictions";
+import { compareResourceIds } from "../../../../utils/resourceOrder";
 
 interface Props {
   allRooms: RoomSetting[];
@@ -46,12 +53,7 @@ export const SelectRooms = ({
 
   // Sort rooms by room number for consistent display order
   const sortedRooms = useMemo(
-    () =>
-      [...allRooms].sort((a, b) =>
-        String(a.roomId).localeCompare(String(b.roomId), undefined, {
-          numeric: true,
-        }),
-      ),
+    () => [...allRooms].sort((a, b) => compareResourceIds(a.roomId, b.roomId)),
     [allRooms],
   );
 
@@ -171,9 +173,7 @@ export const SelectRooms = ({
           return prev;
         }
         return [...prev, normalizedRoom].sort((a, b) =>
-          String(a.roomId).localeCompare(String(b.roomId), undefined, {
-            numeric: true,
-          }),
+          compareResourceIds(a.roomId, b.roomId),
         );
       });
       return;

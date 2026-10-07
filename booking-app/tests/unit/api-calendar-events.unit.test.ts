@@ -18,6 +18,10 @@ vi.mock("@/lib/googleClient", () => ({
   getCalendarClient: vi.fn(),
 }));
 
+vi.mock("@/app/api/bookings/shared", () => ({
+  getTenantRooms: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/components/src/client/routes/hooks/getBookingStatus", () => ({
   __esModule: true,
   default: vi.fn(),
@@ -35,6 +39,7 @@ import {
 import { _resetBookingsCacheForTesting } from "@/lib/bookingsCache";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
+import { getTenantRooms } from "@/app/api/bookings/shared";
 
 const mockInsertEvent = vi.mocked(insertEvent);
 const mockDeleteEvent = vi.mocked(deleteEvent);
@@ -44,6 +49,7 @@ const mockServerFetchAllDataFromCollection = vi.mocked(
   serverFetchAllDataFromCollection,
 );
 const mockGetCalendarClient = vi.mocked(getCalendarClient);
+const mockGetTenantRooms = vi.mocked(getTenantRooms);
 const mockGetBookingStatus = vi.mocked(getBookingStatus);
 
 // Helper: build a minimal GET request for a given calendarId + tenant
@@ -69,6 +75,7 @@ describe("/api/calendarEvents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     _resetBookingsCacheForTesting();
+    mockGetTenantRooms.mockResolvedValue([]);
   });
 
   describe("GET", () => {
@@ -144,6 +151,83 @@ describe("/api/calendarEvents", () => {
         [],
         "tenant-one",
       );
+    });
+
+    it("stamps a guest copy with the Firestore booking id when the slot is unique", async () => {
+      stubCalendarClient([
+        {
+          id: "google-guest-copy",
+          summary: "Orientation",
+          start: { dateTime: "2024-09-01T10:00:00.000Z" },
+          end: { dateTime: "2024-09-01T12:00:00.000Z" },
+        },
+      ]);
+      mockGetTenantRooms.mockResolvedValue([
+        { roomId: "203", calendarId: "gmail-calendar" },
+      ] as any);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([
+        {
+          calendarEventId: "primary-id",
+          roomId: "202, 203",
+          startDate: { toDate: () => new Date("2024-09-01T10:00:00.000Z") },
+          endDate: { toDate: () => new Date("2024-09-01T12:00:00.000Z") },
+          requestNumber: 99,
+          email: "student@nyu.edu",
+          department: "ITP",
+        } as any,
+      ]);
+      mockGetBookingStatus.mockReturnValue("approved");
+
+      const response = await GET(makeGETRequest("gmail-calendar", "tenant-one"));
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toEqual([
+        {
+          title: "Orientation",
+          start: "2024-09-01T10:00:00.000Z",
+          end: "2024-09-01T12:00:00.000Z",
+          calendarEventId: "primary-id",
+          booking: {
+            status: "approved",
+            requestNumber: 99,
+            email: "student@nyu.edu",
+            department: "ITP",
+          },
+        },
+      ]);
+    });
+
+    it("does not stamp a guest copy when two bookings occupy the same slot", async () => {
+      stubCalendarClient([
+        {
+          id: "google-guest-copy",
+          summary: "Orientation",
+          start: { dateTime: "2024-09-01T10:00:00.000Z" },
+          end: { dateTime: "2024-09-01T12:00:00.000Z" },
+        },
+      ]);
+      mockGetTenantRooms.mockResolvedValue([
+        { roomId: "203", calendarId: "gmail-calendar" },
+      ] as any);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([
+        {
+          calendarEventId: "primary-id",
+          roomId: "202, 203",
+          startDate: { toDate: () => new Date("2024-09-01T10:00:00.000Z") },
+          endDate: { toDate: () => new Date("2024-09-01T12:00:00.000Z") },
+        } as any,
+        {
+          calendarEventId: "other-id",
+          roomId: "203",
+          startDate: { toDate: () => new Date("2024-09-01T10:00:00.000Z") },
+          endDate: { toDate: () => new Date("2024-09-01T12:00:00.000Z") },
+        } as any,
+      ]);
+
+      const response = await GET(makeGETRequest("gmail-calendar", "tenant-one"));
+      expect(response.status).toBe(200);
+      const payload = await response.json();
+      expect(payload[0].calendarEventId).toBe("google-guest-copy");
+      expect(payload[0].booking).toBeUndefined();
     });
 
     it("validates calendarId", async () => {

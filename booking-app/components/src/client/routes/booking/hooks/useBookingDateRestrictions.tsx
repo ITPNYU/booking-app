@@ -5,6 +5,7 @@ import {
   getBlackoutTimeRangeForDate,
 } from "../../../../utils/blackoutUtils";
 import { DatabaseContext } from "../../components/Provider";
+import { compareResourceIds } from "../../../../utils/resourceOrder";
 
 export const useBookingDateRestrictions = () => {
   const { blackoutPeriods, roomSettings } = useContext(DatabaseContext);
@@ -42,12 +43,10 @@ export const useBookingDateRestrictions = () => {
       if (roomSettings && roomSettings.length > 0 && period.roomIds) {
         const allRoomIds = roomSettings
           .map((room) => room.roomId)
-          .sort((a, b) =>
-            String(a).localeCompare(String(b), undefined, { numeric: true }),
-          );
+          .sort(compareResourceIds);
         const periodRoomIds = period.roomIds
           .map(String)
-          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+          .sort(compareResourceIds);
         const isAllRooms =
           allRoomIds.length === periodRoomIds.length &&
           allRoomIds.every((id, index) => id === periodRoomIds[index]);

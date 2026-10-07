@@ -1,11 +1,7 @@
 import { Timestamp } from "firebase/firestore";
 import { PreBanLog } from "../../../../types";
 
-export type DetailSortColumn =
-  | "date"
-  | "status"
-  | "requestNumber"
-  | "excused";
+export type DetailSortColumn = "date" | "status" | "requestNumber" | "excused";
 
 export interface PreBanDetails {
   date: string;

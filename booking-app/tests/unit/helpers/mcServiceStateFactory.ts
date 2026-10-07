@@ -21,6 +21,9 @@ export interface McServiceConfig {
     | "furnishings";
   requestGuard: string;
   approvedGuard: string;
+  /** Guards for a service that already holds a decision when the booking re-enters "Services Request". */
+  alreadyApprovedGuard: string;
+  alreadyDeclinedGuard: string;
   approveEvent: string;
   declineEvent: string;
   closeoutEvent: string;
@@ -34,6 +37,8 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "staff",
     requestGuard: "staffRequested",
     approvedGuard: "staffApproved",
+    alreadyApprovedGuard: "staffAlreadyApproved",
+    alreadyDeclinedGuard: "staffAlreadyDeclined",
     approveEvent: "approveStaff",
     declineEvent: "declineStaff",
     closeoutEvent: "closeoutStaff",
@@ -45,6 +50,8 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "catering",
     requestGuard: "caterRequested",
     approvedGuard: "cateringApproved",
+    alreadyApprovedGuard: "cateringAlreadyApproved",
+    alreadyDeclinedGuard: "cateringAlreadyDeclined",
     approveEvent: "approveCatering",
     declineEvent: "declineCatering",
     closeoutEvent: "closeoutCatering",
@@ -56,6 +63,8 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "setup",
     requestGuard: "setupRequested",
     approvedGuard: "setupApproved",
+    alreadyApprovedGuard: "setupAlreadyApproved",
+    alreadyDeclinedGuard: "setupAlreadyDeclined",
     approveEvent: "approveSetup",
     declineEvent: "declineSetup",
     closeoutEvent: "closeoutSetup",
@@ -67,6 +76,8 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "cleaning",
     requestGuard: "cleanRequested",
     approvedGuard: "cleanApproved",
+    alreadyApprovedGuard: "cleaningAlreadyApproved",
+    alreadyDeclinedGuard: "cleaningAlreadyDeclined",
     approveEvent: "approveCleaning",
     declineEvent: "declineCleaning",
     closeoutEvent: "closeoutCleaning",
@@ -78,6 +89,8 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "security",
     requestGuard: "securityRequested",
     approvedGuard: "securityApproved",
+    alreadyApprovedGuard: "securityAlreadyApproved",
+    alreadyDeclinedGuard: "securityAlreadyDeclined",
     approveEvent: "approveSecurity",
     declineEvent: "declineSecurity",
     closeoutEvent: "closeoutSecurity",
@@ -89,6 +102,8 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "equipment",
     requestGuard: "equipRequested",
     approvedGuard: "equipApproved",
+    alreadyApprovedGuard: "equipmentAlreadyApproved",
+    alreadyDeclinedGuard: "equipmentAlreadyDeclined",
     approveEvent: "approveEquipment",
     declineEvent: "declineEquipment",
     closeoutEvent: "closeoutEquipment",
@@ -100,6 +115,8 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "furnishings",
     requestGuard: "furnishingsRequested",
     approvedGuard: "furnishingsApproved",
+    alreadyApprovedGuard: "furnishingsAlreadyApproved",
+    alreadyDeclinedGuard: "furnishingsAlreadyDeclined",
     approveEvent: "approveFurnishings",
     declineEvent: "declineFurnishings",
     closeoutEvent: "closeoutFurnishings",
@@ -119,7 +136,17 @@ export function expectedServiceRequestRegion(config: McServiceConfig) {
     initial: `Evaluate ${name} Request`,
     states: {
       [`Evaluate ${name} Request`]: {
+        // A service that already holds a decision (an unchanged service on a
+        // resubmitted edit, ADR-0001) skips the pending state.
         always: [
+          {
+            target: `${name} Approved`,
+            guard: { type: config.alreadyApprovedGuard },
+          },
+          {
+            target: `${name} Declined`,
+            guard: { type: config.alreadyDeclinedGuard },
+          },
           { target: `${name} Requested`, guard: { type: config.requestGuard } },
           { target: `${name} Approved` },
         ],

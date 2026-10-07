@@ -5,12 +5,12 @@ import {
   BookingOrigin,
   FormContextLevel,
   Inputs,
-  PagePermission,
 } from "../../../../types";
 import {
   getServiceRooms,
   pruneServiceMapsToRooms,
 } from "../../../../utils/resourceServicesUtils";
+import { canAccessWebCheckout } from "../../../../utils/permissions";
 import { isValidNetIdFormat } from "../../../../utils/validationHelpers";
 
 import { DatabaseContext } from "../../components/Provider";
@@ -39,6 +39,10 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     setBookingCalendarInfo,
     setSelectedRooms,
     setFormData,
+    setIsDetailsValid,
+    resetServiceRuleMemory,
+    setCheckedAgreements,
+    setServiceDecisions,
     setHasShownMocapModal,
     setSubmitting,
     error,
@@ -155,7 +159,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         return;
       }
 
-      if (needsSafetyTraining) {
+      if (needsSafetyTraining && !isModification) {
         setError(new Error("Safety training is required"));
         setSubmitting("error");
         return;
@@ -175,8 +179,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         }
       }
 
-      if (isModification && pagePermission === PagePermission.BOOKING) {
-        // only a PA/admin can do a modification
+      if (isModification && !canAccessWebCheckout(pagePermission)) {
+        // only PA / Services / Admin can modify an existing booking
         setSubmitting("error");
         return;
       }
@@ -343,6 +347,10 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           setSelectedRooms([]);
           setAnnexByRoom({});
           setFormData(undefined);
+          setIsDetailsValid(false);
+          resetServiceRuleMemory();
+          setCheckedAgreements({});
+          setServiceDecisions({});
           setHasShownMocapModal(false);
 
           reloadFutureBookings();

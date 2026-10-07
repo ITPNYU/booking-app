@@ -20,7 +20,11 @@ import {
 } from "@mui/material";
 import type { ChangeEvent } from "react";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { computeDiff, formatValue, type DiffEntry } from "@/lib/utils/schemaDiff";
+import {
+  computeDiff,
+  formatValue,
+  type DiffEntry,
+} from "@/lib/utils/schemaDiff";
 import { DatabaseContext } from "../components/Provider";
 import type { SchemaContextType } from "../components/SchemaProvider";
 import { defaultScheme } from "../components/SchemaProvider";
@@ -52,13 +56,52 @@ function DiffDialog({
         {diffs.length === 0 ? (
           <Typography>No changes detected.</Typography>
         ) : (
-          <Box component="table" sx={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <Box
+            component="table"
+            sx={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
+          >
             <thead>
               <tr>
-                <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "1px solid #ddd" }}>Field</Box>
-                <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "1px solid #ddd" }}>Change</Box>
-                <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "1px solid #ddd" }}>Before</Box>
-                <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "1px solid #ddd" }}>After</Box>
+                <Box
+                  component="th"
+                  sx={{
+                    textAlign: "left",
+                    p: 1,
+                    borderBottom: "1px solid #ddd",
+                  }}
+                >
+                  Field
+                </Box>
+                <Box
+                  component="th"
+                  sx={{
+                    textAlign: "left",
+                    p: 1,
+                    borderBottom: "1px solid #ddd",
+                  }}
+                >
+                  Change
+                </Box>
+                <Box
+                  component="th"
+                  sx={{
+                    textAlign: "left",
+                    p: 1,
+                    borderBottom: "1px solid #ddd",
+                  }}
+                >
+                  Before
+                </Box>
+                <Box
+                  component="th"
+                  sx={{
+                    textAlign: "left",
+                    p: 1,
+                    borderBottom: "1px solid #ddd",
+                  }}
+                >
+                  After
+                </Box>
               </tr>
             </thead>
             <tbody>
@@ -66,7 +109,12 @@ function DiffDialog({
                 <tr key={i}>
                   <Box
                     component="td"
-                    sx={{ p: 1, borderBottom: "1px solid #eee", fontFamily: "monospace", fontSize: 12 }}
+                    sx={{
+                      p: 1,
+                      borderBottom: "1px solid #eee",
+                      fontFamily: "monospace",
+                      fontSize: 12,
+                    }}
                   >
                     {d.path}
                   </Box>
@@ -93,7 +141,10 @@ function DiffDialog({
                       borderBottom: "1px solid #eee",
                       fontFamily: "monospace",
                       fontSize: 12,
-                      backgroundColor: d.type === "removed" || d.type === "changed" ? "#fff0f0" : undefined,
+                      backgroundColor:
+                        d.type === "removed" || d.type === "changed"
+                          ? "#fff0f0"
+                          : undefined,
                       wordBreak: "break-all",
                       maxWidth: 300,
                     }}
@@ -107,7 +158,10 @@ function DiffDialog({
                       borderBottom: "1px solid #eee",
                       fontFamily: "monospace",
                       fontSize: 12,
-                      backgroundColor: d.type === "added" || d.type === "changed" ? "#f0fff0" : undefined,
+                      backgroundColor:
+                        d.type === "added" || d.type === "changed"
+                          ? "#f0fff0"
+                          : undefined,
                       wordBreak: "break-all",
                       maxWidth: 300,
                     }}
@@ -129,7 +183,11 @@ function DiffDialog({
           onClick={onConfirm}
           disabled={saving || diffs.length === 0}
         >
-          {saving ? <CircularProgress size={20} /> : `Save (${diffs.length} changes)`}
+          {saving ? (
+            <CircularProgress size={20} />
+          ) : (
+            `Save (${diffs.length} changes)`
+          )}
         </Button>
       </DialogActions>
     </Dialog>
@@ -204,16 +262,14 @@ function JsonEditor({
   );
 }
 
-function UnconfiguredFieldsBanner({
-  schema,
-}: {
-  schema: SchemaContextType;
-}) {
+function UnconfiguredFieldsBanner({ schema }: { schema: SchemaContextType }) {
   const [expanded, setExpanded] = useState(false);
 
   const allDefaultKeys = Object.keys(defaultScheme) as string[];
   const schemaKeys = Object.keys(schema);
-  const unconfigured = allDefaultKeys.filter((key) => !schemaKeys.includes(key));
+  const unconfigured = allDefaultKeys.filter(
+    (key) => !schemaKeys.includes(key),
+  );
 
   if (unconfigured.length === 0) return null;
 
@@ -232,7 +288,8 @@ function UnconfiguredFieldsBanner({
       }
     >
       <Typography variant="body2">
-        {unconfigured.length} field(s) not configured in Firestore (using code defaults)
+        {unconfigured.length} field(s) not configured in Firestore (using code
+        defaults)
       </Typography>
       <Collapse in={expanded}>
         <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
@@ -398,9 +455,7 @@ export default function SchemaEditor() {
         </Box>
       )}
 
-      {schema && !loading && (
-        <UnconfiguredFieldsBanner schema={schema} />
-      )}
+      {schema && !loading && <UnconfiguredFieldsBanner schema={schema} />}
 
       {schema && !loading && (
         <JsonEditor

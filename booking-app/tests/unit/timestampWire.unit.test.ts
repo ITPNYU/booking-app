@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  compareTimestampsAscending,
   extractSecondsNanos,
   isSerializedTimestamp,
   reviveSerializedTimestamps,
   serializedTimestampToMillis,
+  timestampToEpochMillis,
 } from "@/lib/utils/timestampWire";
 
 describe("isSerializedTimestamp", () => {
@@ -123,6 +125,56 @@ describe("serializedTimestampToMillis", () => {
 
   it("returns null when shape is unrecognized", () => {
     expect(serializedTimestampToMillis({ foo: "bar" })).toBe(null);
+  });
+});
+
+describe("timestampToEpochMillis", () => {
+  const at = Date.parse("2026-09-20T16:14:58.123Z");
+
+  it("reads milliseconds from a serialized timestamp", () => {
+    expect(
+      timestampToEpochMillis({
+        seconds: Math.floor(at / 1000),
+        nanoseconds: (at % 1000) * 1e6,
+      }),
+    ).toBe(at);
+  });
+
+  it("reads milliseconds from an admin timestamp shape", () => {
+    expect(
+      timestampToEpochMillis({
+        _seconds: Math.floor(at / 1000),
+        _nanoseconds: (at % 1000) * 1e6,
+      }),
+    ).toBe(at);
+  });
+
+  it("prefers toMillis over a coarser seconds field", () => {
+    expect(
+      timestampToEpochMillis({
+        seconds: Math.floor(at / 1000),
+        toMillis: () => at,
+      }),
+    ).toBe(at);
+  });
+});
+
+describe("compareTimestampsAscending", () => {
+  it("orders same-minute instants by millisecond", () => {
+    const earlier = {
+      seconds: 1_789_920_898,
+      nanoseconds: 100_000_000,
+    };
+    const later = {
+      _seconds: 1_789_920_898,
+      _nanoseconds: 900_000_000,
+    };
+
+    expect(compareTimestampsAscending(later, earlier)).toBeGreaterThan(0);
+    expect(compareTimestampsAscending(earlier, later)).toBeLessThan(0);
+    expect(
+      [later, earlier].sort(compareTimestampsAscending),
+    ).toEqual([earlier, later]);
   });
 });
 

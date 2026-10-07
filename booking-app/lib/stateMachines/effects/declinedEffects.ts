@@ -99,14 +99,17 @@ export const handleDeclinedEntry: StateHandler = async (
         });
       }
 
-      // Use decline reason from XState context if available, fallback to reason parameter
+      // A reason on the request means an admin declined the whole booking, so
+      // it wins over the services summary. Without one the decline came from
+      // a service decision, and context.declineReason may be stale: it
+      // persists in the snapshot from any decline before the last edit.
+      const explicitReason = reason?.trim();
       let declineReason =
+        explicitReason ||
         newSnapshot.context?.declineReason ||
-        reason ||
         "Service requirements could not be fulfilled";
 
-      // If specific services were declined, include them in the reason
-      if (declinedServices.length > 0) {
+      if (!explicitReason && declinedServices.length > 0) {
         const servicesList = declinedServices.join(", ");
         declineReason = `The following service(s) could not be fulfilled: ${servicesList}`;
       }

@@ -1,4 +1,5 @@
 import { formatFurnishingsLines } from "@/components/src/utils/furnishingsDisplay";
+import { resolveCallerRole } from "@/lib/api/authz";
 import {
   logServerBookingChange,
   serverDeleteData,
@@ -12,8 +13,16 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import { Timestamp } from "firebase-admin/firestore";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
+import {
+  compareTimestampsAscending,
+  timestampToDate,
+} from "@/lib/utils/timestampWire";
 import { DEFAULT_TENANT } from "../constants/tenants";
-import { ITP_DEPT_NAME_KEYWORDS, ITP_GROUP_SHORT_NAMES } from "../utils/tenantUtils";
+import {
+  ITP_DEPT_NAME_KEYWORDS,
+  ITP_GROUP_SHORT_NAMES,
+  isMediaCommons,
+} from "../utils/tenantUtils";
 import { TableNames } from "../policy";
 import { getApprovalCcEmail } from "../tenantPolicyServer";
 import {
@@ -26,8 +35,13 @@ import {
   BookingStatus,
   BookingStatusLabel,
 } from "../types";
+import {
+  firstApprovalHistoryNote,
+  isSystemHistoryActor,
+  resolvePreApprovedHistoryNotes,
+} from "../utils/bookingHistoryNotes";
+import { formatHistoryDateTime } from "../client/utils/date";
 import { getSecondaryContactName } from "../utils/formatters";
-import { isMediaCommons } from "../utils/tenantUtils";
 import { getTenantEmailConfig } from "./emails";
 
 interface HistoryItem {
@@ -36,6 +50,11 @@ interface HistoryItem {
   date: string;
   note?: string;
 }
+
+const historyDateLabel = (value: unknown) => {
+  const instant = timestampToDate(value);
+  return instant ? formatHistoryDateTime(instant) : "";
+};
 
 const parseBookingResourceIds = (roomId: unknown): string[] =>
   String(roomId ?? "")
@@ -90,8 +109,6 @@ const getBookingHistory = async (
   booking: Booking,
   tenant?: string,
 ): Promise<HistoryItem[]> => {
-  const history: HistoryItem[] = [];
-
   // Fetch logs from BOOKING_LOGS table
   const logs = await serverFetchAllDataFromCollection<BookingLog>(
     TableNames.BOOKING_LOGS,
@@ -106,94 +123,111 @@ const getBookingHistory = async (
   );
 
   if (logs.length > 0) {
-    // Use bookingLogs data if available
-    return logs
-      .sort((a, b) => a.changedAt.toMillis() - b.changedAt.toMillis())
-      .map((log) => ({
-        status: log.status,
-        user: log.changedBy,
-        date: log.changedAt.toDate().toLocaleString(),
-        note: log.note ?? undefined,
-      }));
+    // Use bookingLogs data if available. Sort by the raw timestamp so
+    // same-minute automated transitions stay in millisecond order.
+    const sortedLogs = [...logs].sort((a, b) =>
+      compareTimestampsAscending(a.changedAt, b.changedAt),
+    );
+    const resolvedNotes = resolvePreApprovedHistoryNotes(sortedLogs);
+    return sortedLogs.map((log, index) => ({
+      status: log.status,
+      user: log.changedBy,
+      date: historyDateLabel(log.changedAt),
+      note: resolvedNotes[index],
+    }));
   }
 
-  // Fallback to original implementation if no logs found
+  // Fallback to original implementation if no logs found.
+  // Keep the source timestamp and sort that, not a minute-truncated label.
+  const fallback: Array<HistoryItem & { at: unknown }> = [];
   if (booking.requestedAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.REQUESTED,
       user: booking.email,
-      date: booking.requestedAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.requestedAt,
     });
   }
 
   if (booking.firstApprovedAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.PRE_APPROVED,
       user: booking.firstApprovedBy,
-      date: booking.firstApprovedAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.firstApprovedAt,
     });
   }
 
   if (booking.finalApprovedAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.APPROVED,
       user: booking.finalApprovedBy,
-      date: booking.finalApprovedAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.finalApprovedAt,
     });
   }
 
   if (booking.declinedAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.DECLINED,
       user: booking.declinedBy,
-      date: booking.declinedAt.toDate().toLocaleString(),
+      date: "",
       note: booking.declineReason,
+      at: booking.declinedAt,
     });
   }
 
   if (booking.canceledAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.CANCELED,
       user: booking.canceledBy,
-      date: booking.canceledAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.canceledAt,
     });
   }
 
   if (booking.checkedInAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.CHECKED_IN,
       user: booking.checkedInBy,
-      date: booking.checkedInAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.checkedInAt,
     });
   }
 
   if (booking.checkedOutAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.CHECKED_OUT,
       user: booking.checkedOutBy,
-      date: booking.checkedOutAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.checkedOutAt,
     });
   }
 
   if (booking.noShowedAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.NO_SHOW,
       user: booking.noShowedBy,
-      date: booking.noShowedAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.noShowedAt,
     });
   }
 
   if (booking.walkedInAt) {
-    history.push({
+    fallback.push({
       status: BookingStatusLabel.WALK_IN,
       user: "PA",
-      date: booking.walkedInAt.toDate().toLocaleString(),
+      date: "",
+      at: booking.walkedInAt,
     });
   }
 
-  return history.sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-  );
+  return fallback
+    .sort((a, b) => compareTimestampsAscending(a.at, b.at))
+    .map(({ at, ...item }) => ({
+      ...item,
+      date: historyDateLabel(at),
+    }));
 };
 
 export const serverBookingContents = async (id: string, tenant?: string) => {
@@ -298,6 +332,28 @@ export const serverDeleteDataByCalendarEventId = async (
   await serverDeleteData(collectionName, booking.id, tenant);
 };
 
+export async function resolveFirstApprovalHistoryNote(
+  email?: string,
+  tenant?: string,
+): Promise<string | undefined> {
+  if (isSystemHistoryActor(email) || !email) {
+    return undefined;
+  }
+  try {
+    const role = await resolveCallerRole(
+      { email, netId: email.split("@")[0] },
+      tenant,
+    );
+    return firstApprovalHistoryNote(email, role);
+  } catch (error) {
+    console.error(
+      "Failed to resolve first-approval history note from caller role:",
+      error,
+    );
+    return undefined;
+  }
+}
+
 // from server
 const serverFirstApprove = (id: string, email?: string, tenant?: string) => {
   serverUpdateDataByCalendarEventId(
@@ -357,6 +413,7 @@ export const serverFirstApproveOnly = async (
       changedBy: email,
       requestNumber: doc.requestNumber,
       calendarEventId: id,
+      note: await resolveFirstApprovalHistoryNote(email, tenant),
       tenant,
     });
   }
@@ -377,25 +434,26 @@ export const serverFirstApproveOnly = async (
   }
   const results = await sendEmailFanout(
     "first approval",
-    recipients.map((recipient) => () =>
-      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-tenant": tenant || DEFAULT_TENANT,
-        },
-        body: JSON.stringify({
-          templateName: "booking_detail",
-          contents: emailContents,
-          targetEmail: recipient,
-          status: BookingStatusLabel.PRE_APPROVED,
-          eventTitle: contents.title || "",
-          requestNumber: contents.requestNumber,
-          bodyMessage: "",
-          approverType: ApproverType.FINAL_APPROVER,
-          replyTo: contents.email,
+    recipients.map(
+      (recipient) => () =>
+        fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant": tenant || DEFAULT_TENANT,
+          },
+          body: JSON.stringify({
+            templateName: "booking_detail",
+            contents: emailContents,
+            targetEmail: recipient,
+            status: BookingStatusLabel.PRE_APPROVED,
+            eventTitle: contents.title || "",
+            requestNumber: contents.requestNumber,
+            bodyMessage: "",
+            approverType: ApproverType.FINAL_APPROVER,
+            replyTo: contents.email,
+          }),
         }),
-      }),
     ),
   );
 
@@ -522,6 +580,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
       changedBy: email,
       requestNumber: doc.requestNumber,
       calendarEventId: id,
+      note: await resolveFirstApprovalHistoryNote(email, tenant),
       tenant,
     });
   }
@@ -561,26 +620,27 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
 
   await sendEmailFanout(
     "booking modification first approval",
-    recipients.map((recipient) => () =>
-      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-tenant": tenant || DEFAULT_TENANT,
-        },
-        body: JSON.stringify({
-          templateName: "booking_detail",
-          contents: emailContents,
-          targetEmail: recipient,
-          status: BookingStatusLabel.PRE_APPROVED,
-          eventTitle: contents.title || "",
-          requestNumber: contents.requestNumber,
-          bodyMessage: "",
-          approverType: ApproverType.FINAL_APPROVER,
-          replyTo: contents.email,
-          schemaName: emailConfig.schemaName,
+    recipients.map(
+      (recipient) => () =>
+        fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-tenant": tenant || DEFAULT_TENANT,
+          },
+          body: JSON.stringify({
+            templateName: "booking_detail",
+            contents: emailContents,
+            targetEmail: recipient,
+            status: BookingStatusLabel.PRE_APPROVED,
+            eventTitle: contents.title || "",
+            requestNumber: contents.requestNumber,
+            bodyMessage: "",
+            approverType: ApproverType.FINAL_APPROVER,
+            replyTo: contents.email,
+            schemaName: emailConfig.schemaName,
+          }),
         }),
-      }),
     ),
   );
 };
@@ -684,15 +744,16 @@ export const serverSendConfirmationEmail = async ({
   }
   await sendEmailFanout(
     "approval confirmation",
-    emails.map((email) => () =>
-      serverSendBookingDetailEmail({
-        calendarEventId,
-        targetEmail: email,
-        headerMessage,
-        status,
-        replyTo: guestEmail,
-        tenant,
-      }),
+    emails.map(
+      (email) => () =>
+        serverSendBookingDetailEmail({
+          calendarEventId,
+          targetEmail: email,
+          headerMessage,
+          status,
+          replyTo: guestEmail,
+          tenant,
+        }),
     ),
   );
 };
@@ -747,7 +808,10 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   );
 
   // for Samantha
-  const approvedCcEmail = await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant);
+  const approvedCcEmail = await getApprovalCcEmail(
+    process.env.NEXT_PUBLIC_BRANCH_NAME,
+    tenant,
+  );
   if (approvedCcEmail) {
     sendEmailInBackground(
       "approval cc notification",
@@ -769,14 +833,13 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     const sponsorEmailAddress = contents.sponsorEmail.includes("@")
       ? contents.sponsorEmail
       : `${contents.sponsorEmail}@nyu.edu`;
-    
+
     sendEmailInBackground(
       "approval sponsor notification",
       serverSendBookingDetailEmail({
         calendarEventId: id,
         targetEmail: sponsorEmailAddress,
-        headerMessage:
-          `A reservation that you are the Sponsor of has been approved.<br /><br />${emailConfig.emailNotifications.approvedUser}`,
+        headerMessage: `A reservation that you are the Sponsor of has been approved.<br /><br />${emailConfig.emailNotifications.approvedUser}`,
         status: BookingStatusLabel.APPROVED,
         replyTo: guestEmail,
         tenant,
@@ -798,9 +861,9 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     await serverSendBookingDetailEmail({
       calendarEventId: id,
       targetEmail: secondaryEmailAddress,
-      headerMessage:
-        "A reservation where you are listed as a Secondary Point of Contact has been approved.<br /><br />" +
-        emailConfig.emailNotifications.approvedUser,
+      headerMessage: `A reservation where you are listed as a Secondary Point of Contact has been approved.<br /><br />${
+        emailConfig.emailNotifications.approvedUser
+      }`,
       status: BookingStatusLabel.APPROVED,
       replyTo: guestEmail,
       tenant,
@@ -831,8 +894,9 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
         // ignore body read errors
       }
       throw new Error(
-        `Failed to invite secondary contact (status ${inviteSecondaryResponse.status} ${inviteSecondaryResponse.statusText})` +
-          (errorBody ? `: ${errorBody}` : ""),
+        `Failed to invite secondary contact (status ${inviteSecondaryResponse.status} ${inviteSecondaryResponse.statusText})${
+          errorBody ? `: ${errorBody}` : ""
+        }`,
       );
     }
   }

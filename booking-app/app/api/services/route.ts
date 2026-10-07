@@ -1,6 +1,10 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  serviceHistoryDisplayName,
+  serviceHistoryNote,
+} from "@/components/src/utils/bookingHistoryNotes";
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 
@@ -132,19 +136,7 @@ export async function POST(req: NextRequest) {
 
       if (doc) {
         // Create service-specific note for history
-        const serviceDisplayName =
-          serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
-        const actionDisplayName =
-          action === "approve"
-            ? "Approved"
-            : action === "decline"
-              ? "Declined"
-              : "Closed Out";
-        const baseServiceNote = `${serviceDisplayName} Service ${actionDisplayName}`;
-        const serviceNote =
-          action === "decline" && reason && String(reason).trim().length > 0
-            ? `${baseServiceNote}: ${reason}`
-            : baseServiceNote;
+        const serviceNote = serviceHistoryNote(serviceType, action, reason);
 
         // Determine appropriate status for history log
         const historyStatus =
@@ -166,7 +158,7 @@ export async function POST(req: NextRequest) {
               status: historyStatus, // PRE-APPROVED for approve/decline, CHECKED_OUT for closeout
               changedBy: email,
               requestNumber: doc.requestNumber,
-              note: serviceNote, // e.g., "Staff Service Declined: out of stock"
+              note: serviceNote, // e.g., "Staffing Service Declined: out of stock"
             }),
           },
         );
@@ -214,8 +206,8 @@ export async function POST(req: NextRequest) {
                 requestNumber: doc.requestNumber,
                 note:
                   reason && String(reason).trim().length > 0
-                    ? `Overall declined due to service: ${serviceDisplayName}. Reason: ${reason}`
-                    : `Overall declined due to service: ${serviceDisplayName}`,
+                    ? `Overall declined due to service: ${serviceHistoryDisplayName(serviceType)}. Reason: ${reason}`
+                    : `Overall declined due to service: ${serviceHistoryDisplayName(serviceType)}`,
               }),
             },
           );

@@ -49,7 +49,10 @@ function getMcTestSchema(tenant: string): SchemaContextType {
     policy: "<p>Test policy.</p>",
     mappings: {
       school: {
-        "Tisch School of the Arts": ["ITP / IMA / Low Res", "General Department"],
+        "Tisch School of the Arts": [
+          "ITP / IMA / Low Res",
+          "General Department",
+        ],
       },
       program: {
         "ITP / IMA / Low Res": ["ITP"],
@@ -66,6 +69,10 @@ function getMcTestSchema(tenant: string): SchemaContextType {
       ...base.form,
       showNNumber: true,
       showSponsor: true,
+      productionSchedule: {
+        ...base.form.productionSchedule,
+        enabled: true,
+      },
       services: {
         showCatering: false,
         showEquipment: false,
@@ -118,6 +125,23 @@ function getMcTestSchema(tenant: string): SchemaContextType {
           infoUrl: defaultSafetyTrainingInfoUrl,
         },
         autoApproval: { shouldAutoApprove: false },
+      }),
+      // The only room that offers a service: the layout reads this schema on
+      // the server, so e2e specs cannot swap in services through page.route.
+      resource({
+        capacity: 40,
+        name: "Event Space 240",
+        resourceId: "240",
+        calendarId: "mock-calendar-240",
+        isWalkIn: false,
+        autoApproval: { shouldAutoApprove: false },
+        services: {
+          catering: {
+            label: "Catering",
+            descriptionHtml: "<p>Select if you need catering.</p>",
+            chartField: { required: true },
+          },
+        },
       }),
     ],
     origins: {

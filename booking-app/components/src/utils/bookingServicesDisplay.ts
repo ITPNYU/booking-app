@@ -14,6 +14,7 @@ import {
   resourceHasService,
   ServiceResourceLike,
 } from "@/components/src/utils/resourceServicesUtils";
+import { compareResourceIds } from "./resourceOrder";
 
 /** One requested service under a room or in the booking-level block. */
 export type BookingServiceDisplayRow = {
@@ -271,13 +272,7 @@ export function getBookingServicesByRoom(
     }
 
     const setup = resolveSetupDisplay(
-      valueForRoom(
-        setupMap,
-        roomId,
-        booking.roomSetup,
-        bookedIds,
-        hasSetupMap,
-      ),
+      valueForRoom(setupMap, roomId, booking.roomSetup, bookedIds, hasSetupMap),
       valueForRoom(
         setupDetailsMap,
         roomId,
@@ -347,7 +342,10 @@ export function getBookingServicesByRoom(
     if (furnishings) {
       rows.push({
         key: "furnishings",
-        label: sectionLabel(furnishingsCfg?.label, "Additional Event Furniture"),
+        label: sectionLabel(
+          furnishingsCfg?.label,
+          "Additional Event Furniture",
+        ),
         ...furnishings,
       });
     }
@@ -611,9 +609,7 @@ function extraRoomIdsFromMaps(
       if (Array.isArray(values) && values.length > 0) extras.add(id);
     }
   }
-  return [...extras].sort((a, b) =>
-    a.localeCompare(b, undefined, { numeric: true }),
-  );
+  return [...extras].sort(compareResourceIds);
 }
 
 function stringMap(map: unknown): Record<string, string> {
@@ -692,12 +688,17 @@ function legacyForRoom(
   return undefined;
 }
 
-function sectionLabel(schemaLabel: string | undefined, fallback: string): string {
+function sectionLabel(
+  schemaLabel: string | undefined,
+  fallback: string,
+): string {
   const raw = schemaLabel?.trim() || fallback;
   return raw.replace(/\?+$/, "");
 }
 
-function firstLegacyCatering(booking: BookingServicesSource): string | undefined {
+function firstLegacyCatering(
+  booking: BookingServicesSource,
+): string | undefined {
   if (isRequestedDisplayValue(booking.cateringService)) {
     return booking.cateringService;
   }
@@ -718,10 +719,7 @@ function formatSecurityValue(
   if (option?.label) return option.label;
   const normalized = trimmed.toLowerCase();
   if (normalized === "yes") return "Yes";
-  if (
-    normalized === "willoughby" ||
-    trimmed === "Willoughby Street Entrance"
-  ) {
+  if (normalized === "willoughby" || trimmed === "Willoughby Street Entrance") {
     return "Willoughby entrance";
   }
   if (normalized === "main_entrance") return "Main entrance";
@@ -765,7 +763,10 @@ function formatListAndDetails(
   return [...items, detailText].filter(Boolean).join(" — ");
 }
 
-function splitServiceList(value: string | undefined, separator: string): string[] {
+function splitServiceList(
+  value: string | undefined,
+  separator: string,
+): string[] {
   return String(value ?? "")
     .split(separator)
     .map((item) => item.trim())

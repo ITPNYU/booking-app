@@ -2,6 +2,10 @@ import { useCallback, useContext } from "react";
 
 import { usePathname } from "next/navigation";
 import { BookingContext } from "../bookingProvider";
+import {
+  isOwnCalendarEvent,
+  normalizeCalendarEventId,
+} from "../utils/isOwnCalendarEvent";
 
 export default function useCalculateOverlap() {
   const { bookingCalendarInfo, existingCalendarEvents, selectedRooms } =
@@ -18,7 +22,7 @@ export default function useCalculateOverlap() {
       // Extract the last non-empty segment as the calendarEventId. This supports both
       // /edit/<id> and nested paths like /edit/form/<id> or /modification/form/<id>
       const segments = pathname.split("/").filter(Boolean);
-      calendarEventId = segments[segments.length - 1];
+      calendarEventId = normalizeCalendarEventId(segments[segments.length - 1]);
     }
 
     const selectedRoomIds = selectedRooms.map((x) => String(x.roomId));
@@ -26,11 +30,7 @@ export default function useCalculateOverlap() {
       .map((event) => {
         if (!selectedRoomIds.includes(String(event.resourceId))) return false;
         // for edit/modification mode, don't overlap with existing booking
-        if (
-          calendarEventId &&
-          (event.id === calendarEventId ||
-            event.id.split(":")[0] === calendarEventId)
-        )
+        if (calendarEventId && isOwnCalendarEvent(event, calendarEventId))
           return false;
 
         const eventStart = new Date(event.start);

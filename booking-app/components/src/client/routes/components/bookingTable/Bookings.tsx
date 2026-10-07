@@ -1,6 +1,6 @@
 import {
   MoreHoriz,
-  RoomService,
+  RoomPreferences,
   TableBar,
   Headset,
   PeopleAlt,
@@ -20,13 +20,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { DataGrid, GridSortModel } from "@mui/x-data-grid";
-import React, {
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   BookingOrigin,
@@ -45,6 +39,7 @@ import Loading from "../Loading";
 import { useAuth } from "../AuthProvider";
 import { DatabaseContext } from "../Provider";
 import { deriveFormServicesFlags } from "../../../../utils/resourceServicesUtils";
+import { SERVICE_ORDER } from "../../../utils/serviceOrder";
 import { useTenantSchema } from "../SchemaProvider";
 import BookMoreButton from "./BookMoreButton";
 import BookingTableFilters from "./BookingTableFilters";
@@ -86,8 +81,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     () => deriveFormServicesFlags(resources ?? []),
     [resources],
   );
-  const showSetup =
-    derivedServiceFlags.showSetup || form.services.showSetup;
+  const showSetup = derivedServiceFlags.showSetup || form.services.showSetup;
   const showEquipment =
     derivedServiceFlags.showEquipment || form.services.showEquipment;
   const showStaffing =
@@ -124,10 +118,9 @@ export const Bookings: React.FC<BookingsProps> = ({
       ? [BookingStatusLabel.REQUESTED]
       : [],
   );
-  const [selectedDateRange, setSelectedDateRange] =
-    useState<DateRangeFilter>(() =>
-      pageContext === PageContextLevel.PA ? "Today" : "All Future"
-    );
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
+    () => (pageContext === PageContextLevel.PA ? "Today" : "All Future"),
+  );
 
   // Added filters for origin, rooms, and services
   const [selectedOrigins, setSelectedOrigins] = useState<string[]>([]);
@@ -141,8 +134,10 @@ export const Bookings: React.FC<BookingsProps> = ({
   const [sortModel, setSortModel] = useState<GridSortModel>([
     { field: "startDate", sort: "asc" },
   ]);
-  const [latestStatusLogsByCalendarEventId, setLatestStatusLogsByCalendarEventId] =
-    useState<Record<string, LatestBookingStatusLog>>({});
+  const [
+    latestStatusLogsByCalendarEventId,
+    setLatestStatusLogsByCalendarEventId,
+  ] = useState<Record<string, LatestBookingStatusLog>>({});
   const latestStatusLogsByCalendarEventIdRef = useRef<
     Record<string, LatestBookingStatusLog>
   >({});
@@ -294,8 +289,8 @@ export const Bookings: React.FC<BookingsProps> = ({
     };
   }, [debouncedLogRequests, tenant, user, isOnTestEnv]);
 
-  const topRow = useMemo(() => {
-    return (
+  const topRow = useMemo(
+    () => (
       <BookingTableFilters
         selectedOrigins={selectedOrigins}
         setSelectedOrigins={setSelectedOrigins}
@@ -315,18 +310,19 @@ export const Bookings: React.FC<BookingsProps> = ({
           isSearching,
         }}
       />
-    );
-  }, [
-    pageContext,
-    statusFilters,
-    allowedStatuses,
-    selectedDateRange,
-    selectedOrigins,
-    selectedRooms,
-    selectedServices,
-    searchQuery,
-    isSearching,
-  ]);
+    ),
+    [
+      pageContext,
+      statusFilters,
+      allowedStatuses,
+      selectedDateRange,
+      selectedOrigins,
+      selectedRooms,
+      selectedServices,
+      searchQuery,
+      isSearching,
+    ],
+  );
 
   const bottomSection = useMemo(() => {
     if (bookingsLoading && allBookings.length === 0) {
@@ -354,7 +350,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "#",
         minWidth: 60,
         flex: 1,
-        renderHeader: () => <TableCell component={"div" as any}>Origin</TableCell>,
+        renderHeader: () => (
+          <TableCell component={"div" as any}>Origin</TableCell>
+        ),
         renderCell: (params) => (
           <TableCell component={"div" as any}>
             {formatOrigin(params.row.origin ?? BookingOrigin.USER)}
@@ -368,7 +366,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         flex: 1,
         renderHeader: () => <TableCell component={"div" as any}>#</TableCell>,
         renderCell: (params) => (
-          <TableCell component={"div" as any}>{params.row.requestNumber ?? "--"}</TableCell>
+          <TableCell component={"div" as any}>
+            {params.row.requestNumber ?? "--"}
+          </TableCell>
         ),
       },
       {
@@ -376,7 +376,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "Status",
         minWidth: 100,
         flex: 1,
-        renderHeader: () => <TableCell component={"div" as any}>Status</TableCell>,
+        renderHeader: () => (
+          <TableCell component={"div" as any}>Status</TableCell>
+        ),
         renderCell: (params) => (
           <TableCell component={"div" as any}>
             <StatusChip
@@ -401,7 +403,9 @@ export const Bookings: React.FC<BookingsProps> = ({
                     row.calendarEventId
                   ];
                 const latestStatusChangedAt =
-                  latestLog?.status === status ? latestLog.changedAt : undefined;
+                  latestLog?.status === status
+                    ? latestLog.changedAt
+                    : undefined;
 
                 return getBookingInterimHours(
                   row,
@@ -437,7 +441,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "Date / Time",
         minWidth: 130,
         flex: 1,
-        renderHeader: () => <TableCell component={"div" as any}>Date / Time (ET)</TableCell>,
+        renderHeader: () => (
+          <TableCell component={"div" as any}>Date / Time (ET)</TableCell>
+        ),
         renderCell: (params) => (
           <StackedTableCell
             topText={formatDateTable(params.row.startDate.toDate())}
@@ -452,9 +458,13 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: resourceName,
         minWidth: 100,
         flex: 1,
-        renderHeader: () => <TableCell component={"div" as any}>{resourceName}</TableCell>,
+        renderHeader: () => (
+          <TableCell component={"div" as any}>{resourceName}</TableCell>
+        ),
         renderCell: (params) => (
-          <TableCell component={"div" as any} sx={{ maxWidth: "150px" }}>{params.row.roomId}</TableCell>
+          <TableCell component={"div" as any} sx={{ maxWidth: "150px" }}>
+            {params.row.roomId}
+          </TableCell>
         ),
       },
       ...(!isUserView
@@ -464,7 +474,11 @@ export const Bookings: React.FC<BookingsProps> = ({
               headerName: "Department / Role",
               minWidth: 150,
               flex: 1,
-              renderHeader: () => <TableCell component={"div" as any}>Department / Role</TableCell>,
+              renderHeader: () => (
+                <TableCell component={"div" as any}>
+                  Department / Role
+                </TableCell>
+              ),
               renderCell: (params) => (
                 <StackedTableCell
                   topText={
@@ -481,7 +495,9 @@ export const Bookings: React.FC<BookingsProps> = ({
               headerName: "Requestor",
               minWidth: 100,
               flex: 1,
-              renderHeader: () => <TableCell component={"div" as any}>Requestor</TableCell>,
+              renderHeader: () => (
+                <TableCell component={"div" as any}>Requestor</TableCell>
+              ),
               renderCell: (params) => (
                 <StackedTableCell
                   topText={params.row.netId}
@@ -494,7 +510,9 @@ export const Bookings: React.FC<BookingsProps> = ({
               headerName: "Contact Info",
               minWidth: 180,
               flex: 1,
-              renderHeader: () => <TableCell component={"div" as any}>Contact Info</TableCell>,
+              renderHeader: () => (
+                <TableCell component={"div" as any}>Contact Info</TableCell>
+              ),
               renderCell: (params) => (
                 <StackedTableCell
                   topText={params.row.email}
@@ -509,7 +527,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         headerName: "Title",
         minWidth: 200,
         flex: 2,
-        renderHeader: () => <TableCell component={"div" as any}>Title</TableCell>,
+        renderHeader: () => (
+          <TableCell component={"div" as any}>Title</TableCell>
+        ),
         renderCell: (params) => (
           <Tooltip
             title={params.row.title}
@@ -550,7 +570,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         flex: 1,
         filterable: false,
         sortable: false,
-        renderHeader: () => <TableCell component={"div" as any}>Details</TableCell>,
+        renderHeader: () => (
+          <TableCell component={"div" as any}>Details</TableCell>
+        ),
         renderCell: (params) => (
           <TableCell component={"div" as any}>
             <IconButton
@@ -570,7 +592,9 @@ export const Bookings: React.FC<BookingsProps> = ({
               minWidth: 240,
               flex: 1,
               filterable: false,
-              renderHeader: () => <TableCell component={"div" as any}>Services</TableCell>,
+              renderHeader: () => (
+                <TableCell component={"div" as any}>Services</TableCell>
+              ),
               renderCell: (params) => {
                 const bookingRow = params.row as BookingRow;
 
@@ -620,7 +644,7 @@ export const Bookings: React.FC<BookingsProps> = ({
                 }[] = [
                   {
                     label: "Setup",
-                    Icon: RoomService,
+                    Icon: RoomPreferences,
                     requested: servicesRequested.setup || false,
                     serviceKey: "setup",
                     closeoutKey: "Setup Closeout",
@@ -707,80 +731,86 @@ export const Bookings: React.FC<BookingsProps> = ({
                       gap: "4px",
                     }}
                   >
-                    {items.map(
-                      ({ label, Icon, requested, serviceKey, closedout }) => {
-                        const approved = servicesApproved[serviceKey];
-                        const showApprovalBadge =
-                          requested &&
-                          (approved === true || approved === false);
-                        const showCloseoutBadge =
-                          requested && approved === true && closedout;
+                    {[...items]
+                      .sort(
+                        (a, b) =>
+                          SERVICE_ORDER.indexOf(a.label) -
+                          SERVICE_ORDER.indexOf(b.label),
+                      )
+                      .map(
+                        ({ label, Icon, requested, serviceKey, closedout }) => {
+                          const approved = servicesApproved[serviceKey];
+                          const showApprovalBadge =
+                            requested &&
+                            (approved === true || approved === false);
+                          const showCloseoutBadge =
+                            requested && approved === true && closedout;
 
-                        return (
-                          <Tooltip key={label} title={label} placement="top">
-                            <span
-                              style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                gap: "2px",
-                                padding: "4px 4px",
-                                borderRadius: "6px",
-                              }}
-                            >
-                              <Icon
+                          return (
+                            <Tooltip key={label} title={label} placement="top">
+                              <span
                                 style={{
-                                  fontSize: "18px",
-                                  color: colorFor(requested),
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: "center",
+                                  gap: "2px",
+                                  padding: "4px 4px",
+                                  borderRadius: "6px",
                                 }}
-                              />
-                              {showApprovalBadge && !showCloseoutBadge && (
-                                <>
-                                  {approved === true ? (
-                                    <Check
-                                      sx={{
-                                        fontSize: "10px",
-                                        bottom: "-6px",
-                                        right: "-6px",
-                                        borderRadius: "50%",
-                                        strokeWidth: 1.4,
-                                        stroke: "rgba(72, 196, 77, 1)",
-                                        color: "rgba(72, 196, 77, 1)",
-                                      }}
-                                    />
-                                  ) : (
-                                    <Close
-                                      sx={{
-                                        fontSize: "10px",
-                                        bottom: "-6px",
-                                        right: "-6px",
-                                        borderRadius: "50%",
-                                        strokeWidth: 1.4,
-                                        stroke: "rgba(255, 26, 26, 1)",
-                                        color: "rgba(255, 26, 26, 1)",
-                                      }}
-                                    />
-                                  )}
-                                </>
-                              )}
-                              {showCloseoutBadge && (
-                                <Replay
-                                  sx={{
-                                    fontSize: "10px",
-                                    bottom: "-6px",
-                                    right: "-6px",
-                                    borderRadius: "50%",
-                                    strokeWidth: 1.0,
-                                    stroke: "#333333",
-                                    color: "#333333",
+                              >
+                                <Icon
+                                  style={{
+                                    fontSize: "18px",
+                                    color: colorFor(requested),
                                   }}
                                 />
-                              )}
-                            </span>
-                          </Tooltip>
-                        );
-                      },
-                    )}
+                                {showApprovalBadge && !showCloseoutBadge && (
+                                  <>
+                                    {approved === true ? (
+                                      <Check
+                                        sx={{
+                                          fontSize: "10px",
+                                          bottom: "-6px",
+                                          right: "-6px",
+                                          borderRadius: "50%",
+                                          strokeWidth: 1.4,
+                                          stroke: "rgba(72, 196, 77, 1)",
+                                          color: "rgba(72, 196, 77, 1)",
+                                        }}
+                                      />
+                                    ) : (
+                                      <Close
+                                        sx={{
+                                          fontSize: "10px",
+                                          bottom: "-6px",
+                                          right: "-6px",
+                                          borderRadius: "50%",
+                                          strokeWidth: 1.4,
+                                          stroke: "rgba(255, 26, 26, 1)",
+                                          color: "rgba(255, 26, 26, 1)",
+                                        }}
+                                      />
+                                    )}
+                                  </>
+                                )}
+                                {showCloseoutBadge && (
+                                  <Replay
+                                    sx={{
+                                      fontSize: "10px",
+                                      bottom: "-6px",
+                                      right: "-6px",
+                                      borderRadius: "50%",
+                                      strokeWidth: 1.0,
+                                      stroke: "#333333",
+                                      color: "#333333",
+                                    }}
+                                  />
+                                )}
+                              </span>
+                            </Tooltip>
+                          );
+                        },
+                      )}
                   </TableCell>
                 );
               },
@@ -791,7 +821,9 @@ export const Bookings: React.FC<BookingsProps> = ({
               minWidth: 80,
               flex: 1,
               filterable: false,
-              renderHeader: () => <TableCell component={"div" as any}>Equip.</TableCell>,
+              renderHeader: () => (
+                <TableCell component={"div" as any}>Equip.</TableCell>
+              ),
               renderCell: (params) => (
                 <TableCell component={"div" as any}>
                   <EquipmentCartDisplay
@@ -811,7 +843,9 @@ export const Bookings: React.FC<BookingsProps> = ({
         flex: 1,
         filterable: false,
         sortable: false,
-        renderHeader: () => <TableCell component={"div" as any}>Action</TableCell>,
+        renderHeader: () => (
+          <TableCell component={"div" as any}>Action</TableCell>
+        ),
         renderCell: (params) => (
           <TableCell component={"div" as any} width={200}>
             <BookingActions
@@ -828,13 +862,7 @@ export const Bookings: React.FC<BookingsProps> = ({
     ].filter(Boolean);
 
     return baseColumns;
-  }, [
-    isUserView,
-    pageContext,
-    tenant,
-    resourceName,
-    hasServices,
-  ]);
+  }, [isUserView, pageContext, tenant, resourceName, hasServices]);
 
   // Function to update a booking in the local state
   const updateBookingInState = (updatedBooking: BookingRow) => {

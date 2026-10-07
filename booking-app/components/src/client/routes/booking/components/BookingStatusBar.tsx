@@ -23,6 +23,10 @@ import {
   defaultSafetyTrainingInfoUrl,
   useTenantSchema,
 } from "../../components/SchemaProvider";
+import { isProductionScheduleRequired } from "../utils/productionSchedule";
+
+const formatHours = (hours: number) =>
+  `${hours} ${hours === 1 ? "hour" : "hours"}`;
 
 interface Props {
   formContext: FormContextLevel;
@@ -65,6 +69,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const schema = useTenantSchema();
   const timeSensitiveRequestWarning =
     schema.calendarConfig?.timeSensitiveRequestWarning;
+  const productionScheduleConfig = schema.form?.productionSchedule;
   const safetyTrainingInfoUrl =
     selectedRooms.find(
       (room) => room.needsSafetyTraining && room.trainingInfoUrl,
@@ -86,13 +91,26 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     hoursUntilStart >= 0 &&
     hoursUntilStart <= warningThresholdHours,
   );
+  const shouldShowProductionScheduleBanner = Boolean(
+    isSelectRoomPage &&
+    productionScheduleConfig?.enabled &&
+    bookingCalendarInfo?.start &&
+    bookingCalendarInfo?.end &&
+    isProductionScheduleRequired(
+      bookingCalendarInfo.start,
+      bookingCalendarInfo.end,
+      productionScheduleConfig.requiredAboveHours,
+    ),
+  );
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
+  const blocksOnSafetyTraining = needsSafetyTraining && !isModification;
+
   const showAlert =
     isBanned ||
-    needsSafetyTraining ||
+    blocksOnSafetyTraining ||
     isInBlackoutPeriod ||
     durationError !== null ||
     requestLimitError != null ||
@@ -135,7 +153,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         severity: "info",
         variant: "filled",
       };
-    if (needsSafetyTraining)
+    if (blocksOnSafetyTraining)
       return {
         btnDisabled: true,
         btnDisabledMessage: isWalkIn
@@ -191,20 +209,29 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         severity: "error",
         variant: "filled",
       };
-    if (durationError)
+    if (durationError) {
+      const isBelowMin = durationError.errorType === "min";
+      const limit = formatHours(
+        isBelowMin ? durationError.minDuration : durationError.maxDuration,
+      );
       return {
         btnDisabled: true,
-        btnDisabledMessage: `Duration exceeds maximum allowed for your role (${durationError.maxDuration} hours)`,
+        btnDisabledMessage: isBelowMin
+          ? `Duration is below minimum required for your role (${limit})`
+          : `Duration exceeds maximum allowed for your role (${limit})`,
         message: (
           <p>
-            Event duration ({durationError.currentDuration.toFixed(1)} hours)
-            exceeds the maximum allowed duration ({durationError.maxDuration}{" "}
-            hours) for {durationError.roomName} based on your{" "}
-            {durationError.role} role. Please select a shorter time slot.
+            Event duration ({durationError.currentDuration.toFixed(1)} hours){" "}
+            {isBelowMin
+              ? `is shorter than the minimum required duration (${limit})`
+              : `exceeds the maximum allowed duration (${limit})`}{" "}
+            for {durationError.roomName} based on your {durationError.role}{" "}
+            role. Please select a {isBelowMin ? "longer" : "shorter"} time slot.
           </p>
         ),
         severity: "error",
       };
+    }
     if ((isWalkIn || isVIP) && !isAutoApproval && errorMessage) {
       // Show actual error from auto-approval check (e.g., duration limits, services requested, multiple rooms, etc.)
       return {
@@ -369,6 +396,16 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
               )}
             </Alert>
           )}
+          {shouldShowProductionScheduleBanner &&
+            productionScheduleConfig?.calendarBannerMessage && (
+              <Alert
+                severity="warning"
+                variant="filled"
+                sx={{ padding: "0px 16px", width: "100%", margin: "5px 0px" }}
+              >
+                {productionScheduleConfig.calendarBannerMessage}
+              </Alert>
+            )}
           <Alert
             severity="warning"
             variant="filled"

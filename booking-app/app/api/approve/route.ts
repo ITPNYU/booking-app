@@ -7,9 +7,16 @@ import {
   isServicesRequestState,
   notifyServiceApproversForRequestedServices,
 } from "@/components/src/server/serviceApproverNotifications";
-import { serverApproveBooking } from "@/components/src/server/admin";
+import {
+  resolveFirstApprovalHistoryNote,
+  serverApproveBooking,
+} from "@/components/src/server/admin";
 import { BookingStatusLabel, PagePermission } from "@/components/src/types";
-import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/tenantUtils";
+import { ADMIN_POLICY_APPROVED_NOTE } from "@/components/src/utils/bookingHistoryNotes";
+import {
+  getMediaCommonsServices,
+  isMediaCommons,
+} from "@/components/src/utils/tenantUtils";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
 import {
@@ -57,7 +64,7 @@ async function hasUnprocessedServices(
 const parseBookingResourceIds = (roomId: unknown): string[] =>
   String(roomId ?? "")
     .split(",")
-    .map((resourceId) => resourceId.trim())
+    .map(resourceId => resourceId.trim())
     .filter(Boolean);
 
 const getErrorMessage = (error: unknown): string =>
@@ -76,11 +83,11 @@ async function authorizeApproval(
   tenant: string,
   booking: Record<string, unknown>,
 ): Promise<boolean> {
-  const role = await resolveCallerRole({ email, netId: email.split("@")[0] }, tenant);
-  if (
-    role === PagePermission.ADMIN ||
-    role === PagePermission.SUPER_ADMIN
-  ) {
+  const role = await resolveCallerRole(
+    { email, netId: email.split("@")[0] },
+    tenant,
+  );
+  if (role === PagePermission.ADMIN || role === PagePermission.SUPER_ADMIN) {
     return true;
   }
 
@@ -102,9 +109,9 @@ async function authorizeApproval(
     tenant,
   );
   const assignedResourceIds = new Set(
-    assignments.map((assignment) => assignment.resourceId),
+    assignments.map(assignment => assignment.resourceId),
   );
-  return resourceIds.every((resourceId) => assignedResourceIds.has(resourceId));
+  return resourceIds.every(resourceId => assignedResourceIds.has(resourceId));
 }
 
 /**
@@ -127,11 +134,9 @@ export async function POST(req: NextRequest) {
   const email = session.email;
 
   try {
-    const booking = await serverGetDataByCalendarEventId<Record<string, unknown>>(
-      TableNames.BOOKING,
-      id,
-      tenant,
-    );
+    const booking = await serverGetDataByCalendarEventId<
+      Record<string, unknown>
+    >(TableNames.BOOKING, id, tenant);
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
@@ -175,7 +180,7 @@ export async function POST(req: NextRequest) {
         const bookingData = await serverGetDataByCalendarEventId(
           TableNames.BOOKING,
           id,
-          tenant
+          tenant,
         );
         if (
           bookingData &&
@@ -183,14 +188,14 @@ export async function POST(req: NextRequest) {
         ) {
           console.log(
             `🛑 BLOCKING FALLBACK: REQUEST HAS UNPROCESSED SERVICES [${tenant?.toUpperCase()}]:`,
-            { calendarEventId: id }
+            { calendarEventId: id },
           );
           return NextResponse.json(
             {
               error:
                 "This request is in the services approval flow. Complete or decline each service request before final approval, or refresh the page.",
             },
-            { status: 409 }
+            { status: 409 },
           );
         }
       }
@@ -198,7 +203,7 @@ export async function POST(req: NextRequest) {
       // Fallback to traditional approval if XState fails and it's safe to do so
       console.log(
         `🔄 FALLING BACK TO TRADITIONAL APPROVAL [${tenant?.toUpperCase()}]:`,
-        { calendarEventId: id }
+        { calendarEventId: id },
       );
       await serverApproveBooking(id, email, tenant);
     } else {
@@ -305,6 +310,13 @@ export async function POST(req: NextRequest) {
             status: BookingStatusLabel.PRE_APPROVED,
             changedBy: email,
             requestNumber: doc.requestNumber,
+            // Pre-transition firstApprovedAt: already set means this is the
+            // final-approver → Services Request step, not the initial liaison
+            // sign-off. Role lookup cannot tell those apart (FINAL approvers
+            // resolve to LIAISON).
+            note: booking.firstApprovedAt
+              ? ADMIN_POLICY_APPROVED_NOTE
+              : await resolveFirstApprovalHistoryNote(email, tenant),
             tenant,
           });
 

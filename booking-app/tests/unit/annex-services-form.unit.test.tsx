@@ -1,4 +1,4 @@
-import FormInput from "@/components/src/client/routes/booking/components/FormInput";
+import ServicesInput from "@/components/src/client/routes/booking/components/ServicesInput";
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import { SchemaProvider } from "@/components/src/client/routes/components/SchemaProvider";
@@ -125,16 +125,17 @@ describe("getSelectedAnnexResources / getServiceRooms", () => {
     ).toEqual([]);
   });
 
-  it("appends checked annex rooms after the selected rooms", () => {
+  it("merges checked annex rooms with the selected rooms, sorted by ID", () => {
     const selected = [{ roomId: "1201", services: room1201.services }];
     const rooms = getServiceRooms(
       selected,
-      { "1201": ["1200L-6"] },
+      { "1201": ["1202", "1200L-6"] },
       resources,
     );
-    expect(rooms).toHaveLength(2);
-    expect(rooms[0]).toBe(selected[0]);
-    expect(rooms[1].resourceId).toBe("1200L-6");
+    expect(rooms).toHaveLength(3);
+    expect(rooms[0].resourceId).toBe("1200L-6");
+    expect(rooms[1]).toBe(selected[0]);
+    expect(rooms[2].resourceId).toBe("1202");
   });
 
   it("returns the selected rooms unchanged when nothing is checked", () => {
@@ -154,7 +155,7 @@ describe("getSelectedAnnexResources / getServiceRooms", () => {
   });
 });
 
-describe("FormInput renders services for checked annex spaces", () => {
+describe("ServicesInput renders services for checked annex spaces", () => {
   const schema = coerceTenantSchema(
     {
       tenantId: "mc",
@@ -218,7 +219,7 @@ describe("FormInput renders services for checked annex spaces", () => {
                 } as any
               }
             >
-              <FormInput formContext={FormContextLevel.FULL_FORM} />
+              <ServicesInput formContext={FormContextLevel.FULL_FORM} />
             </BookingContext.Provider>
           </SchemaProvider>
         </DatabaseContext.Provider>

@@ -3,7 +3,11 @@ import type {
   Resource,
   SchemaContextType,
 } from "@/components/src/client/routes/components/schemaTypes";
-import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
+import {
+  generateDefaultSchema,
+  normalizeMemoRoles,
+  normalizeWebCheckoutRoles,
+} from "@/components/src/client/routes/components/schemaTypes";
 import { normalizeResourceServices } from "./migrateResourceServices";
 
 function applyTenantResourceServices(resource: Resource): Resource {
@@ -88,7 +92,15 @@ export function coerceTenantSchema(
   const rawCc = raw.calendarConfig as
     | SchemaContextType["calendarConfig"]
     | undefined;
-  const rawForm = raw.form as SchemaContextType["form"] | undefined;
+  // `form.showMemo` was the Memo flag before it moved to `detailsModal`. Drop
+  // it so the schema editor, which saves the coerced schema back, clears it
+  // from stored documents.
+  const { showMemo: _legacyShowMemo, ...rawForm } = (raw.form ?? {}) as Partial<
+    SchemaContextType["form"]
+  > & { showMemo?: unknown };
+  const rawDetailsModal = raw.detailsModal as
+    | Partial<SchemaContextType["detailsModal"]>
+    | undefined;
 
   return {
     ...base,
@@ -107,8 +119,30 @@ export function coerceTenantSchema(
       ...rawForm,
       services: {
         ...base.form.services,
-        ...(rawForm?.services ?? {}),
+        ...(rawForm.services ?? {}),
       },
+      productionSchedule: {
+        ...base.form.productionSchedule,
+        ...(rawForm?.productionSchedule ?? {}),
+      },
+    },
+    detailsModal: {
+      ...base.detailsModal,
+      ...rawDetailsModal,
+      webCheckoutViewRoles: normalizeWebCheckoutRoles(
+        rawDetailsModal?.webCheckoutViewRoles ??
+          base.detailsModal.webCheckoutViewRoles,
+      ),
+      webCheckoutEditRoles: normalizeWebCheckoutRoles(
+        rawDetailsModal?.webCheckoutEditRoles ??
+          base.detailsModal.webCheckoutEditRoles,
+      ),
+      memoViewRoles: normalizeMemoRoles(
+        rawDetailsModal?.memoViewRoles ?? base.detailsModal.memoViewRoles,
+      ),
+      memoEditRoles: normalizeMemoRoles(
+        rawDetailsModal?.memoEditRoles ?? base.detailsModal.memoEditRoles,
+      ),
     },
     origins: {
       ...base.origins,
