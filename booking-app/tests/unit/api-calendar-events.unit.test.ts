@@ -27,6 +27,15 @@ vi.mock("@/components/src/client/routes/hooks/getBookingStatus", () => ({
   default: vi.fn(),
 }));
 
+vi.mock("@/lib/utils/matchCalendarEventToBooking", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/utils/matchCalendarEventToBooking")>();
+  return {
+    ...actual,
+    buildBookingMatchIndex: vi.fn(actual.buildBookingMatchIndex),
+  };
+});
+
 import { DELETE, GET, POST, PUT } from "@/app/api/calendarEvents/route";
 import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
 import { TableNames } from "@/components/src/policy";
@@ -40,6 +49,7 @@ import { _resetBookingsCacheForTesting } from "@/lib/bookingsCache";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 import { getTenantRooms } from "@/app/api/bookings/shared";
+import { buildBookingMatchIndex } from "@/lib/utils/matchCalendarEventToBooking";
 
 const mockInsertEvent = vi.mocked(insertEvent);
 const mockDeleteEvent = vi.mocked(deleteEvent);
@@ -51,6 +61,22 @@ const mockServerFetchAllDataFromCollection = vi.mocked(
 const mockGetCalendarClient = vi.mocked(getCalendarClient);
 const mockGetTenantRooms = vi.mocked(getTenantRooms);
 const mockGetBookingStatus = vi.mocked(getBookingStatus);
+const mockBuildBookingMatchIndex = vi.mocked(buildBookingMatchIndex);
+
+// Helper: build a batch GET request (the booking flow's shape)
+function makeBatchGETRequest(calendarIds: string[], tenant: string) {
+  return {
+    url: `https://example.com/api/calendarEvents?calendarIds=${calendarIds.join(",")}`,
+    headers: new Headers({ "x-tenant": tenant }),
+  } as any;
+}
+
+const orientationEvent = {
+  id: "google-guest-copy",
+  summary: "Orientation",
+  start: { dateTime: "2024-09-01T10:00:00.000Z" },
+  end: { dateTime: "2024-09-01T12:00:00.000Z" },
+};
 
 // Helper: build a minimal GET request for a given calendarId + tenant
 function makeGETRequest(calendarId: string, tenant: string) {
@@ -228,6 +254,82 @@ describe("/api/calendarEvents", () => {
       const payload = await response.json();
       expect(payload[0].calendarEventId).toBe("google-guest-copy");
       expect(payload[0].booking).toBeUndefined();
+    });
+
+    it("still returns every calendar's events when a legacy booking stores roomId as a number (#1638)", async () => {
+      stubCalendarClient([orientationEvent]);
+      mockGetTenantRooms.mockResolvedValue([
+        { roomId: "203", calendarId: "cal-a" },
+        { roomId: "220", calendarId: "cal-b" },
+      ] as any);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([
+        {
+          // 2024 import: roomId is a number, not a string
+          calendarEventId: "legacy-id",
+          roomId: 220,
+          startDate: { toDate: () => new Date("2024-01-01T10:00:00.000Z") },
+          endDate: { toDate: () => new Date("2024-01-01T12:00:00.000Z") },
+        } as any,
+        {
+          calendarEventId: "primary-id",
+          roomId: "203",
+          startDate: { toDate: () => new Date("2024-09-01T10:00:00.000Z") },
+          endDate: { toDate: () => new Date("2024-09-01T12:00:00.000Z") },
+          requestNumber: 99,
+          email: "student@nyu.edu",
+          department: "ITP",
+        } as any,
+      ]);
+      mockGetBookingStatus.mockReturnValue("approved");
+
+      const response = await GET(
+        makeBatchGETRequest(["cal-a", "cal-b"], "tenant-one"),
+      );
+      expect(response.status).toBe(200);
+      const payload = await response.json();
+      expect(payload["cal-a"]).toHaveLength(1);
+      expect(payload["cal-b"]).toHaveLength(1);
+      // Matching still works for the well-formed booking
+      expect(payload["cal-a"][0].calendarEventId).toBe("primary-id");
+      expect(payload["cal-a"][0].booking?.requestNumber).toBe(99);
+    });
+
+    it("returns unmatched events instead of none when the booking index cannot be built", async () => {
+      stubCalendarClient([orientationEvent]);
+      mockGetTenantRooms.mockResolvedValue([
+        { roomId: "203", calendarId: "cal-a" },
+      ] as any);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([
+        { calendarEventId: "primary-id", roomId: "203" } as any,
+      ]);
+      mockBuildBookingMatchIndex.mockImplementationOnce(() => {
+        throw new TypeError("d.roomId.split is not a function");
+      });
+
+      const response = await GET(makeBatchGETRequest(["cal-a"], "tenant-one"));
+      expect(response.status).toBe(200);
+      const payload = await response.json();
+      expect(payload["cal-a"]).toEqual([
+        {
+          title: "Orientation",
+          start: "2024-09-01T10:00:00.000Z",
+          end: "2024-09-01T12:00:00.000Z",
+          calendarEventId: "google-guest-copy",
+          booking: undefined,
+        },
+      ]);
+    });
+
+    it("returns unmatched events when tenant rooms cannot be loaded", async () => {
+      stubCalendarClient([orientationEvent]);
+      mockGetTenantRooms.mockRejectedValueOnce(new Error("schema unavailable"));
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([]);
+
+      const response = await GET(makeBatchGETRequest(["cal-a"], "tenant-one"));
+      expect(response.status).toBe(200);
+      const payload = await response.json();
+      expect(payload["cal-a"]).toHaveLength(1);
+      expect(payload["cal-a"][0].calendarEventId).toBe("google-guest-copy");
     });
 
     it("validates calendarId", async () => {
