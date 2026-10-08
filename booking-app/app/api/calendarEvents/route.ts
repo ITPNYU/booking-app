@@ -52,14 +52,31 @@ const listGoogleCalendarEvents = async (calendarId: string) => {
   return events;
 };
 
-const loadBookingMatchIndex = async (tenant?: string) => {
-  const bookings = await getCachedBookings(tenant || DEFAULT_TENANT).catch(
-    (error) => {
-      console.error("Error fetching tenant bookings:", error);
-      return [] as Booking[];
-    },
-  );
-  return buildBookingMatchIndex(bookings);
+// Matching Google events to Firestore bookings only decorates the response.
+// The grid's job is to show which slots are taken, so neither loader may
+// reject: a failure here degrades to unmatched events instead of an empty
+// calendar (see #1638, where one malformed legacy booking blanked them all).
+const loadBookingMatchIndex = async (
+  tenant?: string,
+): Promise<BookingMatchIndex<Booking>> => {
+  try {
+    const bookings = await getCachedBookings(tenant || DEFAULT_TENANT);
+    return buildBookingMatchIndex(bookings);
+  } catch (error) {
+    console.error("Error building booking match index:", error);
+    return buildBookingMatchIndex([]);
+  }
+};
+
+const loadRoomIdsByCalendarId = async (
+  tenant?: string,
+): Promise<Map<string, string[]>> => {
+  try {
+    return roomIdsByCalendarId(await getTenantRooms(tenant));
+  } catch (error) {
+    console.error("Error loading tenant rooms for calendar events:", error);
+    return new Map();
+  }
 };
 
 const mapEventsToResponse = (
@@ -167,7 +184,7 @@ export async function GET(req: NextRequest) {
 
     try {
       const indexPromise = loadBookingMatchIndex(tenant);
-      const roomsPromise = getTenantRooms(tenant).then(roomIdsByCalendarId);
+      const roomsPromise = loadRoomIdsByCalendarId(tenant);
       const results = await Promise.all(
         ids.map(async id => {
           try {
@@ -217,7 +234,7 @@ export async function GET(req: NextRequest) {
     const events = await getCalendarEvents(
       calendarId,
       loadBookingMatchIndex(tenant),
-      getTenantRooms(tenant).then(roomIdsByCalendarId),
+      loadRoomIdsByCalendarId(tenant),
     );
 
     const res = NextResponse.json(events);
