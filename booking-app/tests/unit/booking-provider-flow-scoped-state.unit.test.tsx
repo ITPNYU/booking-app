@@ -251,6 +251,28 @@ describe("BookingProvider - state scoped to the current request", () => {
     },
   );
 
+  it("keeps the submitted summary on the confirmation page and drops it for the next request", () => {
+    const { rerender } = render(tree());
+    const record = context.setSubmittedBooking;
+    act(() => context.setSubmitting("submitting"));
+    act(() =>
+      record({
+        title: "Studio session",
+        requestNumber: 4321,
+        roomId: "202",
+      }),
+    );
+
+    navigate(rerender, "/mc/book/confirmation");
+
+    expect(context.submittedBooking?.title).toBe("Studio session");
+    expect(context.submittedBooking?.requestNumber).toBe(4321);
+
+    navigate(rerender, "/mc/book/form");
+
+    expect(context.submittedBooking).toBeUndefined();
+  });
+
   it("does not carry a submission from a confirmation page into the next request", () => {
     (usePathname as any).mockReturnValue("/mc/edit/form/evt1");
     const { rerender } = render(tree());

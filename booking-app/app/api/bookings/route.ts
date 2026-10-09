@@ -27,6 +27,7 @@ import {
   formatOrigin,
   getSecondaryContactName,
 } from "@/components/src/utils/formatters";
+import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
 import { canRequestAuxiliarySpaces } from "@/components/src/utils/roleUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
@@ -1103,8 +1104,19 @@ export async function POST(request: NextRequest) {
 
     console.log(" Done handleBookingApprovalEmails");
 
+    const status = shouldAutoApprove
+      ? BookingStatusLabel.APPROVED
+      : usesXState && typeof xstateData !== "undefined"
+        ? String(getStatusFromXState({ xstateData }, tenant))
+        : BookingStatusLabel.REQUESTED;
+
     return NextResponse.json(
-      { result: "success", calendarEventId },
+      {
+        result: "success",
+        calendarEventId,
+        requestNumber: sequentialId,
+        status,
+      },
       { status: 200 },
     );
   } catch (error) {

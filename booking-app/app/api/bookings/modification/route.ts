@@ -569,6 +569,7 @@ export async function PUT(request: NextRequest) {
       result: "success",
       calendarEventId: newCalendarEventId,
       requestNumber: existingContents.requestNumber,
+      status: statusLabel,
     });
   } catch (error) {
     console.error("❌ MODIFICATION FAILED:", error);

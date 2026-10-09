@@ -34,6 +34,7 @@ import {
   pruneServiceRuleMemoryToRooms,
   ServiceRuleMemory,
 } from "../../../utils/serviceSections";
+import type { BookingDetailsSummaryBooking } from "../components/bookingTable/BookingDetailsSummary";
 import { DatabaseContext } from "../components/Provider";
 import fetchCalendarEvents from "./hooks/fetchCalendarEvents";
 import {
@@ -96,6 +97,13 @@ export interface BookingContextType {
   >;
   setSubmitting: (x: SubmitStatus) => void;
   submitting: SubmitStatus;
+  /**
+   * The request that was just submitted, kept so the confirmation page can
+   * summarize it after the form state is cleared. Holds only for the attempt
+   * that submitted it.
+   */
+  submittedBooking: BookingDetailsSummaryBooking | undefined;
+  setSubmittedBooking: (x: BookingDetailsSummaryBooking | undefined) => void;
   fetchingStatus: "loading" | "loaded" | "error" | null;
   error: Error | null;
   setError: (x: Error | null) => void;
@@ -132,6 +140,8 @@ export const BookingContext = createContext<BookingContextType>({
   setAnnexByRoom: () => {},
   setSubmitting: (x: SubmitStatus) => {},
   submitting: "none",
+  submittedBooking: undefined,
+  setSubmittedBooking: () => {},
   fetchingStatus: null,
   error: null,
   setError: (x: Error | null) => {},
@@ -251,6 +261,17 @@ export function BookingProvider({ children }) {
     submission?.flowKey === flowKey ? submission.status : INITIAL_SUBMIT_STATUS;
   const setSubmitting = useCallback(
     (status: SubmitStatus) => setSubmission({ flowKey, status }),
+    [flowKey],
+  );
+  const [submitted, setSubmitted] = useState<{
+    flowKey: string;
+    booking: BookingDetailsSummaryBooking;
+  } | null>(null);
+  const submittedBooking =
+    submitted?.flowKey === flowKey ? submitted.booking : undefined;
+  const setSubmittedBooking = useCallback(
+    (booking: BookingDetailsSummaryBooking | undefined) =>
+      setSubmitted(booking ? { flowKey, booking } : null),
     [flowKey],
   );
   const {
@@ -400,6 +421,8 @@ export function BookingProvider({ children }) {
         setAnnexByRoom,
         setSubmitting,
         submitting,
+        submittedBooking,
+        setSubmittedBooking,
         fetchingStatus,
         error,
         setError,

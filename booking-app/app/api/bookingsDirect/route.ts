@@ -752,7 +752,12 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(
-    { result: "success", calendarEventId: calendarId },
+    {
+      result: "success",
+      calendarEventId: calendarId,
+      requestNumber: sequentialId,
+      status: bookingStatus,
+    },
     { status: 200 },
   );
 }

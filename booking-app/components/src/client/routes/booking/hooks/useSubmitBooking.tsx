@@ -1,11 +1,7 @@
 import { useCallback, useContext } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DEFAULT_TENANT } from "../../../../constants/tenants";
-import {
-  BookingOrigin,
-  FormContextLevel,
-  Inputs,
-} from "../../../../types";
+import { BookingOrigin, FormContextLevel, Inputs } from "../../../../types";
 import {
   getServiceRooms,
   pruneServiceMapsToRooms,
@@ -15,8 +11,32 @@ import { isValidNetIdFormat } from "../../../../utils/validationHelpers";
 
 import { DatabaseContext } from "../../components/Provider";
 import { useTenantSchema } from "../../components/SchemaProvider";
+import type { BookingDetailsSummaryBooking } from "../../components/bookingTable/BookingDetailsSummary";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
+
+function readSavedIdentity(body: unknown): {
+  requestNumber?: number;
+  status?: string;
+} {
+  if (!body || typeof body !== "object") return {};
+  const record = body as { requestNumber?: unknown; status?: unknown };
+  const parsedNumber =
+    typeof record.requestNumber === "number"
+      ? record.requestNumber
+      : typeof record.requestNumber === "string" && record.requestNumber.trim()
+        ? Number(record.requestNumber)
+        : undefined;
+  const requestNumber =
+    parsedNumber != null && Number.isFinite(parsedNumber)
+      ? parsedNumber
+      : undefined;
+  const status =
+    typeof record.status === "string" && record.status.trim()
+      ? record.status
+      : undefined;
+  return { requestNumber, status };
+}
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
@@ -45,6 +65,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     setServiceDecisions,
     setHasShownMocapModal,
     setSubmitting,
+    setSubmittedBooking,
     error,
     setError,
     isBanned,
@@ -342,6 +363,42 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             return;
           }
 
+          try {
+            let saved: unknown = {};
+            try {
+              saved = await res.json();
+            } catch {
+              saved = {};
+            }
+            const identity = readSavedIdentity(saved);
+            const roomId = selectedRooms
+              .map((room) => String(room.roomId).trim())
+              .filter((id) => id.length > 0)
+              .join(", ");
+            const origin = isVIP
+              ? BookingOrigin.VIP
+              : isWalkIn
+                ? BookingOrigin.WALK_IN
+                : (transformedData.origin ?? BookingOrigin.USER);
+            const summary: BookingDetailsSummaryBooking = {
+              ...transformedData,
+              email,
+              roomId,
+              startDate: new Date(bookingCalendarInfo.start).toISOString(),
+              endDate: new Date(bookingCalendarInfo.end).toISOString(),
+              origin,
+              requestNumber: identity.requestNumber,
+              status: identity.status,
+            };
+            setSubmittedBooking(summary);
+          } catch (summaryError) {
+            console.error(
+              "Failed to build confirmation summary:",
+              summaryError,
+            );
+          }
+          setSubmitting("success");
+
           // clear stored booking data after submit confirmation
           setBookingCalendarInfo(undefined);
           setSelectedRooms([]);
@@ -354,7 +411,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           setHasShownMocapModal(false);
 
           reloadFutureBookings();
-          setSubmitting("success");
         })
         .catch((error) => {
           console.error("Error submitting booking:", error);
@@ -376,6 +432,9 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       showMaintenanceMode,
       department,
       role,
+      setSubmittedBooking,
+      isVIP,
+      isWalkIn,
     ],
   );
 
