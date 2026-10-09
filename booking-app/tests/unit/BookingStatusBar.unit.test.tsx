@@ -1,6 +1,7 @@
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
 import BookingStatusBar from "@/components/src/client/routes/booking/components/BookingStatusBar";
 import { defaultSafetyTrainingInfoUrl } from "@/components/src/client/routes/components/SchemaProvider";
+import { defaultFormAlerts } from "@/components/src/client/routes/components/schemaTypes";
 import { FormContextLevel, Role } from "@/components/src/types";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { render, screen } from "@testing-library/react";
@@ -15,10 +16,17 @@ vi.mock(
   })
 );
 
+const { mockUseCheckAutoApproval } = vi.hoisted(() => ({
+  mockUseCheckAutoApproval: vi.fn(() => ({
+    isAutoApproval: true,
+    errorMessage: null as string | null,
+  })),
+}));
+
 vi.mock(
   "@/components/src/client/routes/booking/hooks/useCheckAutoApproval",
   () => ({
-    default: () => ({ isAutoApproval: true, errorMessage: null }),
+    default: (...args: unknown[]) => mockUseCheckAutoApproval(...args),
   })
 );
 
@@ -137,6 +145,10 @@ const renderComponent = (contextOverrides = {}, propsOverrides = {}) => {
 describe("BookingStatusBar - Blackout Period Handling", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: true,
+      errorMessage: null,
+    });
     // Setup default schema mock for existing tests
     mockUseTenantSchema.mockReturnValue({
       tenant: "media-commons",
@@ -411,6 +423,10 @@ describe("BookingStatusBar - Blackout Period Handling", () => {
 describe("BookingStatusBar - Time Sensitive Request Warning", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: true,
+      errorMessage: null,
+    });
     // Reset pathname mock to selectRoom page
     vi.mocked(usePathname).mockReturnValue("/test/book/selectRoom");
     // Default schema mock
@@ -749,6 +765,249 @@ describe("BookingStatusBar - Time Sensitive Request Warning", () => {
     });
 
     expect(screen.queryByText("Learn more")).not.toBeInTheDocument();
+  });
+});
+
+describe("BookingStatusBar - schema form alerts", () => {
+  const schemaWithAlerts = (alerts: typeof defaultFormAlerts) => ({
+    tenant: "media-commons",
+    name: "Media Commons",
+    form: { alerts },
+    calendarConfig: {
+      timeSensitiveRequestWarning: {
+        hours: 48,
+        isActive: false,
+        message: "",
+        policyLink: "",
+      },
+    },
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: true,
+      errorMessage: null,
+    });
+    vi.mocked(usePathname).mockReturnValue("/test/book/selectRoom");
+  });
+
+  it("uses the schema status message when the request is eligible", () => {
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        {
+          ...defaultFormAlerts[0],
+          message: "This room can be confirmed immediately.",
+        },
+      ]),
+    );
+
+    renderComponent();
+
+    expect(
+      screen.getByText("This room can be confirmed immediately."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Yay! This request is eligible for automatic approval/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the auto-approval status alert on VIP when that origin is off", () => {
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        {
+          ...defaultFormAlerts[0],
+          showInOrigin: { user: true, VIP: false, walkIn: true },
+        },
+        defaultFormAlerts[1],
+        {
+          ...defaultFormAlerts[2],
+          message: "VIP requests still include setup time.",
+        },
+      ]),
+    );
+
+    renderComponent({}, { formContext: FormContextLevel.VIP });
+
+    expect(
+      screen.queryByText(/Yay! This request is eligible for automatic approval/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/This request will require approval/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("VIP requests still include setup time."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the ineligible status alert with the computed reason", () => {
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: false,
+      errorMessage: "Duration is too long",
+    });
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        defaultFormAlerts[0],
+        {
+          ...defaultFormAlerts[1],
+          message: "Staff need to review this request.",
+        },
+      ]),
+    );
+
+    renderComponent();
+
+    expect(
+      screen
+        .getByText(/Staff need to review this request/)
+        .closest('[role="alert"]'),
+    ).toHaveClass("MuiAlert-filledWarning");
+    expect(
+      screen.getByRole("button", { name: /Why\? Duration is too long/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses the ineligible status alert for VIP and still blocks Next", () => {
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: false,
+      errorMessage: "Services were requested",
+    });
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        defaultFormAlerts[0],
+        {
+          ...defaultFormAlerts[1],
+          severity: "info",
+          message: "A VIP request with services needs review.",
+        },
+      ]),
+    );
+
+    renderComponent({}, { formContext: FormContextLevel.VIP });
+
+    expect(
+      screen
+        .getByText(/A VIP request with services needs review/)
+        .closest('[role="alert"]'),
+    ).toHaveClass("MuiAlert-filledError");
+    expect(
+      screen.queryByText("This request will require approval."),
+    ).not.toBeInTheDocument();
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    expect(nextButton).toBeDisabled();
+    expect(
+      nextButton.closest('[aria-label="Services were requested"]'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Why\? Services were requested/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses the ineligible status alert for walk-in", () => {
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: false,
+      errorMessage: "Duration is too long",
+    });
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        {
+          ...defaultFormAlerts[1],
+          message: "This walk-in needs a shorter time.",
+        },
+      ]),
+    );
+
+    renderComponent({}, { formContext: FormContextLevel.WALK_IN });
+
+    expect(
+      screen
+        .getByText(/This walk-in needs a shorter time/)
+        .closest('[role="alert"]'),
+    ).toHaveClass("MuiAlert-filledError");
+    expect(
+      screen.getByRole("button", { name: /next/i }),
+    ).toBeDisabled();
+  });
+
+  it("keeps the hardcoded approval block when no ineligible alert matches VIP", () => {
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: false,
+      errorMessage: "Services were requested",
+    });
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        {
+          ...defaultFormAlerts[1],
+          showInOrigin: { user: true, VIP: false, walkIn: true },
+        },
+      ]),
+    );
+
+    renderComponent({}, { formContext: FormContextLevel.VIP });
+
+    expect(
+      screen.getByText(/This request will require approval/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /next/i })).toBeDisabled();
+  });
+
+  it("falls back to the approval banner for users when no status alert matches", () => {
+    mockUseCheckAutoApproval.mockReturnValue({
+      isAutoApproval: false,
+      errorMessage: "Duration is too long",
+    });
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        {
+          ...defaultFormAlerts[2],
+          message: "Include setup time.",
+        },
+      ]),
+    );
+
+    renderComponent();
+
+    expect(
+      screen
+        .getByText(/This request will require approval/)
+        .closest('[role="alert"]'),
+    ).toHaveClass("MuiAlert-filledWarning");
+    expect(screen.getByText("Include setup time.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /next/i })).not.toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Why\? Duration is too long/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to the eligible banner for users when the alerts list is empty", () => {
+    mockUseTenantSchema.mockReturnValue(schemaWithAlerts([]));
+
+    renderComponent();
+
+    expect(
+      screen.getByText(/Yay! This request is eligible for automatic approval/),
+    ).toBeInTheDocument();
+  });
+
+  it("drops a notice whose origin is turned off", () => {
+    mockUseTenantSchema.mockReturnValue(
+      schemaWithAlerts([
+        defaultFormAlerts[0],
+        {
+          ...defaultFormAlerts[2],
+          showInOrigin: { user: true, VIP: false, walkIn: true },
+        },
+      ]),
+    );
+
+    renderComponent({}, { formContext: FormContextLevel.VIP });
+
+    expect(
+      screen.queryByText(/setup and breakdown time/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Yay! This request is eligible for automatic approval/),
+    ).toBeInTheDocument();
   });
 });
 
