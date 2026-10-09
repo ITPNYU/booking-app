@@ -477,6 +477,43 @@ export function pruneServiceMapsToRooms<
  * Values that don't match an annex resource (legacy options without a
  * registered resource) resolve to nothing.
  */
+/**
+ * Replace client-supplied calendar ids with the tenant schema's calendar for
+ * each selected room. A room that is not in the schema, or has no calendar,
+ * is reported as missing so callers can refuse the booking.
+ */
+export function resolveSelectedRoomCalendars<
+  T extends { roomId?: string | number | null },
+>(
+  selectedRooms: T[] | null | undefined,
+  resources: ServiceResourceLike[] | null | undefined,
+): {
+  rooms: Array<
+    Omit<T, "roomId" | "calendarId"> & { roomId: string; calendarId: string }
+  >;
+  missingRoomId?: string;
+} {
+  if (!Array.isArray(selectedRooms)) return { rooms: [] };
+  const list = Array.isArray(resources) ? resources : [];
+  const rooms: Array<
+    Omit<T, "roomId" | "calendarId"> & { roomId: string; calendarId: string }
+  > = [];
+
+  for (const room of selectedRooms) {
+    const roomId = String(room?.roomId ?? "").trim();
+    const match = list.find(
+      (resource) => getServiceResourceId(resource) === roomId,
+    );
+    const calendarId = match?.calendarId ? String(match.calendarId) : "";
+    if (!roomId || !calendarId) {
+      return { rooms: [], missingRoomId: roomId || "unknown" };
+    }
+    rooms.push({ ...room, roomId, calendarId });
+  }
+
+  return { rooms };
+}
+
 export function resolveAnnexCalendarIds(
   annexByRoom: Record<string, string[]> | undefined,
   allResources: ServiceResourceLike[],

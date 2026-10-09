@@ -14,6 +14,7 @@ import {
   isPassiveSetupSelection,
   mergeRoomIdsWithAnnex,
   resolveAnnexCalendarIds,
+  resolveSelectedRoomCalendars,
 } from "@/components/src/utils/resourceServicesUtils";
 import { MC_TEST_RESOURCE_SERVICES } from "@/components/src/testHelpers/mcResourceServicesFixture";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
@@ -577,6 +578,37 @@ describe("annex parent-child resources", () => {
     expect(mergeRoomIdsWithAnnex("202, 1201", undefined)).toBe("202, 1201");
     expect(mergeRoomIdsWithAnnex("202", { "202": ["202"] })).toBe("202");
     expect(mergeRoomIdsWithAnnex(undefined, undefined)).toBe("");
+  });
+
+  it("uses the schema calendar id and ignores the client-supplied one", () => {
+    const resources = [
+      { resourceId: "202", calendarId: "server-cal-202" },
+      { resourceId: "203", calendarId: "server-cal-203" },
+    ];
+    expect(
+      resolveSelectedRoomCalendars(
+        [
+          { roomId: "202", calendarId: "stale-client-cal", name: "202" },
+          { roomId: 203, calendarId: "also-stale" },
+        ],
+        resources,
+      ),
+    ).toEqual({
+      rooms: [
+        { roomId: "202", calendarId: "server-cal-202", name: "202" },
+        { roomId: "203", calendarId: "server-cal-203" },
+      ],
+    });
+  });
+
+  it("reports a room that has no schema calendar", () => {
+    expect(
+      resolveSelectedRoomCalendars(
+        [{ roomId: "999", calendarId: "client-cal" }],
+        [{ resourceId: "202", calendarId: "server-cal-202" }],
+      ),
+    ).toEqual({ rooms: [], missingRoomId: "999" });
+    expect(resolveSelectedRoomCalendars(undefined, [])).toEqual({ rooms: [] });
   });
 
   it("dedupes calendar IDs across parents", () => {

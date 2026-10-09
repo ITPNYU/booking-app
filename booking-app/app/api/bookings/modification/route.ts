@@ -17,7 +17,10 @@ import {
   BookingStatusLabel,
   Role,
 } from "@/components/src/types";
-import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
+import {
+  resolveAnnexCalendarIds,
+  resolveSelectedRoomCalendars,
+} from "@/components/src/utils/resourceServicesUtils";
 import { canAccessWebCheckout } from "@/components/src/utils/permissions";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
@@ -37,6 +40,7 @@ import {
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
+import { calendarOverlapResponse } from "../checkOverlap";
 import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 import {
   buildBookingContents,
@@ -220,6 +224,32 @@ export async function PUT(request: NextRequest) {
       .map((r: { roomId: string }) => r.roomId)
       .join(", ");
 
+    const tenantResources = await serverGetTenantResources(tenant);
+    const annexCalendarIds = resolveAnnexCalendarIds(
+      data?.annexByRoom,
+      tenantResources,
+    );
+    const { rooms: bookedRooms, missingRoomId } = resolveSelectedRoomCalendars(
+      selectedRooms,
+      tenantResources,
+    );
+    if (missingRoomId) {
+      return NextResponse.json(
+        { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
+        { status: 500 },
+      );
+    }
+    const overlapResponse = await calendarOverlapResponse({
+      tenant,
+      rooms: bookedRooms,
+      extraCalendarIds: annexCalendarIds,
+      sourceRooms: oldRooms,
+      bookingCalendarInfo,
+      excludeCalendarEventId: calendarEventId,
+      roomIds: bookedRooms.map((room) => room.roomId),
+    });
+    if (overlapResponse) return overlapResponse;
+
     console.log("🔧 MODIFICATION: Deleting old calendar events");
     // Delete old calendar events
     await Promise.all(
@@ -253,17 +283,13 @@ export async function PUT(request: NextRequest) {
       '<p>To cancel reservations please return to the Booking Tool, visit My Bookings, and click "cancel" on the booking at least 24 hours before the date of the event. Failure to cancel an unused booking is considered a no-show and may result in restricted use of the space.</p>';
 
     // Create calendar event
-    const [room, ...otherRooms] = selectedRooms;
+    const [room, ...otherRooms] = bookedRooms;
     const { calendarId } = room;
 
     if (calendarId == null) {
       throw Error(`calendarId not found for room ${room.roomId}`);
     }
 
-    const annexCalendarIds = resolveAnnexCalendarIds(
-      data?.annexByRoom,
-      await serverGetTenantResources(tenant),
-    );
     const otherRoomEmails = [
       ...new Set([
         ...otherRooms.map((r: { calendarId: string }) => r.calendarId),

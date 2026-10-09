@@ -16,6 +16,7 @@ const mockCreateActor = vi.fn();
 const mockGetTenantRooms = vi.fn();
 const mockRequireSession = vi.fn();
 const mockResolveCallerRole = vi.fn();
+const mockGetCalendarClient = vi.fn();
 
 vi.mock("@/components/src/server/admin", () => ({
   serverBookingContents: (...args: any[]) => mockServerBookingContents(...args),
@@ -58,7 +59,9 @@ vi.mock("@/app/api/bookings/shared", () => ({
 }));
 
 vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
-  serverGetTenantResources: vi.fn().mockResolvedValue([]),
+  serverGetTenantResources: vi.fn().mockResolvedValue([
+    { resourceId: "202", calendarId: "cal-room-202" },
+  ]),
 }));
 
 vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
@@ -110,7 +113,12 @@ vi.mock("@/lib/api/authz", () => ({
   resolveCallerRole: (...args: any[]) => mockResolveCallerRole(...args),
 }));
 
+vi.mock("@/lib/googleClient", () => ({
+  getCalendarClient: () => mockGetCalendarClient(),
+}));
+
 import { PUT } from "@/app/api/bookings/modification/route";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 
 const createRequest = (body: object) =>
   new NextRequest("http://localhost:3000/api/bookings/modification", {
@@ -169,6 +177,15 @@ describe("Checked In booking modification", () => {
     });
     mockServerUpdateDataByCalendarEventId.mockResolvedValue(undefined);
     mockDeleteEvent.mockResolvedValue(undefined);
+    mockGetCalendarClient.mockResolvedValue({
+      events: {
+        list: vi.fn().mockResolvedValue({ data: { items: [] } }),
+        get: vi.fn().mockResolvedValue({ data: { iCalUID: "own-ical" } }),
+      },
+    });
+    vi.mocked(serverGetTenantResources).mockResolvedValue([
+      { resourceId: "202", calendarId: "cal-room-202" },
+    ] as never);
     mockFinalApprove.mockResolvedValue(undefined);
     mockLogServerBookingChange.mockResolvedValue(undefined);
     mockServerSendBookingDetailEmail.mockResolvedValue(undefined);
@@ -246,6 +263,53 @@ describe("Checked In booking modification", () => {
         status: BookingStatusLabel.CHECKED_IN,
       }),
     );
+  });
+
+  it("rejects a conflicting slot before deleting the existing event", async () => {
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-123",
+      email: "user@nyu.edu",
+      origin: "user",
+      xstateData: {
+        snapshot: { value: "Checked In", context: {} },
+      },
+    });
+    vi.mocked(serverGetTenantResources).mockResolvedValue([
+      { resourceId: "202", calendarId: "schema-cal" },
+    ] as never);
+    const list = vi.fn().mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: "someone-else",
+            iCalUID: "other-ical",
+            summary: "[APPROVED] 202 Taken",
+            start: { dateTime: "2026-05-05T15:00:00.000Z" },
+            end: { dateTime: "2026-05-05T17:00:00.000Z" },
+          },
+        ],
+      },
+    });
+    mockGetCalendarClient.mockResolvedValue({
+      events: {
+        list,
+        get: vi.fn().mockResolvedValue({ data: { iCalUID: "own-ical" } }),
+      },
+    });
+
+    const res = await PUT(createRequest(modificationBody));
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({
+      error: "Time slot no longer available",
+    });
+    expect(list).toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: "schema-cal" }),
+    );
+    expect(list).not.toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: "cal-room-202" }),
+    );
+    expect(mockDeleteEvent).not.toHaveBeenCalled();
+    expect(mockInsertEvent).not.toHaveBeenCalled();
   });
 
   it("merges new service and form context into preserved XState", async () => {

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   mockGetMaintenanceModeSettings: vi.fn(),
   mockInsertEvent: vi.fn(),
+  mockServerGetTenantResources: vi.fn(),
 }));
 
 vi.mock("@/lib/maintenanceModeServer", () => ({
@@ -74,8 +75,14 @@ vi.mock("@/lib/bookingRequestLimits", () => ({
   getRequestLimitRoleKey: vi.fn(),
 }));
 
+vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
+  serverGetTenantResources: (...args: unknown[]) =>
+    mocks.mockServerGetTenantResources(...args),
+}));
+
 import { POST as POSTBookingsDirect } from "@/app/api/bookingsDirect/route";
 import { POST } from "@/app/api/bookings/route";
+import { getCalendarClient } from "@/lib/googleClient";
 
 const createPostRequest = () =>
   new NextRequest("http://localhost:3000/api/bookings", {
@@ -166,6 +173,150 @@ describe("POST /api/bookings maintenance mode", () => {
       maintenanceMode: true,
     });
     expect(mocks.mockGetMaintenanceModeSettings).toHaveBeenCalledWith("mc");
+    expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("submit conflict check", () => {
+  const overlappingCalendar = () => ({
+    events: {
+      list: vi.fn().mockResolvedValue({
+        data: {
+          items: [
+            {
+              id: "someone-else",
+              iCalUID: "other-ical",
+              summary: "[APPROVED] 202 Taken",
+              start: { dateTime: "2026-05-05T15:00:00.000Z" },
+              end: { dateTime: "2026-05-05T17:00:00.000Z" },
+            },
+          ],
+        },
+      }),
+      get: vi.fn().mockResolvedValue({ data: {} }),
+    },
+  });
+
+  const conflictBody = {
+    email: "requester@nyu.edu",
+    selectedRooms: [{ roomId: "202", calendarId: "room-cal" }],
+    bookingCalendarInfo: {
+      startStr: "2026-05-05T14:00:00.000Z",
+      endStr: "2026-05-05T16:00:00.000Z",
+    },
+    data: { title: "Walk-in", role: "Faculty", department: "ITP" },
+  };
+
+  const post = (url: string) =>
+    new NextRequest(url, {
+      method: "POST",
+      headers: new Headers({
+        "Content-Type": "application/json",
+        "x-tenant": "mc",
+      }),
+      body: JSON.stringify(conflictBody),
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.mockGetMaintenanceModeSettings.mockResolvedValue({
+      enabled: false,
+      message: "",
+    });
+    mocks.mockServerGetTenantResources.mockResolvedValue([
+      { resourceId: "202", calendarId: "server-cal" },
+    ]);
+    vi.mocked(getCalendarClient).mockResolvedValue(overlappingCalendar() as never);
+  });
+
+  it("rejects a walk-in or VIP against the schema calendar, not the client calendar id", async () => {
+    const list = vi.fn().mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: "someone-else",
+            iCalUID: "other-ical",
+            summary: "[APPROVED] 202 Taken",
+            start: { dateTime: "2026-05-05T15:00:00.000Z" },
+            end: { dateTime: "2026-05-05T17:00:00.000Z" },
+          },
+        ],
+      },
+    });
+    vi.mocked(getCalendarClient).mockResolvedValue({
+      events: { list, get: vi.fn().mockResolvedValue({ data: {} }) },
+    } as never);
+
+    const response = await POSTBookingsDirect(
+      post("http://localhost:3000/api/bookingsDirect"),
+    );
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Time slot no longer available",
+    });
+    expect(list).toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: "server-cal" }),
+    );
+    expect(list).not.toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: "room-cal" }),
+    );
+    expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects a walk-in when the room has no schema calendar", async () => {
+    mocks.mockServerGetTenantResources.mockResolvedValue([]);
+    const response = await POSTBookingsDirect(
+      post("http://localhost:3000/api/bookingsDirect"),
+    );
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      result: "error",
+      message: "ROOM CALENDAR ID NOT FOUND",
+    });
+    expect(getCalendarClient).not.toHaveBeenCalled();
+    expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects a walk-in or VIP when the slot is already booked", async () => {
+    const response = await POSTBookingsDirect(
+      post("http://localhost:3000/api/bookingsDirect"),
+    );
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Time slot no longer available",
+    });
+    expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects a user request against the schema calendar, not the client calendar id", async () => {
+    const list = vi.fn().mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: "someone-else",
+            iCalUID: "other-ical",
+            summary: "[APPROVED] 202 Taken",
+            start: { dateTime: "2026-05-05T15:00:00.000Z" },
+            end: { dateTime: "2026-05-05T17:00:00.000Z" },
+          },
+        ],
+      },
+    });
+    vi.mocked(getCalendarClient).mockResolvedValue({
+      events: { list, get: vi.fn().mockResolvedValue({ data: {} }) },
+    } as never);
+
+    const response = await POST(post("http://localhost:3000/api/bookings"));
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Time slot no longer available",
+    });
+    expect(list).toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: "server-cal" }),
+    );
+    expect(list).not.toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: "room-cal" }),
+    );
     expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
   });
 });
