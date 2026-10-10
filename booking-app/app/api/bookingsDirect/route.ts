@@ -104,17 +104,24 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Walk-ins are restricted on the guest. VIP follows the logged-in user,
-  // matching the booking form.
-  const banSubject =
+  // Walk-ins are restricted on the guest. VIP claims are client-controlled, so
+  // a banned guest cannot be hidden behind an unbanned requestedBy.
+  const banSubjects =
     origin === BookingOrigin.VIP || type === BookingOrigin.VIP
-      ? (requestedBy ?? email)
-      : email;
-  if (await requesterIsBanned(banSubject, tenant)) {
-    return NextResponse.json(
-      { error: BANNED_FROM_BOOKING_MESSAGE },
-      { status: 403 },
-    );
+      ? [email, requestedBy]
+      : [email];
+  const checkedBanSubjects = new Set<string>();
+  for (const subject of banSubjects) {
+    if (typeof subject !== "string") continue;
+    const key = subject.trim().toLowerCase();
+    if (!key || checkedBanSubjects.has(key)) continue;
+    checkedBanSubjects.add(key);
+    if (await requesterIsBanned(subject, tenant)) {
+      return NextResponse.json(
+        { error: BANNED_FROM_BOOKING_MESSAGE },
+        { status: 403 },
+      );
+    }
   }
 
   const tenantSchema = await getCachedTenantSchema(tenant);

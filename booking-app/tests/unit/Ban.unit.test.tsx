@@ -108,4 +108,20 @@ describe("BannedUsers", () => {
     );
     await vi.waitFor(() => expect(reloadBannedUsers).toHaveBeenCalled());
   });
+
+  it("keeps the form when the ban write fails", async () => {
+    mocks.save.mockRejectedValueOnce(new Error("permission denied"));
+    renderBan();
+    fireEvent.change(screen.getByLabelText("Permanent ban email"), {
+      target: { value: "week@nyu.edu" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Ban permanently" }));
+
+    await vi.waitFor(() =>
+      expect(window.alert).toHaveBeenCalledWith("Failed to add user"),
+    );
+    expect(screen.getByLabelText("Permanent ban email")).toHaveValue(
+      "week@nyu.edu",
+    );
+  });
 });

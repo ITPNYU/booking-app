@@ -149,6 +149,7 @@ export const clientDeleteDataFromFirestore = async (
     console.log("Document successfully deleted with ID:", docId);
   } catch (error) {
     console.error("Error deleting document: ", error);
+    throw error;
   }
 };
 
@@ -189,6 +190,7 @@ export const clientSaveDataToFirestore = async (
     console.log("Document successfully written with ID:", id);
   } catch (error) {
     console.error("Error writing document: ", error);
+    throw error;
   }
 };
 
