@@ -72,9 +72,13 @@ export const BannedUsers = () => {
     });
 
   const emailTaken = (email: string) =>
-    bannedUsers.some(
-      (ban) => ban.email.trim().toLowerCase() === email.trim().toLowerCase(),
-    );
+    bannedUsers.some((ban) => {
+      if (ban.email.trim().toLowerCase() !== email.trim().toLowerCase()) {
+        return false;
+      }
+      const status = banWindowStatus(ban);
+      return status !== "expired" && status !== "invalid";
+    });
 
   const saveBan = async (
     email: string,

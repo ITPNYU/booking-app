@@ -109,6 +109,46 @@ describe("BannedUsers", () => {
     await vi.waitFor(() => expect(reloadBannedUsers).toHaveBeenCalled());
   });
 
+  it("lets an admin ban an email whose only row has expired", async () => {
+    renderBan([
+      {
+        id: "old",
+        email: "week@nyu.edu",
+        bannedAt: "2020-01-01T00:00:00.000Z",
+        startsAt: "2020-01-01T00:00:00.000Z",
+        endsAt: "2020-01-08T00:00:00.000Z",
+      },
+    ]);
+    fireEvent.change(screen.getByLabelText("Permanent ban email"), {
+      target: { value: "week@nyu.edu" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Ban permanently" }));
+
+    await vi.waitFor(() => expect(mocks.save).toHaveBeenCalled());
+    expect(window.alert).not.toHaveBeenCalledWith(
+      "This user has already been added",
+    );
+  });
+
+  it("still blocks a second ban while one is active", () => {
+    renderBan([
+      {
+        id: "temp",
+        email: "week@nyu.edu",
+        bannedAt: "2026-06-01T00:00:00.000Z",
+        startsAt: new Date(Date.now() - 60_000).toISOString(),
+        endsAt: new Date(Date.now() + 86_400_000).toISOString(),
+      },
+    ]);
+    fireEvent.change(screen.getByLabelText("Permanent ban email"), {
+      target: { value: "week@nyu.edu" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Ban permanently" }));
+
+    expect(window.alert).toHaveBeenCalledWith("This user has already been added");
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
+
   it("keeps the form when the ban write fails", async () => {
     mocks.save.mockRejectedValueOnce(new Error("permission denied"));
     renderBan();

@@ -23,7 +23,7 @@ import {
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
 import {
-  banEndMillis,
+  banWindowBounds,
   banWindowStatus,
   findActiveBan,
 } from "../../../utils/banWindow";
@@ -316,19 +316,29 @@ export function BookingProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceRoomKey]);
 
+  // Timed bans are evaluated against this clock. bannedUsers is loaded once,
+  // so the clock has to move or an expired ban stays on the page.
+  const [banCheckedAt, setBanCheckedAt] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setBanCheckedAt(Date.now());
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const activeBan = useMemo(() => {
     // For walk-in bookings, check the walk-in person (not the PA).
     const emailToCheck =
       pathname.includes("/walk-in") && formData?.walkInNetId?.length > 0
         ? `${formData.walkInNetId}@nyu.edu`
         : userEmail;
-    return findActiveBan(bannedUsers, emailToCheck) ?? null;
-  }, [userEmail, bannedUsers, formData?.walkInNetId, pathname]);
+    return findActiveBan(bannedUsers, emailToCheck, banCheckedAt) ?? null;
+  }, [userEmail, bannedUsers, formData?.walkInNetId, pathname, banCheckedAt]);
 
   const isBanned = activeBan != null;
   const banEndsAt =
-    activeBan != null && banWindowStatus(activeBan) === "active"
-      ? new Date(banEndMillis(activeBan) ?? 0).toISOString()
+    activeBan != null && banWindowStatus(activeBan, banCheckedAt) === "active"
+      ? new Date(banWindowBounds(activeBan).end ?? 0).toISOString()
       : null;
 
   const isSafetyTrained = useMemo(() => {

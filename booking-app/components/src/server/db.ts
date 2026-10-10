@@ -787,12 +787,14 @@ export const updateOperationHours = async (
     });
   } else {
     const r = normalizedRoomId ? { roomId: normalizedRoomId } : {};
-    clientSaveDataToFirestore(TableNames.OPERATION_HOURS, {
+    await clientSaveDataToFirestore(TableNames.OPERATION_HOURS, {
       day: day.toString(),
       open,
       close,
       isClosed,
       ...r,
+    }).catch((error) => {
+      console.error("Failed to save operation hours:", error);
     });
   }
 };
