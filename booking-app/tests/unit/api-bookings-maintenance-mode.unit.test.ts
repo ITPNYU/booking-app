@@ -4,18 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   mockGetMaintenanceModeSettings: vi.fn(),
   mockInsertEvent: vi.fn(),
-  mockRequesterIsBanned: vi.fn(),
 }));
 
 vi.mock("@/lib/maintenanceModeServer", () => ({
   getMaintenanceModeSettings: (...args: unknown[]) =>
     mocks.mockGetMaintenanceModeSettings(...args),
-}));
-
-vi.mock("@/lib/bookingBan", () => ({
-  BANNED_FROM_BOOKING_MESSAGE: "You are banned from booking",
-  requesterIsBanned: (...args: unknown[]) =>
-    mocks.mockRequesterIsBanned(...args),
 }));
 
 vi.mock("@/components/src/client/utils/serverDate", () => ({
@@ -174,64 +167,5 @@ describe("POST /api/bookings maintenance mode", () => {
     });
     expect(mocks.mockGetMaintenanceModeSettings).toHaveBeenCalledWith("mc");
     expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
-  });
-
-  it("returns 403 before creating a booking when the requester is banned", async () => {
-    mocks.mockGetMaintenanceModeSettings.mockResolvedValue({
-      enabled: false,
-      message: "",
-    });
-    mocks.mockRequesterIsBanned.mockResolvedValue(true);
-
-    const response = await POST(createPostRequest());
-    const body = await response.json();
-
-    expect(response.status).toBe(403);
-    expect(body).toEqual({ error: "You are banned from booking" });
-    expect(mocks.mockRequesterIsBanned).toHaveBeenCalledWith(
-      "requester@nyu.edu",
-      "mc",
-    );
-    expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
-  });
-
-  it("checks the walk-in guest and the VIP creator", async () => {
-    mocks.mockGetMaintenanceModeSettings.mockResolvedValue({
-      enabled: false,
-      message: "",
-    });
-    mocks.mockRequesterIsBanned.mockResolvedValue(true);
-
-    const walkIn = await POSTBookingsDirect(createDirectPostRequest());
-    expect(walkIn.status).toBe(403);
-    expect(mocks.mockRequesterIsBanned).toHaveBeenCalledWith(
-      "requester@nyu.edu",
-      "mc",
-    );
-
-    mocks.mockRequesterIsBanned.mockClear();
-    const vip = await POSTBookingsDirect(
-      new NextRequest("http://localhost:3000/api/bookingsDirect", {
-        method: "POST",
-        headers: new Headers({
-          "Content-Type": "application/json",
-          "x-tenant": "mc",
-        }),
-        body: JSON.stringify({
-          email: "guest@nyu.edu",
-          requestedBy: "staff@nyu.edu",
-          origin: "vip",
-          type: "vip",
-          selectedRooms: [],
-          bookingCalendarInfo: null,
-          data: {},
-        }),
-      }),
-    );
-    expect(vip.status).toBe(403);
-    expect(mocks.mockRequesterIsBanned).toHaveBeenCalledWith(
-      "staff@nyu.edu",
-      "mc",
-    );
   });
 });

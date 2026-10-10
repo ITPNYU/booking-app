@@ -214,19 +214,6 @@ describe("BookingStatusBar - Blackout Period Handling", () => {
     expect(screen.queryByText(/blackout period/)).not.toBeInTheDocument();
   });
 
-  it("shows when a temporary ban ends", () => {
-    renderComponent({
-      isBanned: true,
-      banEndsAt: "2026-10-16T19:00:00.000Z",
-    });
-
-    expect(
-      screen.getByText(
-        /You are banned from booking with the Media Commons until .+ ET/,
-      ),
-    ).toBeInTheDocument();
-  });
-
   it("prioritizes safety training over blackout period", () => {
     renderComponent({
       needsSafetyTraining: true,

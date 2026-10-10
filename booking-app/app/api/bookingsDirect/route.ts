@@ -41,10 +41,6 @@ import {
   getRequestLimitRoleKey,
 } from "@/lib/bookingRequestLimits";
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
-import {
-  BANNED_FROM_BOOKING_MESSAGE,
-  requesterIsBanned,
-} from "@/lib/bookingBan";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
 import {
@@ -101,19 +97,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: maintenanceMode.message, maintenanceMode: true },
       { status: 503 },
-    );
-  }
-
-  // Walk-ins are restricted on the guest. VIP follows the logged-in user,
-  // matching the booking form.
-  const banSubject =
-    origin === BookingOrigin.VIP || type === BookingOrigin.VIP
-      ? (requestedBy ?? email)
-      : email;
-  if (await requesterIsBanned(banSubject, tenant)) {
-    return NextResponse.json(
-      { error: BANNED_FROM_BOOKING_MESSAGE },
-      { status: 403 },
     );
   }
 

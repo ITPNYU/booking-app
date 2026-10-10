@@ -12,7 +12,6 @@ import React, { useContext } from "react";
 import dayjs from "dayjs";
 
 import { FormContextLevel } from "@/components/src/types";
-import { formatBanInstant } from "@/components/src/utils/banWindow";
 import { styled } from "@mui/system";
 import { usePathname } from "next/navigation";
 import { BookingContext } from "../bookingProvider";
@@ -61,7 +60,6 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     bookingCalendarInfo,
     selectedRooms,
     isBanned,
-    banEndsAt,
     needsSafetyTraining,
     isInBlackoutPeriod,
     role,
@@ -131,9 +129,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         btnDisabledMessage?: string;
       }
     | undefined = (() => {
-    if (isBanned) {
-      const untilLabel = banEndsAt ? formatBanInstant(banEndsAt) : "";
-      const until = untilLabel ? ` until ${untilLabel} ET` : "";
+    if (isBanned)
       return {
         btnDisabled: true,
         btnDisabledMessage: isWalkIn
@@ -142,14 +138,13 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         message: (
           <p>
             {isWalkIn
-              ? `The walk-in visitor (${formData?.walkInNetId || "user"}) is banned from booking with the Media Commons${until}`
-              : `You are banned from booking with the Media Commons${until}`}
+              ? `The walk-in visitor (${formData?.walkInNetId || "user"}) is banned from booking with the Media Commons`
+              : "You are banned from booking with the Media Commons"}
           </p>
         ),
         severity: "error",
         variant: "filled",
       };
-    }
     if (requestLimitChecking)
       return {
         btnDisabled: true,
