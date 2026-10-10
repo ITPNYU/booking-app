@@ -28,6 +28,7 @@ import {
   getSecondaryContactName,
 } from "@/components/src/utils/formatters";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
+import { statusForCreatedBooking } from "@/lib/createdBookingStatus";
 import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
 import { canRequestAuxiliarySpaces } from "@/components/src/utils/roleUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
@@ -234,6 +235,11 @@ async function createBookingCalendarEvent(
   return event.id;
 }
 
+type BookingApprovalEmailResult = {
+  instantApprovalStatus: BookingStatusLabel | null;
+  instantApprovalFailed: boolean;
+};
+
 async function handleBookingApprovalEmails(
   isAutoApproval: boolean,
   calendarEventId: string,
@@ -243,7 +249,7 @@ async function handleBookingApprovalEmails(
   bookingCalendarInfo: DateSelectArg,
   email: string,
   tenant?: string,
-) {
+): Promise<BookingApprovalEmailResult> {
   const shouldAutoApprove = isAutoApproval === true;
 
   console.log(
@@ -366,10 +372,23 @@ async function handleBookingApprovalEmails(
         calendarEventId,
         email,
         tenant,
-        message: "Booking will be auto-approved instantly",
+        message: "Approving booking before returning status",
       },
     );
-    serverApproveInstantBooking(calendarEventId, email, tenant);
+    try {
+      const instantApprovalStatus = await serverApproveInstantBooking(
+        calendarEventId,
+        email,
+        tenant,
+      );
+      return { instantApprovalStatus, instantApprovalFailed: false };
+    } catch (error) {
+      console.error(
+        `Instant approval failed after the booking was created [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        error,
+      );
+      return { instantApprovalStatus: null, instantApprovalFailed: true };
+    }
   } else {
     console.log(
       `📧 MANUAL APPROVAL REQUIRED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -432,6 +451,8 @@ async function handleBookingApprovalEmails(
       tenant,
     });
   }
+
+  return { instantApprovalStatus: null, instantApprovalFailed: false };
 }
 
 async function checkOverlap(
@@ -1102,7 +1123,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle approval emails based on final status
-    await handleBookingApprovalEmails(
+    const approvalEmails = await handleBookingApprovalEmails(
       shouldAutoApprove,
       calendarEventId,
       sequentialId,
@@ -1115,11 +1136,25 @@ export async function POST(request: NextRequest) {
 
     console.log(" Done handleBookingApprovalEmails");
 
-    const status = shouldAutoApprove
-      ? BookingStatusLabel.APPROVED
-      : usesXState && typeof xstateData !== "undefined"
-        ? String(getStatusFromXState({ xstateData }, tenant))
-        : BookingStatusLabel.REQUESTED;
+    if (approvalEmails.instantApprovalFailed) {
+      return NextResponse.json(
+        {
+          result: "error",
+          message: "Booking was created but automatic approval failed",
+          calendarEventId,
+          requestNumber: sequentialId,
+        },
+        { status: 500 },
+      );
+    }
+
+    const status = statusForCreatedBooking({
+      instantApprovalStatus: approvalEmails.instantApprovalStatus,
+      xstateStatus:
+        usesXState && typeof xstateData !== "undefined"
+          ? String(getStatusFromXState({ xstateData }, tenant))
+          : undefined,
+    });
 
     return NextResponse.json(
       {

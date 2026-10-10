@@ -355,8 +355,12 @@ export async function resolveFirstApprovalHistoryNote(
 }
 
 // from server
-const serverFirstApprove = (id: string, email?: string, tenant?: string) => {
-  serverUpdateDataByCalendarEventId(
+const serverFirstApprove = async (
+  id: string,
+  email?: string,
+  tenant?: string,
+) => {
+  await serverUpdateDataByCalendarEventId(
     TableNames.BOOKING,
     id,
     {
@@ -484,7 +488,12 @@ export const serverFinalApprove = async (
     finalApprovedBy: email,
   };
 
-  serverUpdateDataByCalendarEventId(TableNames.BOOKING, id, updateData, tenant);
+  await serverUpdateDataByCalendarEventId(
+    TableNames.BOOKING,
+    id,
+    updateData,
+    tenant,
+  );
 };
 
 // server
@@ -492,7 +501,7 @@ export const serverApproveInstantBooking = async (
   id: string,
   email: string,
   tenant?: string,
-) => {
+): Promise<BookingStatusLabel> => {
   // For Media Commons VIP bookings, check if services are requested
   // If so, only do first approval to allow service request flow
   const bookingData = await serverGetDataByCalendarEventId(
@@ -529,10 +538,12 @@ export const serverApproveInstantBooking = async (
   if (shouldDoFinalApproval) {
     // For instant booking with no services, use finalApprove for consistent processing
     await finalApprove(id, "System", tenant);
-  } else {
-    // For VIP bookings with services, use firstApprove for consistent processing
-    await firstApprove(id, "System", tenant);
+    return BookingStatusLabel.APPROVED;
   }
+
+  // For VIP bookings with services, use firstApprove for consistent processing
+  await firstApprove(id, "System", tenant);
+  return BookingStatusLabel.PRE_APPROVED;
 };
 
 // both first approve and second approve flows hit here
