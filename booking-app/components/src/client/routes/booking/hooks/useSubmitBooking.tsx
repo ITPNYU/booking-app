@@ -445,6 +445,9 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               summaryError,
             );
           }
+          // Drop an error from an earlier attempt in this flow. The warning
+          // on the confirmation page is only for this response.
+          setError(null);
           setSubmitting("success");
 
           // clear stored booking data after submit confirmation

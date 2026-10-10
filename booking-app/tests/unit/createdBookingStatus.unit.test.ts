@@ -1,6 +1,34 @@
 import { describe, expect, it } from "vitest";
 import { BookingStatusLabel } from "@/components/src/types";
-import { statusForCreatedBooking } from "@/lib/createdBookingStatus";
+import {
+  committedApprovalStatus,
+  statusForCreatedBooking,
+} from "@/lib/createdBookingStatus";
+
+describe("committedApprovalStatus", () => {
+  it("treats a final-approval write as approved even if a later step failed", () => {
+    expect(
+      committedApprovalStatus({
+        finalApprovedAt: { seconds: 1 },
+        firstApprovedAt: { seconds: 1 },
+      }),
+    ).toBe(BookingStatusLabel.APPROVED);
+  });
+
+  it("treats a first-approval write as pre-approved", () => {
+    expect(
+      committedApprovalStatus({ firstApprovedAt: { seconds: 1 } }),
+    ).toBe(BookingStatusLabel.PRE_APPROVED);
+  });
+
+  it("reports nothing when the approval write never landed", () => {
+    expect(committedApprovalStatus(null)).toBeNull();
+    expect(committedApprovalStatus({})).toBeNull();
+    expect(
+      committedApprovalStatus({ finalApprovedAt: null, firstApprovedAt: null }),
+    ).toBeNull();
+  });
+});
 
 describe("statusForCreatedBooking", () => {
   it("uses the status the instant-approval call actually applied", () => {

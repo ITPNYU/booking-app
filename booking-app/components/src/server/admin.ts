@@ -1,3 +1,4 @@
+import { committedApprovalStatus } from "@/lib/createdBookingStatus";
 import { formatFurnishingsLines } from "@/components/src/utils/furnishingsDisplay";
 import { resolveCallerRole } from "@/lib/api/authz";
 import {
@@ -502,6 +503,17 @@ export const serverFinalApprove = async (
 };
 
 // server
+export async function serverCommittedInstantApprovalStatus(
+  id: string,
+  tenant?: string,
+): Promise<BookingStatusLabel | null> {
+  const booking = await serverGetDataByCalendarEventId<{
+    finalApprovedAt?: unknown;
+    firstApprovedAt?: unknown;
+  }>(TableNames.BOOKING, id, tenant);
+  return committedApprovalStatus(booking);
+}
+
 export const serverApproveInstantBooking = async (
   id: string,
   email: string,

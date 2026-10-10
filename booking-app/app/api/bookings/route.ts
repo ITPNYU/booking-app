@@ -3,6 +3,7 @@ import { toFirebaseTimestampFromString } from "@/components/src/client/utils/ser
 import {
   firstApproverEmails,
   serverApproveInstantBooking,
+  serverCommittedInstantApprovalStatus,
   serverSendBookingDetailEmail,
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
@@ -448,9 +449,29 @@ async function handleBookingApprovalEmails(
         `Instant approval failed after the booking was created [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
         error,
       );
-      // The booking and calendar event already exist. Approvers still need
-      // the manual-approval emails; otherwise the request sits at Requested
-      // with nobody notified.
+      // A calendar or logging step can throw after finalApprovedAt or
+      // firstApprovedAt is already stored. That booking is approved; asking
+      // for first approval again would contradict the write.
+      let committedStatus: BookingStatusLabel | null = null;
+      try {
+        committedStatus = await serverCommittedInstantApprovalStatus(
+          calendarEventId,
+          tenant,
+        );
+      } catch (readError) {
+        console.error(
+          `Could not read approval status after instant approval failed [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          readError,
+        );
+      }
+      if (committedStatus) {
+        return {
+          instantApprovalStatus: committedStatus,
+          instantApprovalFailed: false,
+        };
+      }
+      // The booking and calendar event already exist, and approval never
+      // landed. Approvers still need the manual-approval emails.
       try {
         await sendManualApprovalEmails("Instant approval failed");
       } catch (notifyError) {
