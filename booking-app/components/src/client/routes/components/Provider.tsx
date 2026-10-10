@@ -639,6 +639,8 @@ export const DatabaseProvider = ({
           id: item.id,
           email: item.email,
           bannedAt: item.createdAt,
+          startsAt: item.startsAt,
+          endsAt: item.endsAt,
         }));
         setBannedUsers(filtered);
       })

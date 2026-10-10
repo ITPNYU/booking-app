@@ -59,6 +59,10 @@ import {
 } from "@/lib/bookingRequestLimits";
 import { getCalendarClient } from "@/lib/googleClient";
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
+import {
+  BANNED_FROM_BOOKING_MESSAGE,
+  requesterIsBanned,
+} from "@/lib/bookingBan";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { Timestamp } from "firebase-admin/firestore";
@@ -527,6 +531,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: maintenanceMode.message, maintenanceMode: true },
       { status: 503 },
+    );
+  }
+
+  if (await requesterIsBanned(email, tenant)) {
+    return NextResponse.json(
+      { error: BANNED_FROM_BOOKING_MESSAGE },
+      { status: 403 },
     );
   }
 
