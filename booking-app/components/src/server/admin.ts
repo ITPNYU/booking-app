@@ -482,6 +482,11 @@ export const serverFinalApprove = async (
     id,
     tenant,
   );
+  // A missing document has nothing to approve. Callers such as finalApprove
+  // then skip the history log instead of failing the request.
+  if (!bookingData) {
+    return;
+  }
 
   const updateData: any = {
     finalApprovedAt: Timestamp.now(),

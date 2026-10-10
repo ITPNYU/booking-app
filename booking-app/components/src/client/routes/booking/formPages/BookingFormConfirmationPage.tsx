@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Button, Typography, useTheme } from "@mui/material";
+import { Alert, Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
 import React, { useContext } from "react";
 import { FormContextLevel, PagePermission } from "@/components/src/types";
@@ -83,6 +83,11 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
               ? "VIP request submitted"
               : "Yay! We've received your booking request"}
         </Typography>
+        {error && (
+          <Alert severity="warning" sx={{ mb: 2, maxWidth: 720 }}>
+            {error.message}
+          </Alert>
+        )}
         {submittedBooking && (
           <Box
             data-testid="booking-confirmation-summary"

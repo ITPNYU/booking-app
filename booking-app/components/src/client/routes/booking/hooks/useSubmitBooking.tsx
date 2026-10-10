@@ -1,7 +1,12 @@
 import { useCallback, useContext } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { DEFAULT_TENANT } from "../../../../constants/tenants";
-import { BookingOrigin, FormContextLevel, Inputs } from "../../../../types";
+import {
+  BookingOrigin,
+  BookingStatusLabel,
+  FormContextLevel,
+  Inputs,
+} from "../../../../types";
 import {
   getServiceRooms,
   pruneServiceMapsToRooms,
@@ -11,7 +16,6 @@ import { isValidNetIdFormat } from "../../../../utils/validationHelpers";
 
 import { DatabaseContext } from "../../components/Provider";
 import { useTenantSchema } from "../../components/SchemaProvider";
-import type { BookingDetailsSummaryBooking } from "../../components/bookingTable/BookingDetailsSummary";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
 
@@ -307,6 +311,43 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         },
       );
 
+      const clearSubmittedForm = () => {
+        setBookingCalendarInfo(undefined);
+        setSelectedRooms([]);
+        setAnnexByRoom({});
+        setFormData(undefined);
+        setIsDetailsValid(false);
+        resetServiceRuleMemory();
+        setCheckedAgreements({});
+        setServiceDecisions({});
+        setHasShownMocapModal(false);
+      };
+
+      const rememberSubmission = (identity: {
+        requestNumber?: number;
+        status?: string;
+      }) => {
+        const roomId = selectedRooms
+          .map((room) => String(room.roomId).trim())
+          .filter((id) => id.length > 0)
+          .join(", ");
+        const origin = isVIP
+          ? BookingOrigin.VIP
+          : isWalkIn
+            ? BookingOrigin.WALK_IN
+            : (transformedData.origin ?? BookingOrigin.USER);
+        setSubmittedBooking({
+          ...transformedData,
+          email,
+          roomId,
+          startDate: new Date(bookingCalendarInfo.start).toISOString(),
+          endDate: new Date(bookingCalendarInfo.end).toISOString(),
+          origin,
+          requestNumber: identity.requestNumber,
+          status: identity.status,
+        });
+      };
+
       fetch(requestParams.endpoint, {
         method: requestParams.method,
         headers: {
@@ -338,11 +379,14 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               "Sorry, an error occurred while submitting this request";
             let maintenanceMode = res.status === 503;
             let maintenanceMessage = "";
+            let createdRequestNumber: number | undefined;
             try {
               const errorData = (await res.json()) as {
                 error?: string;
                 message?: string;
                 maintenanceMode?: boolean;
+                calendarEventId?: string;
+                requestNumber?: unknown;
               };
               const serverMessage = errorData.error ?? errorData.message;
               if (serverMessage) {
@@ -351,11 +395,35 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               }
               maintenanceMode =
                 maintenanceMode || errorData.maintenanceMode === true;
+              const identity = readSavedIdentity(errorData);
+              if (errorData.calendarEventId && identity.requestNumber != null) {
+                createdRequestNumber = identity.requestNumber;
+              }
             } catch (e) {
               // If response is not JSON, use default message
             }
             if (maintenanceMode) {
               showMaintenanceMode(maintenanceMessage);
+              return;
+            }
+            // The booking already exists. Keep the confirmation summary and
+            // release the form so the requester does not submit it again.
+            if (createdRequestNumber != null) {
+              try {
+                rememberSubmission({
+                  requestNumber: createdRequestNumber,
+                  status: BookingStatusLabel.REQUESTED,
+                });
+              } catch (summaryError) {
+                console.error(
+                  "Failed to build confirmation summary:",
+                  summaryError,
+                );
+              }
+              setError(new Error(errorMessage));
+              clearSubmittedForm();
+              reloadFutureBookings();
+              setSubmitting("success");
               return;
             }
             setError(new Error(errorMessage));
@@ -370,27 +438,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             } catch {
               saved = {};
             }
-            const identity = readSavedIdentity(saved);
-            const roomId = selectedRooms
-              .map((room) => String(room.roomId).trim())
-              .filter((id) => id.length > 0)
-              .join(", ");
-            const origin = isVIP
-              ? BookingOrigin.VIP
-              : isWalkIn
-                ? BookingOrigin.WALK_IN
-                : (transformedData.origin ?? BookingOrigin.USER);
-            const summary: BookingDetailsSummaryBooking = {
-              ...transformedData,
-              email,
-              roomId,
-              startDate: new Date(bookingCalendarInfo.start).toISOString(),
-              endDate: new Date(bookingCalendarInfo.end).toISOString(),
-              origin,
-              requestNumber: identity.requestNumber,
-              status: identity.status,
-            };
-            setSubmittedBooking(summary);
+            rememberSubmission(readSavedIdentity(saved));
           } catch (summaryError) {
             console.error(
               "Failed to build confirmation summary:",
@@ -400,15 +448,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           setSubmitting("success");
 
           // clear stored booking data after submit confirmation
-          setBookingCalendarInfo(undefined);
-          setSelectedRooms([]);
-          setAnnexByRoom({});
-          setFormData(undefined);
-          setIsDetailsValid(false);
-          resetServiceRuleMemory();
-          setCheckedAgreements({});
-          setServiceDecisions({});
-          setHasShownMocapModal(false);
+          clearSubmittedForm();
 
           reloadFutureBookings();
         })

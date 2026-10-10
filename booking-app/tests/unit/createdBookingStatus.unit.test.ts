@@ -18,6 +18,15 @@ describe("statusForCreatedBooking", () => {
     ).toBe(BookingStatusLabel.PRE_APPROVED);
   });
 
+  it("reports REQUESTED when instant approval failed and review was requested instead", () => {
+    expect(
+      statusForCreatedBooking({
+        instantApprovalStatus: BookingStatusLabel.REQUESTED,
+        xstateStatus: BookingStatusLabel.APPROVED,
+      }),
+    ).toBe(BookingStatusLabel.REQUESTED);
+  });
+
   it("does not report APPROVED when instant approval did not complete", () => {
     expect(
       statusForCreatedBooking({

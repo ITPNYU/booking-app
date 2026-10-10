@@ -361,40 +361,18 @@ async function handleBookingApprovalEmails(
 
   console.log("approval email calendarEventId", calendarEventId);
 
-  if (calendarEventId && shouldAutoApprove) {
-    console.log(
-      `🎉 INSTANT APPROVAL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        calendarEventId,
-        email,
-        tenant,
-        message: "Approving booking before returning status",
-      },
-    );
-    try {
-      const instantApprovalStatus = await serverApproveInstantBooking(
-        calendarEventId,
-        email,
-        tenant,
-      );
-      return { instantApprovalStatus, instantApprovalFailed: false };
-    } catch (error) {
-      console.error(
-        `Instant approval failed after the booking was created [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-        error,
-      );
-      return { instantApprovalStatus: null, instantApprovalFailed: true };
-    }
-  } else {
+  const sendManualApprovalEmails = async (
+    reason = !calendarEventId
+      ? "No calendar event ID"
+      : "Auto-approval conditions not met",
+  ) => {
     console.log(
       `📧 MANUAL APPROVAL REQUIRED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
       {
         calendarEventId,
         email,
         tenant,
-        reason: !calendarEventId
-          ? "No calendar event ID"
-          : "Auto-approval conditions not met",
+        reason,
         message: "Sending approval request emails",
       },
     );
@@ -446,7 +424,51 @@ async function handleBookingApprovalEmails(
       replyTo: email,
       tenant,
     });
+  };
+
+  if (calendarEventId && shouldAutoApprove) {
+    console.log(
+      `🎉 INSTANT APPROVAL [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      {
+        calendarEventId,
+        email,
+        tenant,
+        message: "Approving booking before returning status",
+      },
+    );
+    try {
+      const instantApprovalStatus = await serverApproveInstantBooking(
+        calendarEventId,
+        email,
+        tenant,
+      );
+      return { instantApprovalStatus, instantApprovalFailed: false };
+    } catch (error) {
+      console.error(
+        `Instant approval failed after the booking was created [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        error,
+      );
+      // The booking and calendar event already exist. Approvers still need
+      // the manual-approval emails; otherwise the request sits at Requested
+      // with nobody notified.
+      try {
+        await sendManualApprovalEmails("Instant approval failed");
+      } catch (notifyError) {
+        console.error(
+          `Manual approval notification failed after instant approval failed [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          notifyError,
+        );
+        return { instantApprovalStatus: null, instantApprovalFailed: true };
+      }
+      // Do not report the xstate "Approved" snapshot. Approval did not finish.
+      return {
+        instantApprovalStatus: BookingStatusLabel.REQUESTED,
+        instantApprovalFailed: false,
+      };
+    }
   }
+
+  await sendManualApprovalEmails();
 
   return { instantApprovalStatus: null, instantApprovalFailed: false };
 }
@@ -1129,7 +1151,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           result: "error",
-          message: "Booking was created but automatic approval failed",
+          message:
+            "Your booking was created, but we could not notify approvers. It is waiting for review.",
           calendarEventId,
           requestNumber: sequentialId,
         },
