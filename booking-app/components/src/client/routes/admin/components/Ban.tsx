@@ -93,6 +93,7 @@ export const BannedUsers = () => {
       alert("This user has already been added");
       return false;
     }
+    // usersBanned is shared across tenants.
     await clientSaveDataToFirestore(TableNames.BANNED, {
       email: trimmed,
       createdAt: wrapTimestamp(Date.now()),

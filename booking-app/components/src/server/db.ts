@@ -1123,10 +1123,15 @@ export const executeTraditionalNoShow = async (
     tenant,
   );
 
-  // Add to pre-ban logs only if policy violation
+  // Add to pre-ban logs only if policy violation. The booking is already
+  // marked no-show, so a log write failure must not fail the whole action.
   if (isPolicyViolation(doc)) {
     const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
-    await clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
+    try {
+      await clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
+    } catch (error) {
+      console.error("Failed to write no-show pre-ban log:", error);
+    }
   }
 
   // Log the no-show action

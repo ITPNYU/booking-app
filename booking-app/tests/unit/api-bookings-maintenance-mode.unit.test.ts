@@ -190,7 +190,6 @@ describe("POST /api/bookings maintenance mode", () => {
     expect(body).toEqual({ error: "You are banned from booking" });
     expect(mocks.mockRequesterIsBanned).toHaveBeenCalledWith(
       "requester@nyu.edu",
-      "mc",
     );
     expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
   });
@@ -206,7 +205,6 @@ describe("POST /api/bookings maintenance mode", () => {
     expect(walkIn.status).toBe(403);
     expect(mocks.mockRequesterIsBanned).toHaveBeenCalledWith(
       "requester@nyu.edu",
-      "mc",
     );
 
     const vipRequest = () =>
@@ -233,10 +231,7 @@ describe("POST /api/bookings maintenance mode", () => {
     );
     const bannedGuest = await POSTBookingsDirect(vipRequest());
     expect(bannedGuest.status).toBe(403);
-    expect(mocks.mockRequesterIsBanned).toHaveBeenCalledWith(
-      "guest@nyu.edu",
-      "mc",
-    );
+    expect(mocks.mockRequesterIsBanned).toHaveBeenCalledWith("guest@nyu.edu");
 
     mocks.mockRequesterIsBanned.mockReset();
     mocks.mockRequesterIsBanned.mockImplementation(
@@ -244,13 +239,7 @@ describe("POST /api/bookings maintenance mode", () => {
     );
     const bannedCreator = await POSTBookingsDirect(vipRequest());
     expect(bannedCreator.status).toBe(403);
-    expect(mocks.mockRequesterIsBanned).toHaveBeenCalledWith(
-      "guest@nyu.edu",
-      "mc",
-    );
-    expect(mocks.mockRequesterIsBanned).toHaveBeenCalledWith(
-      "staff@nyu.edu",
-      "mc",
-    );
+    expect(mocks.mockRequesterIsBanned).toHaveBeenCalledWith("guest@nyu.edu");
+    expect(mocks.mockRequesterIsBanned).toHaveBeenCalledWith("staff@nyu.edu");
   });
 });
