@@ -82,6 +82,26 @@ const buildSnapshot = (
   machine: { id: "MC Booking Request" },
 });
 
+const testDeclineCcEmail = "ops@nyu.edu";
+
+// Tenant schema with a decline CC address configured for every environment
+const buildSchemaWithDeclineCc = (
+  address: string = testDeclineCcEmail,
+  overrides: Record<string, any> = {},
+) => ({
+  ccEmails: {
+    approved: { development: "", staging: "", production: "" },
+    canceled: { development: "", staging: "", production: "" },
+    declined: { development: address, staging: address, production: address },
+  },
+  ...overrides,
+});
+
+const sentEmailTargets = () =>
+  mockServerSendBookingDetailEmail.mock.calls.map(
+    ([options]) => options.targetEmail,
+  );
+
 const buildActor = (persistedValue: string = "Checked In") => ({
   getPersistedSnapshot: vi.fn(() => ({
     value: persistedValue,
@@ -392,6 +412,161 @@ describe("handleStateTransitions — per-state handler side effects", () => {
       // Calendar update still runs even without guest email
       const calendarCall = findCalendarPutCall();
       expect(calendarCall).toBeDefined();
+    });
+
+    describe("decline CC (ccEmails.declined)", () => {
+      it("sends the requester's decline email to the configured CC address too", async () => {
+        mockServerGetDocumentById.mockResolvedValue(
+          buildSchemaWithDeclineCc(testDeclineCcEmail, {
+            declinedGracePeriod: 48,
+          }),
+        );
+
+        await callHandleStateTransitions({
+          previous: "Pre-approved",
+          next: "Declined",
+          reason: "Room unavailable",
+        });
+
+        expect(sentEmailTargets()).toEqual([
+          testGuestEmail,
+          testDeclineCcEmail,
+        ]);
+        const [guestCall, ccCall] =
+          mockServerSendBookingDetailEmail.mock.calls.map(([options]) => options);
+        expect(ccCall).toEqual({
+          calendarEventId: testCalendarEventId,
+          targetEmail: testDeclineCcEmail,
+          headerMessage: guestCall.headerMessage,
+          status: "DECLINED",
+          replyTo: testGuestEmail,
+          tenant: testTenant,
+        });
+        expect(ccCall.headerMessage).toContain("Room unavailable");
+        expect(ccCall.headerMessage).toContain("48 hours");
+      });
+
+      it("copies the CC address when services decline the booking", async () => {
+        mockServerGetDocumentById.mockResolvedValue(buildSchemaWithDeclineCc());
+
+        await callHandleStateTransitions({
+          previous: "Services Request",
+          next: "Declined",
+          nextContext: {
+            servicesRequested: { staff: true },
+            servicesApproved: { staff: false },
+          },
+        });
+
+        expect(sentEmailTargets()).toEqual([
+          testGuestEmail,
+          testDeclineCcEmail,
+        ]);
+        expect(
+          mockServerSendBookingDetailEmail.mock.calls[1][0].headerMessage,
+        ).toContain("The following service(s) could not be fulfilled: Staff");
+      });
+
+      it("sends one email when the requester is the CC address", async () => {
+        mockServerGetDataByCalendarEventId.mockResolvedValue(
+          buildBookingDoc({ email: "OPS@nyu.edu" }),
+        );
+        mockServerGetDocumentById.mockResolvedValue(buildSchemaWithDeclineCc());
+
+        await callHandleStateTransitions({
+          previous: "Requested",
+          next: "Declined",
+        });
+
+        expect(sentEmailTargets()).toEqual(["OPS@nyu.edu"]);
+      });
+
+      it("sends only the requester's email when no CC address is configured", async () => {
+        mockServerGetDocumentById.mockResolvedValue(buildSchemaWithDeclineCc(""));
+
+        await callHandleStateTransitions({
+          previous: "Requested",
+          next: "Declined",
+        });
+
+        expect(sentEmailTargets()).toEqual([testGuestEmail]);
+      });
+
+      it("still updates the calendar when the CC email fails", async () => {
+        mockServerGetDocumentById.mockResolvedValue(buildSchemaWithDeclineCc());
+        mockServerSendBookingDetailEmail
+          .mockResolvedValueOnce(undefined)
+          .mockRejectedValueOnce(new Error("gmail down"));
+
+        const firestoreUpdates = await callHandleStateTransitions({
+          previous: "Requested",
+          next: "Declined",
+        });
+
+        expect(sentEmailTargets()).toEqual([
+          testGuestEmail,
+          testDeclineCcEmail,
+        ]);
+        expect(firestoreUpdates.declinedAt).toBeDefined();
+        expect(findCalendarPutCall()).toBeDefined();
+      });
+    });
+  });
+
+  describe("decline CC is limited to the Declined state", () => {
+    beforeEach(() => {
+      mockServerGetDocumentById.mockResolvedValue(buildSchemaWithDeclineCc());
+    });
+
+    it.each([
+      ["Pre-approved", "Approved"],
+      ["Approved", "Canceled"],
+      ["Approved", "No Show"],
+      ["Requested", "Pre-approved"],
+      ["Approved", "Checked In"],
+    ])("sends nothing to the CC address on %s → %s", async (previous, next) => {
+      await callHandleStateTransitions({ previous, next });
+
+      expect(sentEmailTargets()).not.toContain(testDeclineCcEmail);
+    });
+
+    it("sends nothing when one service is declined but the booking stays in Services Request", async () => {
+      const { handleStateTransitions } = await import(
+        "@/lib/stateMachines/xstateEffects"
+      );
+      await handleStateTransitions(
+        {
+          value: {
+            "Services Request": {
+              "Staff Request": "Staff Requested",
+              "Catering Request": "Catering Requested",
+            },
+          },
+          context: {},
+        },
+        {
+          value: {
+            "Services Request": {
+              "Staff Request": "Staff Declined",
+              "Catering Request": "Catering Requested",
+            },
+          },
+          context: {
+            servicesRequested: { staff: true, catering: true },
+            servicesApproved: { staff: false },
+          },
+        },
+        testCalendarEventId,
+        testEmail,
+        testTenant,
+        {},
+        buildActor(),
+        false,
+        false,
+        undefined,
+      );
+
+      expect(mockServerSendBookingDetailEmail).not.toHaveBeenCalled();
     });
   });
 
