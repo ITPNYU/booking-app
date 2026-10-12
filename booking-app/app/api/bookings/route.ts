@@ -2,6 +2,7 @@ import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import {
   firstApproverEmails,
+  notifyCommittedInstantApproval,
   serverApproveInstantBooking,
   serverCommittedInstantApprovalStatus,
   serverSendBookingDetailEmail,
@@ -465,6 +466,20 @@ async function handleBookingApprovalEmails(
         );
       }
       if (committedStatus) {
+        // The write landed, but the approval emails live in a later step that
+        // may not have run. Send those notices without asking for review again.
+        try {
+          await notifyCommittedInstantApproval(
+            calendarEventId,
+            committedStatus,
+            tenant,
+          );
+        } catch (notifyError) {
+          console.error(
+            `Committed instant approval but confirmation email failed [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            notifyError,
+          );
+        }
         return {
           instantApprovalStatus: committedStatus,
           instantApprovalFailed: false,

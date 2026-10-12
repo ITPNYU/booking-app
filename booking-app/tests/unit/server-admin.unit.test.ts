@@ -922,6 +922,112 @@ describe("components/src/server/admin", () => {
     expect(ccEmailCall).toBeUndefined();
   });
 
+  it("sends the approved confirmation when a committed instant approval is recovered", async () => {
+    seedCollection("tenant-y-bookings", [
+      {
+        id: "booking-committed-approved",
+        data: {
+          calendarEventId: "cal-committed-approved",
+          requestNumber: 101,
+          title: "Committed Approved",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+          firstApprovedAt: null,
+          finalApprovedAt: makeTimestamp("2024-03-01T09:00:00.000Z"),
+          declinedAt: null,
+          canceledAt: null,
+          checkedInAt: null,
+          checkedOutAt: null,
+          noShowedAt: null,
+          walkedInAt: null,
+          role: "Faculty",
+          status: BookingStatusLabel.APPROVED,
+        },
+      },
+    ]);
+
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) } as any);
+
+    const { notifyCommittedInstantApproval } =
+      await import("@/components/src/server/admin");
+
+    await notifyCommittedInstantApproval(
+      "cal-committed-approved",
+      BookingStatusLabel.APPROVED,
+      "tenant-y",
+    );
+
+    const requesterEmail = mockFetch.mock.calls.find(([url, opts]) => {
+      if (url !== "https://booking.test/api/sendEmail") return false;
+      const body = JSON.parse((opts as RequestInit).body as string);
+      return (
+        body.targetEmail === "requester@nyu.edu" &&
+        body.status === BookingStatusLabel.APPROVED
+      );
+    });
+    expect(requesterEmail).toBeDefined();
+  });
+
+  it("sends the pre-approved notice when a committed first approval is recovered", async () => {
+    seedCollection("tenant-y-bookings", [
+      {
+        id: "booking-committed-preapproved",
+        data: {
+          calendarEventId: "cal-committed-preapproved",
+          requestNumber: 102,
+          title: "Committed Pre-Approved",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+          firstApprovedAt: makeTimestamp("2024-03-01T09:00:00.000Z"),
+          finalApprovedAt: null,
+          declinedAt: null,
+          canceledAt: null,
+          checkedInAt: null,
+          checkedOutAt: null,
+          noShowedAt: null,
+          walkedInAt: null,
+          role: "Faculty",
+          status: BookingStatusLabel.PRE_APPROVED,
+        },
+      },
+    ]);
+    seedCollection("tenant-y-usersApprovers", [
+      {
+        id: "approver-final",
+        data: {
+          email: "final@nyu.edu",
+          department: "ITP",
+          level: ApproverLevel.FINAL,
+        },
+      },
+    ]);
+
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) } as any);
+
+    const { notifyCommittedInstantApproval } =
+      await import("@/components/src/server/admin");
+
+    await notifyCommittedInstantApproval(
+      "cal-committed-preapproved",
+      BookingStatusLabel.PRE_APPROVED,
+      "tenant-y",
+    );
+
+    const approverEmail = mockFetch.mock.calls.find(([url, opts]) => {
+      if (url !== "https://booking.test/api/sendEmail") return false;
+      const body = JSON.parse((opts as RequestInit).body as string);
+      return (
+        body.targetEmail === "final@nyu.edu" &&
+        body.status === BookingStatusLabel.PRE_APPROVED
+      );
+    });
+    expect(approverEmail).toBeDefined();
+  });
+
   it("returns admin records with limited fields", async () => {
     seedCollection("usersAdmin", [
       {

@@ -587,53 +587,17 @@ export const serverApproveBooking = async (
   }
 };
 
-const firstApprove = async (id: string, email: string, tenant?: string) => {
-  await serverFirstApprove(id, email, tenant);
-
-  // Log the first approval action
+/** Resource-approver notice sent once a booking is pre-approved. */
+async function sendPreApprovedApproverEmails(id: string, tenant?: string) {
   const doc = await serverGetDataByCalendarEventId<{
-    id: string;
-    requestNumber: number;
     roomId?: string;
   }>(TableNames.BOOKING, id, tenant);
   if (!doc) {
-    console.error("Booking document not found for calendar event id:", id);
     throw new Error("Booking document not found");
   }
 
-  if (id) {
-    await logServerBookingChange({
-      bookingId: doc.id,
-      status: BookingStatusLabel.PRE_APPROVED,
-      changedBy: email,
-      requestNumber: doc.requestNumber,
-      calendarEventId: id,
-      note: await resolveFirstApprovalHistoryNote(email, tenant),
-      tenant,
-    });
-  }
-
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify({
-        calendarEventId: id,
-        newValues: {
-          statusPrefix: BookingStatusLabel.PRE_APPROVED,
-        },
-      }),
-    },
-  );
   const contents = await serverBookingContents(id, tenant);
-
-  // Get tenant email configuration
   const emailConfig = await getTenantEmailConfig(tenant);
-
   const emailContents = {
     ...contents,
     headerMessage: emailConfig.emailNotifications.reviewedNeedsApproval,
@@ -671,6 +635,67 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
         }),
     ),
   );
+}
+
+/**
+ * Finish the emails for an instant approval whose Firestore write committed
+ * but a later step threw. Approved bookings get the approval notices;
+ * pre-approved bookings get the resource-approver notice.
+ */
+export async function notifyCommittedInstantApproval(
+  calendarEventId: string,
+  status: BookingStatusLabel,
+  tenant?: string,
+) {
+  if (status === BookingStatusLabel.APPROVED) {
+    await serverApproveEvent(calendarEventId, tenant);
+    return;
+  }
+  if (status === BookingStatusLabel.PRE_APPROVED) {
+    await sendPreApprovedApproverEmails(calendarEventId, tenant);
+  }
+}
+
+const firstApprove = async (id: string, email: string, tenant?: string) => {
+  await serverFirstApprove(id, email, tenant);
+
+  // Log the first approval action
+  const doc = await serverGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+    roomId?: string;
+  }>(TableNames.BOOKING, id, tenant);
+  if (!doc) {
+    console.error("Booking document not found for calendar event id:", id);
+    throw new Error("Booking document not found");
+  }
+
+  if (id) {
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status: BookingStatusLabel.PRE_APPROVED,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+      calendarEventId: id,
+      note: await resolveFirstApprovalHistoryNote(email, tenant),
+      tenant,
+    });
+  }
+
+  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
+    },
+    body: JSON.stringify({
+      calendarEventId: id,
+      newValues: {
+        statusPrefix: BookingStatusLabel.PRE_APPROVED,
+      },
+    }),
+  });
+  await sendPreApprovedApproverEmails(id, tenant);
 };
 
 export const finalApprove = async (
