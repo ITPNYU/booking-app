@@ -613,17 +613,40 @@ test.describe("Admin final approval flow", () => {
     });
   });
 
-  test("should show the admin when final approval leaves the calendar title stale", async ({
+  test("should keep the booking approved and warn when the calendar title stays stale", async ({
     page,
   }) => {
     const calendarError =
       "Booking was approved, but a follow-up step failed: Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)";
-    // Registered after mockAdminEndpoints, so this handler wins.
+    // Registered after mockAdminEndpoints, so this handler wins. Like the
+    // real route, the booking is Approved by the time this error is returned.
     await page.route("**/api/approve", async (route) => {
+      const bookingRef = doc({} as any, "mc-bookings", BOOKING_DOC_ID);
+      const bookingData = (await getDoc(bookingRef)).data() ?? {};
+      const snapshot = bookingData.xstateData?.snapshot ?? {};
+      await setDoc(bookingRef, {
+        ...bookingData,
+        status: BookingStatusLabel.APPROVED,
+        finalApprovedAt: createTimestamp(new Date()),
+        finalApprovedBy: ADMIN_EMAIL,
+        xstateData: {
+          ...bookingData.xstateData,
+          snapshot: {
+            ...snapshot,
+            value: "Approved",
+            status: BookingStatusLabel.APPROVED,
+            context: {
+              ...snapshot.context,
+              status: BookingStatusLabel.APPROVED,
+            },
+          },
+        },
+      });
+      await page.evaluate(() => (window as any).__refreshMockBookings());
       await route.fulfill({
         status: 500,
         headers: jsonHeaders,
-        body: JSON.stringify({ error: calendarError }),
+        body: JSON.stringify({ error: calendarError, approved: true }),
       });
     });
 
@@ -644,9 +667,14 @@ test.describe("Admin final approval flow", () => {
     await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
     await confirmButton.click();
 
+    const warning = page.getByRole("alert").filter({ hasText: calendarError });
+    await expect(warning).toBeVisible();
+    await expect(warning).toHaveClass(/MuiAlert-standardWarning/);
+    // The row reloads as Approved and the warning survives the reload.
     await expect(
-      page.getByRole("alert").filter({ hasText: calendarError })
+      bookingRow.getByText("Approved", { exact: true })
     ).toBeVisible();
+    await expect(warning).toBeVisible();
   });
 
   test("should send decline request when admin declines", async ({ page }) => {

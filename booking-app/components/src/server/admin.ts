@@ -555,6 +555,8 @@ export const serverApproveBooking = async (
       await firstApprove(id, email, tenant);
     }
   } catch (error) {
+    // Keep the class so /api/approve can tell the booking was approved.
+    if (error instanceof CalendarTitleUpdateError) throw error;
     throw error.status ? error : { status: 500, message: error.message };
   }
 };

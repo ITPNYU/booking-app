@@ -8,6 +8,7 @@ import {
   notifyServiceApproversForRequestedServices,
 } from "@/components/src/server/serviceApproverNotifications";
 import {
+  CalendarTitleUpdateError,
   resolveFirstApprovalHistoryNote,
   serverApproveBooking,
 } from "@/components/src/server/admin";
@@ -80,6 +81,17 @@ const getErrorMessage = (error: unknown): string => {
   }
   return String(error);
 };
+
+// The booking is already Approved, but a follow-up step (e.g. the calendar
+// title) failed. `approved: true` tells the client not to offer approval again.
+const approvedWithFollowUpFailure = (error: unknown) =>
+  NextResponse.json(
+    {
+      error: `Booking was approved, but a follow-up step failed: ${getErrorMessage(error)}`,
+      approved: true,
+    },
+    { status: 500 },
+  );
 
 const getErrorStatus = (error: unknown): number =>
   typeof error === "object" &&
@@ -260,14 +272,7 @@ export async function POST(req: NextRequest) {
               error: getErrorMessage(error),
             },
           );
-          // The booking is already Approved; tell the approver which
-          // follow-up step (e.g. the calendar title) did not happen.
-          return NextResponse.json(
-            {
-              error: `Booking was approved, but a follow-up step failed: ${getErrorMessage(error)}`,
-            },
-            { status: 500 },
-          );
+          return approvedWithFollowUpFailure(error);
         }
       } else if (xstateResult.newState === "Pre-approved") {
         console.log(
@@ -387,6 +392,9 @@ export async function POST(req: NextRequest) {
         error: getErrorMessage(error),
       },
     );
+    if (error instanceof CalendarTitleUpdateError) {
+      return approvedWithFollowUpFailure(error);
+    }
     return NextResponse.json(
       { error: getErrorMessage(error) },
       { status: getErrorStatus(error) },

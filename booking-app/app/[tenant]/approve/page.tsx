@@ -6,8 +6,11 @@ import {
   DatabaseContext,
   DatabaseProvider,
 } from "@/components/src/client/routes/components/Provider";
-import { clientApproveBooking } from "@/components/src/client/bookingActionClient";
-import { Button } from "@mui/material";
+import {
+  ApprovedWithWarningError,
+  clientApproveBooking,
+} from "@/components/src/client/bookingActionClient";
+import { Alert, Button } from "@mui/material";
 import { useSearchParams } from "next/navigation";
 
 const ApprovePageContent: React.FC = () => {
@@ -16,22 +19,30 @@ const ApprovePageContent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [approved, setApproved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const { userEmail } = useContext(DatabaseContext);
 
   const handleApprove = async () => {
     if (paramCalendarEventId) {
       setLoading(true);
       setError(null);
+      setWarning(null);
       try {
         await clientApproveBooking(paramCalendarEventId, userEmail);
         setApproved(true);
       } catch (err) {
-        // e.g. "Booking was approved, but a follow-up step failed: ..."
-        setError(
-          err instanceof Error && err.message
-            ? err.message
-            : "Failed to approve booking.",
-        );
+        if (err instanceof ApprovedWithWarningError) {
+          // Approved, but e.g. the calendar title was not updated; do not
+          // offer approval again.
+          setApproved(true);
+          setWarning(err.message);
+        } else {
+          setError(
+            err instanceof Error && err.message
+              ? err.message
+              : "Failed to approve booking.",
+          );
+        }
       } finally {
         setLoading(false);
       }
@@ -55,6 +66,11 @@ const ApprovePageContent: React.FC = () => {
                 ? "Approved"
                 : "Approve Booking"}
           </Button>
+          {warning && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              {warning}
+            </Alert>
+          )}
           {error && <p style={{ color: "red" }}>{error}</p>}
         </div>
       ) : (

@@ -1000,6 +1000,25 @@ describe("components/src/server/admin", () => {
         }),
       ]);
     });
+
+    it("keeps CalendarTitleUpdateError when the fallback final approval fails to retitle", async () => {
+      seedApprovedBooking();
+      const store = firestoreStore["tenant-y-bookings"];
+      store.set("booking-approved", {
+        ...store.get("booking-approved"),
+        firstApprovedAt: makeTimestamp("2024-03-02T08:00:00.000Z"),
+      });
+      mockFetch.mockImplementation(async (url: string) =>
+        url.endsWith("/api/calendarEvents") ? failed : ok,
+      );
+
+      const { serverApproveBooking, CalendarTitleUpdateError } =
+        await import("@/components/src/server/admin");
+
+      await expect(
+        serverApproveBooking("cal-approved", "admin@nyu.edu", "tenant-y"),
+      ).rejects.toBeInstanceOf(CalendarTitleUpdateError);
+    });
   });
 
   it("returns admin records with limited fields", async () => {
