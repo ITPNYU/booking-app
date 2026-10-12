@@ -782,13 +782,9 @@ const errorMessage = (error: unknown) =>
 
 /** The booking was approved, but a step after the approval failed. */
 export class ApprovalFollowUpError extends Error {
-  /** True when the only failure is the stale [APPROVED] calendar title. */
-  readonly calendarTitleOnly: boolean;
-
-  constructor(message: string, { calendarTitleOnly = false } = {}) {
+  constructor(message: string) {
     super(message);
     this.name = "ApprovalFollowUpError";
-    this.calendarTitleOnly = calendarTitleOnly;
   }
 }
 
@@ -998,9 +994,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       body: JSON.stringify(formData),
     });
   } catch (error) {
-    // Do not lose the stale title behind an invite failure. Not
-    // calendarTitleOnly: callers that tolerate a stale title (booking
-    // modification) must still see the invite failure.
+    // Do not lose the stale title behind an invite failure.
     if (!calendarTitleError) throw error;
     throw new ApprovalFollowUpError(
       `${calendarTitleError}; ${errorMessage(error)}`,
@@ -1008,9 +1002,7 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
   }
 
   if (calendarTitleError) {
-    throw new ApprovalFollowUpError(calendarTitleError, {
-      calendarTitleOnly: true,
-    });
+    throw new ApprovalFollowUpError(calendarTitleError);
   }
 };
 

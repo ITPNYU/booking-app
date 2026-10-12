@@ -496,6 +496,7 @@ export async function PUT(request: NextRequest) {
       },
     );
 
+    let followUpWarning: string | undefined;
     if (isCheckedIn) {
       // Calendar + Firestore writes already succeeded. Do not fail the request
       // if history logging throws — a 500 here would make retries 404.
@@ -561,14 +562,12 @@ export async function PUT(request: NextRequest) {
           "Approved via booking modification",
         );
       } catch (error) {
-        // The new event was created with the [APPROVED] title above, so a
-        // failed retitle alone must not report the modification as failed.
-        if (
-          !(error instanceof ApprovalFollowUpError && error.calendarTitleOnly)
-        ) {
-          throw error;
-        }
-        console.error("🚨 MODIFICATION CALENDAR TITLE UPDATE FAILED:", error);
+        // The new event and booking doc already exist, so a failed follow-up
+        // step (title, invite, history) must not report the modification as
+        // failed: a client retry could create a duplicate booking.
+        if (!(error instanceof ApprovalFollowUpError)) throw error;
+        console.error("🚨 MODIFICATION FOLLOW-UP FAILED:", error);
+        followUpWarning = error.message;
       }
     }
 
@@ -581,6 +580,7 @@ export async function PUT(request: NextRequest) {
       result: "success",
       calendarEventId: newCalendarEventId,
       requestNumber: existingContents.requestNumber,
+      ...(followUpWarning ? { warning: followUpWarning } : {}),
     });
   } catch (error) {
     console.error("❌ MODIFICATION FAILED:", error);

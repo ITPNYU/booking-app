@@ -992,7 +992,6 @@ describe("components/src/server/admin", () => {
         (e) => e,
       );
       expect(error).toBeInstanceOf(ApprovalFollowUpError);
-      expect(error.calendarTitleOnly).toBe(true);
       expect(error.message).toBe(
         "Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
       );
@@ -1021,9 +1020,6 @@ describe("components/src/server/admin", () => {
         (e) => e,
       );
       expect(error).toBeInstanceOf(ApprovalFollowUpError);
-      // Not calendarTitleOnly: a modification must still fail on the invite
-      // error.
-      expect(error.calendarTitleOnly).toBe(false);
       expect(error.message).toContain(
         "Google Calendar event title was not updated to [APPROVED]",
       );
@@ -1059,7 +1055,7 @@ describe("components/src/server/admin", () => {
       );
     });
 
-    it("keeps the title-only follow-up error when the fallback final approval fails to retitle", async () => {
+    it("reports a fallback final approval whose retitle fails as approved", async () => {
       seedApprovedBooking();
       const store = firestoreStore["tenant-y-bookings"];
       store.set("booking-approved", {
@@ -1079,7 +1075,9 @@ describe("components/src/server/admin", () => {
         "tenant-y",
       ).catch((e) => e);
       expect(error).toBeInstanceOf(ApprovalFollowUpError);
-      expect(error.calendarTitleOnly).toBe(true);
+      expect(error.message).toContain(
+        "Google Calendar event title was not updated to [APPROVED]",
+      );
     });
   });
 
