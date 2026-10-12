@@ -637,23 +637,97 @@ async function sendPreApprovedApproverEmails(id: string, tenant?: string) {
   );
 }
 
+async function updateCalendarStatusPrefix(
+  calendarEventId: string,
+  statusPrefix: BookingStatusLabel,
+  tenant?: string,
+) {
+  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tenant": tenant || DEFAULT_TENANT,
+    },
+    body: JSON.stringify({
+      calendarEventId,
+      newValues: { statusPrefix },
+    }),
+  });
+}
+
+async function approvalHistoryExists(
+  calendarEventId: string,
+  status: BookingStatusLabel,
+  tenant?: string,
+): Promise<boolean> {
+  const logs = await serverFetchAllDataFromCollection<BookingLog>(
+    TableNames.BOOKING_LOGS,
+    [
+      {
+        field: "calendarEventId",
+        operator: "==",
+        value: calendarEventId,
+      },
+    ],
+    tenant,
+  );
+  return logs.some((log) => log.status === status);
+}
+
 /**
- * Finish the emails for an instant approval whose Firestore write committed
- * but a later step threw. Approved bookings get the approval notices;
- * pre-approved bookings get the resource-approver notice.
+ * Finish an instant approval whose Firestore write committed but a later step
+ * threw. Writes the history entry and calendar status prefix the normal
+ * approve path writes, then sends the approval emails.
  */
 export async function notifyCommittedInstantApproval(
   calendarEventId: string,
   status: BookingStatusLabel,
   tenant?: string,
 ) {
+  if (
+    status !== BookingStatusLabel.APPROVED &&
+    status !== BookingStatusLabel.PRE_APPROVED
+  ) {
+    return;
+  }
+
+  const doc = await serverGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+    finalApprovedBy?: string;
+    firstApprovedBy?: string;
+  }>(TableNames.BOOKING, calendarEventId, tenant);
+  if (!doc) {
+    throw new Error("Booking document not found");
+  }
+
+  const changedBy =
+    (status === BookingStatusLabel.APPROVED
+      ? doc.finalApprovedBy
+      : doc.firstApprovedBy) || "System";
+
+  if (!(await approvalHistoryExists(calendarEventId, status, tenant))) {
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status,
+      changedBy,
+      requestNumber: doc.requestNumber,
+      calendarEventId,
+      note:
+        status === BookingStatusLabel.PRE_APPROVED
+          ? await resolveFirstApprovalHistoryNote(changedBy, tenant)
+          : "",
+      tenant,
+    });
+  }
+
+  await updateCalendarStatusPrefix(calendarEventId, status, tenant);
+
   if (status === BookingStatusLabel.APPROVED) {
     await serverApproveEvent(calendarEventId, tenant);
     return;
   }
-  if (status === BookingStatusLabel.PRE_APPROVED) {
-    await sendPreApprovedApproverEmails(calendarEventId, tenant);
-  }
+  await sendPreApprovedApproverEmails(calendarEventId, tenant);
 }
 
 const firstApprove = async (id: string, email: string, tenant?: string) => {
@@ -682,19 +756,7 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
     });
   }
 
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
-    },
-    body: JSON.stringify({
-      calendarEventId: id,
-      newValues: {
-        statusPrefix: BookingStatusLabel.PRE_APPROVED,
-      },
-    }),
-  });
+  await updateCalendarStatusPrefix(id, BookingStatusLabel.PRE_APPROVED, tenant);
   await sendPreApprovedApproverEmails(id, tenant);
 };
 

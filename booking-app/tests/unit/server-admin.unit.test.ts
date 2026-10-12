@@ -968,6 +968,23 @@ describe("components/src/server/admin", () => {
       );
     });
     expect(requesterEmail).toBeDefined();
+
+    const calendarUpdate = mockFetch.mock.calls.find(([url, opts]) => {
+      if (url !== "https://booking.test/api/calendarEvents") return false;
+      const body = JSON.parse((opts as RequestInit).body as string);
+      return body.newValues?.statusPrefix === BookingStatusLabel.APPROVED;
+    });
+    expect(calendarUpdate).toBeDefined();
+
+    expect(readCollection("tenant-y-bookingLogs")).toEqual([
+      expect.objectContaining({
+        bookingId: "booking-committed-approved",
+        calendarEventId: "cal-committed-approved",
+        status: BookingStatusLabel.APPROVED,
+        changedBy: "System",
+        requestNumber: 101,
+      }),
+    ]);
   });
 
   it("sends the pre-approved notice when a committed first approval is recovered", async () => {
@@ -1026,6 +1043,94 @@ describe("components/src/server/admin", () => {
       );
     });
     expect(approverEmail).toBeDefined();
+
+    const calendarUpdate = mockFetch.mock.calls.find(([url, opts]) => {
+      if (url !== "https://booking.test/api/calendarEvents") return false;
+      const body = JSON.parse((opts as RequestInit).body as string);
+      return (
+        body.calendarEventId === "cal-committed-preapproved" &&
+        body.newValues?.statusPrefix === BookingStatusLabel.PRE_APPROVED
+      );
+    });
+    expect(calendarUpdate).toBeDefined();
+
+    expect(readCollection("tenant-y-bookingLogs")).toEqual([
+      expect.objectContaining({
+        bookingId: "booking-committed-preapproved",
+        calendarEventId: "cal-committed-preapproved",
+        status: BookingStatusLabel.PRE_APPROVED,
+        changedBy: "System",
+        requestNumber: 102,
+      }),
+    ]);
+  });
+
+  it("does not add a second history entry when the approval was already logged", async () => {
+    seedCollection("tenant-y-bookings", [
+      {
+        id: "booking-already-logged",
+        data: {
+          calendarEventId: "cal-already-logged",
+          requestNumber: 103,
+          title: "Already Logged",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+          firstApprovedAt: makeTimestamp("2024-03-01T09:00:00.000Z"),
+          firstApprovedBy: "System",
+          finalApprovedAt: null,
+          declinedAt: null,
+          canceledAt: null,
+          checkedInAt: null,
+          checkedOutAt: null,
+          noShowedAt: null,
+          walkedInAt: null,
+          role: "Faculty",
+          status: BookingStatusLabel.PRE_APPROVED,
+        },
+      },
+    ]);
+    seedCollection("tenant-y-bookingLogs", [
+      {
+        id: "existing-preapproved-log",
+        data: {
+          bookingId: "booking-already-logged",
+          calendarEventId: "cal-already-logged",
+          status: BookingStatusLabel.PRE_APPROVED,
+          changedBy: "System",
+          requestNumber: 103,
+        },
+      },
+    ]);
+    seedCollection("tenant-y-usersApprovers", [
+      {
+        id: "approver-final",
+        data: {
+          email: "final@nyu.edu",
+          department: "ITP",
+          level: ApproverLevel.FINAL,
+        },
+      },
+    ]);
+
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) } as any);
+
+    const { notifyCommittedInstantApproval } =
+      await import("@/components/src/server/admin");
+
+    await notifyCommittedInstantApproval(
+      "cal-already-logged",
+      BookingStatusLabel.PRE_APPROVED,
+      "tenant-y",
+    );
+
+    expect(readCollection("tenant-y-bookingLogs")).toEqual([
+      expect.objectContaining({
+        id: "existing-preapproved-log",
+        status: BookingStatusLabel.PRE_APPROVED,
+      }),
+    ]);
   });
 
   it("returns admin records with limited fields", async () => {

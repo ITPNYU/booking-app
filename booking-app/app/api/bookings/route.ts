@@ -466,8 +466,9 @@ async function handleBookingApprovalEmails(
         );
       }
       if (committedStatus) {
-        // The write landed, but the approval emails live in a later step that
-        // may not have run. Send those notices without asking for review again.
+        // The write landed, but history, the calendar status prefix, and the
+        // approval emails may not have finished. Complete those steps without
+        // asking for review again.
         try {
           await notifyCommittedInstantApproval(
             calendarEventId,
@@ -476,7 +477,7 @@ async function handleBookingApprovalEmails(
           );
         } catch (notifyError) {
           console.error(
-            `Committed instant approval but confirmation email failed [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+            `Committed instant approval follow-up failed [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
             notifyError,
           );
         }
