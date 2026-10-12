@@ -67,6 +67,29 @@ export async function getCanceledCcEmail(tenant: string): Promise<string> {
   return "";
 }
 
+/**
+ * Get declined CC email from tenant schema in Firestore.
+ * Returns empty string if not configured.
+ */
+export async function getDeclinedCcEmail(tenant: string): Promise<string> {
+  try {
+    const raw = await serverGetDocumentById<Record<string, unknown>>(
+      TENANT_SCHEMA_COLLECTION as any,
+      tenant,
+    );
+    const schema = raw ? coerceTenantSchema(raw, tenant) : null;
+    if (schema) {
+      return resolveEmail(schema.ccEmails?.declined);
+    }
+  } catch (error) {
+    console.error(
+      "Failed to fetch tenant schema for declined CC email:",
+      error,
+    );
+  }
+  return "";
+}
+
 /** @deprecated branchName is ignored; environment comes from NEXT_PUBLIC_BRANCH_NAME */
 export const getApprovalCcEmail = async (
   _branchName: string,
@@ -79,4 +102,21 @@ export const getApprovalCcEmail = async (
 export const getCancelCcEmail = async (tenant?: string): Promise<string> => {
   if (!tenant) return "";
   return getCanceledCcEmail(tenant);
+};
+
+/**
+ * Address that gets a copy of the decline email, or "" when the tenant has
+ * none configured or it is the requester's own address (they already get one).
+ */
+export const getDeclineCcEmail = async (
+  tenant?: string,
+  requesterEmail?: string,
+): Promise<string> => {
+  if (!tenant) return "";
+  const ccEmail = (await getDeclinedCcEmail(tenant)).trim();
+  if (!ccEmail) return "";
+  if (ccEmail.toLowerCase() === requesterEmail?.trim().toLowerCase()) {
+    return "";
+  }
+  return ccEmail;
 };
