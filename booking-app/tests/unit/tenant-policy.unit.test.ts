@@ -5,6 +5,8 @@ import {
 import {
   getApprovedCcEmail,
   getCanceledCcEmail,
+  getDeclineCcEmail,
+  getDeclinedCcEmail,
 } from "@/components/src/tenantPolicyServer";
 import { getApprovalCcEmail, getCancelCcEmail } from "@/components/src/tenantPolicyServer";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
@@ -178,5 +180,93 @@ describe("getCancelCcEmail (policy.ts wrapper)", () => {
     );
 
     expect(await getCancelCcEmail("mc")).toBe("cancel@nyu.edu");
+  });
+});
+
+describe("getDeclinedCcEmail / getDeclineCcEmail", () => {
+  const schemaWithDeclinedCc = (declined: {
+    development: string;
+    staging: string;
+    production: string;
+  }) =>
+    makeMockSchema({
+      ccEmails: {
+        approved: { development: "", staging: "", production: "approved@nyu.edu" },
+        canceled: { development: "", staging: "", production: "cancel@nyu.edu" },
+        declined,
+      },
+    });
+
+  beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_BRANCH_NAME", "production");
+    mockServerGetDocumentById.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("returns the declined CC email for the current environment", async () => {
+    mockServerGetDocumentById.mockResolvedValue(
+      schemaWithDeclinedCc({
+        development: "dev-ops@nyu.edu",
+        staging: "stg-ops@nyu.edu",
+        production: "ops@nyu.edu",
+      }),
+    );
+
+    expect(await getDeclinedCcEmail("mc")).toBe("ops@nyu.edu");
+
+    vi.stubEnv("NEXT_PUBLIC_BRANCH_NAME", "development");
+    expect(await getDeclinedCcEmail("mc")).toBe("dev-ops@nyu.edu");
+  });
+
+  it("returns empty string for the default schema, a missing key, or a failed fetch", async () => {
+    mockServerGetDocumentById.mockResolvedValue(makeMockSchema());
+    expect(await getDeclinedCcEmail("mc")).toBe("");
+
+    // Stored schemas written before ccEmails.declined existed
+    mockServerGetDocumentById.mockResolvedValue(
+      makeMockSchema({
+        ccEmails: {
+          approved: { development: "", staging: "", production: "approved@nyu.edu" },
+          canceled: { development: "", staging: "", production: "cancel@nyu.edu" },
+        },
+      }),
+    );
+    expect(await getDeclinedCcEmail("mc")).toBe("");
+
+    mockServerGetDocumentById.mockRejectedValue(new Error("connection failed"));
+    expect(await getDeclinedCcEmail("mc")).toBe("");
+  });
+
+  it("does not fall back to the approved or canceled CC addresses", async () => {
+    mockServerGetDocumentById.mockResolvedValue(
+      schemaWithDeclinedCc({ development: "", staging: "", production: "" }),
+    );
+
+    expect(await getDeclineCcEmail("mc", "guest@nyu.edu")).toBe("");
+  });
+
+  it("returns the configured address for another requester", async () => {
+    mockServerGetDocumentById.mockResolvedValue(
+      schemaWithDeclinedCc({ development: "", staging: "", production: " ops@nyu.edu " }),
+    );
+
+    expect(await getDeclineCcEmail("mc", "guest@nyu.edu")).toBe("ops@nyu.edu");
+    expect(await getDeclineCcEmail("mc")).toBe("ops@nyu.edu");
+  });
+
+  it("returns empty string when the requester is the CC address", async () => {
+    mockServerGetDocumentById.mockResolvedValue(
+      schemaWithDeclinedCc({ development: "", staging: "", production: "Ops@NYU.edu" }),
+    );
+
+    expect(await getDeclineCcEmail("mc", "ops@nyu.edu")).toBe("");
+  });
+
+  it("returns empty string without reading the schema when tenant is undefined", async () => {
+    expect(await getDeclineCcEmail(undefined, "guest@nyu.edu")).toBe("");
+    expect(mockServerGetDocumentById).not.toHaveBeenCalled();
   });
 });

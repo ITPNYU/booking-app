@@ -481,6 +481,8 @@ export type SchemaContextType = {
   ccEmails?: {
     approved: { development: string; staging: string; production: string };
     canceled: { development: string; staging: string; production: string };
+    /** Gets a copy of the requester's decline email; empty sends none. */
+    declined?: { development: string; staging: string; production: string };
   };
   emailNotifications: EmailNotifications;
 };
@@ -695,6 +697,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
   ccEmails: {
     approved: { development: "", staging: "", production: "" },
     canceled: { development: "", staging: "", production: "" },
+    declined: { development: "", staging: "", production: "" },
   },
   emailNotifications: {
     requestedUser: "",
