@@ -71,14 +71,19 @@ const failed = {
   text: async () => "",
 };
 
-const answer = (opts: { title: boolean; secondaryInvite: boolean }) =>
+const answer = (opts: {
+  title: boolean;
+  secondaryInvite: boolean;
+  guestInvite?: boolean;
+}) =>
   mockFetch.mockImplementation(async (url: string, init: RequestInit) => {
     if (url.endsWith("/api/calendarEvents")) return opts.title ? ok : failed;
-    if (
-      url.endsWith("/api/inviteUser") &&
-      JSON.parse(init.body as string).guestEmail === "secondary@nyu.edu"
-    ) {
-      return opts.secondaryInvite ? ok : failed;
+    if (url.endsWith("/api/inviteUser")) {
+      const { guestEmail } = JSON.parse(init.body as string);
+      if (guestEmail === "secondary@nyu.edu") {
+        return opts.secondaryInvite ? ok : failed;
+      }
+      return opts.guestInvite === false ? failed : ok;
     }
     return ok;
   });
@@ -127,6 +132,20 @@ describe("POST /api/approve fallback follow-up failures", () => {
     expect(body).toEqual({
       error: expect.stringMatching(
         /^Booking was approved, but a follow-up step failed: Failed to invite secondary contact/,
+      ),
+      approved: true,
+    });
+  });
+
+  it("reports approved when only the requester invite fails", async () => {
+    answer({ title: true, secondaryInvite: true, guestInvite: false });
+
+    const { status, body } = await approve();
+
+    expect(status).toBe(500);
+    expect(body).toEqual({
+      error: expect.stringMatching(
+        /^Booking was approved, but a follow-up step failed: Failed to invite requester \(status 500/,
       ),
       approved: true,
     });

@@ -1055,6 +1055,54 @@ describe("components/src/server/admin", () => {
       );
     });
 
+    it("reports both the stale title and a failed requester invite", async () => {
+      seedApprovedBooking();
+      mockFetch.mockImplementation(async (url: string) =>
+        url.endsWith("/api/calendarEvents") || url.endsWith("/api/inviteUser")
+          ? failed
+          : ok,
+      );
+
+      const { serverApproveEvent, ApprovalFollowUpError } =
+        await import("@/components/src/server/admin");
+
+      const error = await serverApproveEvent("cal-approved", "tenant-y").catch(
+        (e) => e,
+      );
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.message).toBe(
+        "Google Calendar event title was not updated to [APPROVED] (calendar update returned 500); Failed to invite requester (status 500 Internal Server Error)",
+      );
+    });
+
+    it("reports a fallback final approval whose requester invite fails as approved", async () => {
+      seedApprovedBooking();
+      const store = firestoreStore["tenant-y-bookings"];
+      store.set("booking-approved", {
+        ...store.get("booking-approved"),
+        firstApprovedAt: makeTimestamp("2024-03-02T08:00:00.000Z"),
+      });
+      mockFetch.mockImplementation(async (url: string, init: RequestInit) =>
+        url.endsWith("/api/inviteUser") &&
+        JSON.parse(init.body as string).guestEmail === "requester@nyu.edu"
+          ? failed
+          : ok,
+      );
+
+      const { serverApproveBooking, ApprovalFollowUpError } =
+        await import("@/components/src/server/admin");
+
+      const error = await serverApproveBooking(
+        "cal-approved",
+        "admin@nyu.edu",
+        "tenant-y",
+      ).catch((e) => e);
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.message).toBe(
+        "Failed to invite requester (status 500 Internal Server Error)",
+      );
+    });
+
     it("reports a fallback final approval whose retitle fails as approved", async () => {
       seedApprovedBooking();
       const store = firestoreStore["tenant-y-bookings"];

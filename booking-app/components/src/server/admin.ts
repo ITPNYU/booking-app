@@ -985,14 +985,30 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
       calendarEventId: id,
       roomId: contents.roomId,
     };
-    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
+    const inviteGuestResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant": tenant || DEFAULT_TENANT,
+        },
+        body: JSON.stringify(formData),
       },
-      body: JSON.stringify(formData),
-    });
+    );
+    if (!inviteGuestResponse.ok) {
+      let errorBody = "";
+      try {
+        errorBody = await inviteGuestResponse.text();
+      } catch {
+        // ignore body read errors
+      }
+      throw new Error(
+        `Failed to invite requester (status ${inviteGuestResponse.status} ${inviteGuestResponse.statusText})${
+          errorBody ? `: ${errorBody}` : ""
+        }`,
+      );
+    }
   } catch (error) {
     // Do not lose the stale title behind an invite failure.
     if (!calendarTitleError) throw error;
