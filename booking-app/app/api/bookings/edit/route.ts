@@ -26,7 +26,6 @@ import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServices
 import {
   getChangedServiceKeys,
   getServiceDecisions,
-  MEDIA_COMMONS_SERVICE_KEYS,
   type MediaCommonsServiceKey,
   SERVICE_APPROVAL_FIELDS,
 } from "@/components/src/utils/serviceDecisions";
@@ -55,17 +54,21 @@ import {
 } from "../shared";
 
 /**
- * Media Commons services requested before the edit but not after, or the
- * other way around.
+ * Media Commons services the edit turned on or off: their request fields
+ * changed and they are requested on one side only. Only `changedServices`
+ * are checked, because the saved booking and the edit form can spell the
+ * same answer differently (the form fans a legacy flat setup answer out to a
+ * per-room map), which getChangedServiceKeys already reconciles.
  */
 function getToggledServices(
+  changedServices: MediaCommonsServiceKey[],
   before: Record<string, unknown>,
   after: Record<string, unknown>,
   resources: Awaited<ReturnType<typeof serverGetTenantResources>>,
 ): MediaCommonsServiceKey[] {
   const requestedBefore = getMediaCommonsServices(before, resources);
   const requestedAfter = getMediaCommonsServices(after, resources);
-  return MEDIA_COMMONS_SERVICE_KEYS.filter(
+  return changedServices.filter(
     service => requestedBefore[service] !== requestedAfter[service],
   );
 }
@@ -427,7 +430,12 @@ export async function PUT(request: NextRequest) {
     // Services turned on or off. The machine context lists the requested
     // services, and the bookings table and Services page read it from there.
     const toggledServices = isMediaCommons(tenant)
-      ? getToggledServices(existingContents, data, tenantResources)
+      ? getToggledServices(
+          changedServices,
+          existingContents,
+          data,
+          tenantResources,
+        )
       : [];
     console.log(
       `🧮 EDIT: Service request changes [${tenant?.toUpperCase()}]:`,

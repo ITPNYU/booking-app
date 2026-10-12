@@ -312,6 +312,43 @@ describe("Edit resets only the service decisions of changed services", () => {
       );
     });
 
+    it("leaves the machine alone when the edit form only backfilled a legacy setup answer", async () => {
+      // Saved before per-room maps: the edit form fans roomSetup "yes" out to
+      // roomSetupByRoom, which reads as a setup request although nothing changed.
+      mockServerBookingContents.mockResolvedValue(
+        savedBooking({ roomSetup: "yes" }),
+      );
+
+      const res = await submit({
+        ...savedServiceRequests,
+        roomSetup: "yes",
+        roomSetupByRoom: { "202": "yes" },
+        title: "Renamed Meeting",
+      });
+      expect(res.status).toBe(200);
+
+      expect(editEvents()).toEqual([]);
+      expect(mockFinalApprove).not.toHaveBeenCalled();
+      expect(mockSendHTMLEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ targetEmail: "liaison@nyu.edu" }),
+      );
+    });
+
+    it("tells the machine when a legacy setup request was turned off", async () => {
+      mockServerBookingContents.mockResolvedValue(
+        savedBooking({ roomSetup: "yes", setupDetails: "10 chairs" }),
+      );
+
+      await submit({
+        ...savedServiceRequests,
+        roomSetup: "no",
+        setupDetails: "",
+        roomSetupByRoom: {},
+      });
+
+      expect(editEvents()[0][6]).toEqual(["setup"]);
+    });
+
     it("tells the machine when a service was turned on", async () => {
       mockServerBookingContents.mockResolvedValue(savedBooking());
 
