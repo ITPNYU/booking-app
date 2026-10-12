@@ -123,7 +123,8 @@ export async function POST(req: NextRequest) {
         }
       } catch (ccError) {
         console.error(
-          `🚨 DECLINE CC EMAIL FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          "🚨 DECLINE CC EMAIL FAILED [%s]:",
+          tenant?.toUpperCase() || "UNKNOWN",
           ccError,
         );
       }
