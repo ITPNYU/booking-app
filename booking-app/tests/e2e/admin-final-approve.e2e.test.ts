@@ -613,6 +613,42 @@ test.describe("Admin final approval flow", () => {
     });
   });
 
+  test("should show the admin when final approval leaves the calendar title stale", async ({
+    page,
+  }) => {
+    const calendarError =
+      "Booking was approved, but a follow-up step failed: Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)";
+    // Registered after mockAdminEndpoints, so this handler wins.
+    await page.route("**/api/approve", async (route) => {
+      await route.fulfill({
+        status: 500,
+        headers: jsonHeaders,
+        body: JSON.stringify({ error: calendarError }),
+      });
+    });
+
+    await page.goto(`${BASE_URL}/mc/admin`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.waitForLoadState("networkidle");
+
+    const bookingRow = page.locator(`[data-id="${CALENDAR_EVENT_ID}"]`);
+    await bookingRow.waitFor({ state: "visible", timeout: 15_000 });
+
+    await bookingRow.locator('[role="combobox"]').click();
+    await page.getByRole("option", { name: "2nd Approve" }).click();
+
+    const confirmButton = bookingRow.locator(
+      'button:has(svg[data-testid="CheckIcon"])'
+    );
+    await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
+    await confirmButton.click();
+
+    await expect(
+      page.getByRole("alert").filter({ hasText: calendarError })
+    ).toBeVisible();
+  });
+
   test("should send decline request when admin declines", async ({ page }) => {
     await page.goto(`${BASE_URL}/mc/admin`, {
       waitUntil: "domcontentloaded",

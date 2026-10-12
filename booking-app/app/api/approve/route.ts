@@ -67,8 +67,19 @@ const parseBookingResourceIds = (roomId: unknown): string[] =>
     .map(resourceId => resourceId.trim())
     .filter(Boolean);
 
-const getErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
+// serverApproveBooking rethrows failures as plain { status, message } objects.
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return String(error);
+};
 
 const getErrorStatus = (error: unknown): number =>
   typeof error === "object" &&
@@ -248,6 +259,14 @@ export async function POST(req: NextRequest) {
               tenant,
               error: getErrorMessage(error),
             },
+          );
+          // The booking is already Approved; tell the approver which
+          // follow-up step (e.g. the calendar title) did not happen.
+          return NextResponse.json(
+            {
+              error: `Booking was approved, but a follow-up step failed: ${getErrorMessage(error)}`,
+            },
+            { status: 500 },
           );
         }
       } else if (xstateResult.newState === "Pre-approved") {

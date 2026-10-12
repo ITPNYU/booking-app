@@ -511,6 +511,46 @@ describe("POST /api/approve", () => {
     });
   });
 
+  it("reports a failed calendar title update after XState reaches Approved", async () => {
+    mockExecute.mockResolvedValue({ success: true, newState: "Approved" });
+    mockFinalApprove.mockRejectedValueOnce(
+      new Error(
+        "Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
+      ),
+    );
+
+    const response = await POST(
+      createRequest({ id: bookingId, email: bodyEmail }) as any,
+    );
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 500,
+      data: {
+        error:
+          "Booking was approved, but a follow-up step failed: Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
+      },
+    });
+  });
+
+  it("returns the message of a { status, message } fallback error", async () => {
+    mockExecute.mockResolvedValue({ success: false, error: "state error" });
+    mockServerApproveBooking.mockRejectedValueOnce({
+      status: 500,
+      message: "Google Calendar event title was not updated to [APPROVED]",
+    });
+
+    const response = await POST(
+      createRequest({ id: bookingId, email: bodyEmail }) as any,
+    );
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 500,
+      data: {
+        error: "Google Calendar event title was not updated to [APPROVED]",
+      },
+    });
+  });
+
   it("runs serverFirstApproveOnly when XState reaches Pre-approved", async () => {
     mockExecute.mockResolvedValue({ success: true, newState: "Pre-approved" });
 

@@ -317,14 +317,22 @@ export const clientApproveBooking = async (
   email: string,
   tenant?: string,
 ) => {
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/approve`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/approve`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify({ id, email }),
     },
-    body: JSON.stringify({ id, email }),
-  });
+  );
+
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.error || "Failed to approve booking");
+  }
 };
 
 export const clientEquipmentApprove = async (_id: string, _email: string) => {

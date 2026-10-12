@@ -26,7 +26,12 @@ const ApprovePageContent: React.FC = () => {
         await clientApproveBooking(paramCalendarEventId, userEmail);
         setApproved(true);
       } catch (err) {
-        setError("Failed to approve booking.");
+        // e.g. "Booking was approved, but a follow-up step failed: ..."
+        setError(
+          err instanceof Error && err.message
+            ? err.message
+            : "Failed to approve booking.",
+        );
       } finally {
         setLoading(false);
       }

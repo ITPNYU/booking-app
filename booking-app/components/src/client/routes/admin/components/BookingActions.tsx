@@ -1,4 +1,4 @@
-import { IconButton, MenuItem, Select } from "@mui/material";
+import { IconButton, MenuItem, Portal, Select } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
 import Check from "@mui/icons-material/Check";
 import { Timestamp } from "firebase/firestore";
@@ -14,6 +14,8 @@ import DeclineReasonDialog from "../../components/DeclineReasonDialog";
 import Loading from "../../components/Loading";
 import { DatabaseContext } from "../../components/Provider";
 import shouldDisableCheckIn from "../hooks/shouldDisableCheckIn";
+
+const DEFAULT_ERROR_MESSAGE = "Failed to perform action on booking";
 
 interface Props {
   calendarEventId: string;
@@ -39,6 +41,7 @@ export default function BookingActions(props: Props) {
   );
   const { reloadFutureBookings, allBookings } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(DEFAULT_ERROR_MESSAGE);
   const [reason, setReason] = useState<string>();
 
   const { actions, updateActions, options } = useBookingActions({
@@ -58,7 +61,14 @@ export default function BookingActions(props: Props) {
     reloadFutureBookings();
   };
 
-  const onError = () => {
+  const onError = (error: unknown) => {
+    // Show the server's message, e.g. when an approval succeeded but the
+    // Google Calendar title could not be updated.
+    setErrorMessage(
+      error instanceof Error && error.message
+        ? error.message
+        : DEFAULT_ERROR_MESSAGE,
+    );
     setShowError(true);
   };
 
@@ -82,7 +92,7 @@ export default function BookingActions(props: Props) {
     } catch (ex) {
       console.error(ex);
       setOptimisticStatus(undefined);
-      onError();
+      onError(ex);
     } finally {
       setSelectedAction(Actions.PLACEHOLDER);
       setUiLoading(false);
@@ -229,12 +239,15 @@ export default function BookingActions(props: Props) {
       ) : (
         onAction
       )}
-      <AlertToast
-        message="Failed to perform action on booking"
-        severity="error"
-        open={showError}
-        handleClose={() => setShowError(false)}
-      />
+      {/* Rendered in a grid cell; portal it so the row does not clip it. */}
+      <Portal>
+        <AlertToast
+          message={errorMessage}
+          severity="error"
+          open={showError}
+          handleClose={() => setShowError(false)}
+        />
+      </Portal>
     </div>
   );
 }
