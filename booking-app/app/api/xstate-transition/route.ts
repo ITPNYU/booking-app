@@ -1,5 +1,7 @@
 import { DEFAULT_TENANT, TENANTS } from "@/components/src/constants/tenants";
 import { requireSession } from "@/lib/api/requireSession";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -12,7 +14,38 @@ import {
   type MediaCommonsServiceKey,
 } from "@/components/src/utils/serviceDecisions";
 
-/** Keep only known service keys from an "edit" event's changed-services list. */
+async function unsupportedTenantResponse(tenant: string) {
+  if (
+    tenant === TENANTS.ITP ||
+    tenant === TENANTS.MC ||
+    tenant === TENANTS.MEDIA_COMMONS
+  ) {
+    return null;
+  }
+  if (!isCreatableTenantSlug(tenant)) {
+    return NextResponse.json(
+      {
+        error:
+          "XState transitions are only supported for ITP, Media Commons, and schema-backed tenants",
+      },
+      { status: 400 },
+    );
+  }
+  const schema = await getCachedTenantSchema(tenant);
+  if (
+    !schema ||
+    (schema.bookingProfile !== "itp" && schema.bookingProfile !== "mc")
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          "XState transitions are only supported for ITP, Media Commons, and schema-backed tenants",
+      },
+      { status: 400 },
+    );
+  }
+  return null;
+}
 const toChangedServices = (
   value: unknown,
 ): MediaCommonsServiceKey[] | undefined =>
@@ -40,17 +73,8 @@ export async function POST(req: NextRequest) {
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
-
-  // Only allow XState transitions for ITP and Media Commons tenants
-  if (tenant !== TENANTS.ITP && tenant !== TENANTS.MC) {
-    return NextResponse.json(
-      {
-        error:
-          "XState transitions are only supported for ITP and Media Commons tenants",
-      },
-      { status: 400 },
-    );
-  }
+  const unsupported = await unsupportedTenantResponse(tenant);
+  if (unsupported) return unsupported;
 
   if (!calendarEventId || !eventType) {
     return NextResponse.json(
@@ -177,17 +201,8 @@ export async function GET(req: NextRequest) {
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
-
-  // Only allow XState transitions for ITP and Media Commons tenants
-  if (tenant !== TENANTS.ITP && tenant !== TENANTS.MC) {
-    return NextResponse.json(
-      {
-        error:
-          "XState transitions are only supported for ITP and Media Commons tenants",
-      },
-      { status: 400 },
-    );
-  }
+  const unsupported = await unsupportedTenantResponse(tenant);
+  if (unsupported) return unsupported;
 
   if (!calendarEventId) {
     return NextResponse.json(

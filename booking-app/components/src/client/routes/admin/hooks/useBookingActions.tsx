@@ -422,7 +422,10 @@ export default function useBookingActions({
         // Liaison actions
         options.push(Actions.DECLINE);
         if (status === BookingStatusLabel.REQUESTED) {
-          const policy = getTenantPolicy(tenant as string);
+          const policy = getTenantPolicy(
+            tenant as string,
+            schema.bookingProfile,
+          );
           options.push(
             policy.approvalLevels === 1
               ? Actions.APPROVE
@@ -542,7 +545,10 @@ export default function useBookingActions({
 
         // Basic approval actions
         if (status === BookingStatusLabel.REQUESTED) {
-          const policy = getTenantPolicy(tenant as string);
+          const policy = getTenantPolicy(
+            tenant as string,
+            schema.bookingProfile,
+          );
           options.push(
             policy.approvalLevels === 1
               ? Actions.APPROVE

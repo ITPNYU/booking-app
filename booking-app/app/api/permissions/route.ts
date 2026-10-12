@@ -6,7 +6,7 @@ import {
   TableNames,
   getTenantCollectionName,
 } from "@/components/src/policy";
-import { isValidTenant } from "@/components/src/constants/tenants";
+import { isExistingTenantSlug } from "@/lib/tenant/existingTenant";
 import { PagePermission, SiteBannerSettings } from "@/components/src/types";
 import {
   DEFAULT_MAINTENANCE_MODE_SETTINGS,
@@ -62,7 +62,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const tenant = req.nextUrl.searchParams.get("tenant") ?? undefined;
-  if (tenant !== undefined && tenant !== "" && !isValidTenant(tenant)) {
+  const tenantOk =
+    tenant !== undefined && tenant !== ""
+      ? await isExistingTenantSlug(tenant)
+      : false;
+  if (tenant !== undefined && tenant !== "" && !tenantOk) {
     return NextResponse.json({ error: "Invalid tenant" }, { status: 400 });
   }
 
@@ -77,14 +81,14 @@ export async function GET(req: NextRequest) {
     );
 
     const settingsDocPromise =
-      tenant && isValidTenant(tenant)
+      tenant && tenantOk
         ? db
             .collection(getTenantCollectionName(TableNames.SETTINGS, tenant))
             .doc(SITE_BANNER_SETTINGS_DOC_ID)
             .get()
         : Promise.resolve(null);
     const maintenanceDocPromise =
-      tenant && isValidTenant(tenant)
+      tenant && tenantOk
         ? db
             .collection(getTenantCollectionName(TableNames.SETTINGS, tenant))
             .doc(MAINTENANCE_MODE_SETTINGS_DOC_ID)
@@ -170,7 +174,7 @@ export async function GET(req: NextRequest) {
       settingsSnap && settingsSnap.exists
         ? parseSiteBannerFromDoc(settingsSnap.data() as Record<string, unknown>)
         : null;
-    if (!siteBanner && tenant && isValidTenant(tenant)) {
+    if (!siteBanner && tenant && tenantOk) {
       // Legacy path before tenant-scoped settings collections.
       const legacySettingsSnap = await db
         .collection(TableNames.SETTINGS)

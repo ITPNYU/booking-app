@@ -6,10 +6,12 @@ import {
 import { TableNames } from "@/components/src/policy";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
-import { isValidTenant } from "@/components/src/constants/tenants";
-import admin from "@/lib/firebase/server/firebaseAdmin";
+import { identityFieldError } from "@/lib/tenant/tenantIdentity";
 import { requireSession } from "@/lib/api/requireSession";
 import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
+import admin from "@/lib/firebase/server/firebaseAdmin";
+import { isExistingTenantSlug } from "@/lib/tenant/existingTenant";
+import { isTemplateSchemaId } from "@/lib/tenant/tenantSlug";
 
 export async function GET(
   request: NextRequest,
@@ -18,14 +20,20 @@ export async function GET(
   try {
     const { tenant } = await params;
 
-    // The schema exposes calendar IDs, email templates, and org mappings, so it
-    // requires an authenticated NYU session (the collection is `anyNYU`-read).
-    const session = await requireSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: "Authentication required" },
-        { status: 401 },
-      );
+    // The template holds shared defaults and is not a public tenant schema.
+    if (isTemplateSchemaId(tenant)) {
+      const auth = await requireSuperAdmin(tenant);
+      if ("error" in auth) return auth.error;
+    } else {
+      // The schema exposes calendar IDs, email templates, and org mappings, so it
+      // requires an authenticated NYU session (the collection is `anyNYU`-read).
+      const session = await requireSession();
+      if (!session) {
+        return NextResponse.json(
+          { error: "Authentication required" },
+          { status: 401 },
+        );
+      }
     }
 
     // Fetch the specific schema document using tenant as document ID
@@ -73,9 +81,9 @@ export async function PUT(
 ) {
   try {
     const { tenant } = await params;
+    const template = isTemplateSchemaId(tenant);
 
-    // Validate tenant
-    if (!isValidTenant(tenant)) {
+    if (!template && !(await isExistingTenantSlug(tenant))) {
       return NextResponse.json(
         { error: `Invalid tenant: ${tenant}` },
         { status: 400 },
@@ -86,6 +94,17 @@ export async function PUT(
     // not a client-supplied header).
     const auth = await requireSuperAdmin(tenant);
     if ("error" in auth) return auth.error;
+
+    const existingSchema = await serverGetDocumentById(
+      TableNames.TENANT_SCHEMA,
+      tenant,
+    );
+    if (!existingSchema) {
+      return NextResponse.json(
+        { error: `Schema not found for tenant: ${tenant}` },
+        { status: 404 },
+      );
+    }
 
     const newSchema = await request.json();
 
@@ -111,14 +130,14 @@ export async function PUT(
       );
     }
 
-    // Backup current schema before overwriting
-    const existingSchema = await serverGetDocumentById(
-      TableNames.TENANT_SCHEMA,
-      tenant,
-    );
+    const identityError = identityFieldError(newSchema);
+    if (identityError) {
+      return NextResponse.json({ error: identityError }, { status: 400 });
+    }
 
+    // Backup current schema before overwriting
     let backupCreated = false;
-    if (existingSchema) {
+    {
       const db = admin.firestore();
       const timestamp = new Date()
         .toISOString()

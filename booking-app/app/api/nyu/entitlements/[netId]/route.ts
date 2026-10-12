@@ -1,19 +1,83 @@
 import { UserApiData } from "@/components/src/types";
-import { TENANTS, TenantValue } from "@/components/src/constants/tenants";
+import { TENANTS } from "@/components/src/constants/tenants";
 import { ITP_DEPT_CODES } from "@/components/src/utils/tenantUtils";
+import { listTenantSchemaDocuments } from "@/lib/tenant/listTenantSchemas";
+import { TEMPLATE_SCHEMA_ID } from "@/lib/tenant/tenantSlug";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { auth } from "@/lib/auth";
 import { fetchNYUIdentity } from "@/lib/server/nyuIdentity";
 import { NextRequest, NextResponse } from "next/server";
 
-function getEntitledTenants(userData: UserApiData): TenantValue[] {
-  const tenants: TenantValue[] = [TENANTS.MC];
+export type EntitlementCard = {
+  id: string;
+  label: string;
+  description: string;
+};
 
+const MC_CARD: EntitlementCard = {
+  id: TENANTS.MC,
+  label: "Media Commons",
+  description: "Book spaces and equipment at the Media Commons.",
+};
+
+const ITP_CARD: EntitlementCard = {
+  id: TENANTS.ITP,
+  label: "ITP / IMA / Low Res",
+  description: "Book spaces and equipment at ITP, IMA, and Low Res.",
+};
+
+function legacyCards(userData: UserApiData): EntitlementCard[] {
+  const cards = [MC_CARD];
   if (userData.dept_code && ITP_DEPT_CODES.includes(userData.dept_code)) {
-    tenants.push(TENANTS.ITP);
+    cards.push(ITP_CARD);
+  }
+  return cards;
+}
+
+async function entitlementCards(userData: UserApiData): Promise<EntitlementCard[]> {
+  const cards = legacyCards(userData);
+  const seen = new Set(cards.map((card) => card.id));
+
+  let docs: Awaited<ReturnType<typeof listTenantSchemaDocuments>> = [];
+  try {
+    docs = await listTenantSchemaDocuments();
+  } catch (error) {
+    console.error("Failed to list tenant schemas for entitlements:", error);
+    return cards;
   }
 
-  return tenants;
+  for (const doc of docs) {
+    if (
+      seen.has(doc.id) ||
+      doc.id === TEMPLATE_SCHEMA_ID ||
+      doc.id === TENANTS.MEDIA_COMMONS ||
+      doc.id === TENANTS.MC ||
+      doc.id === TENANTS.ITP
+    ) {
+      continue;
+    }
+    const access = doc.access;
+    if (!access || typeof access !== "object") continue;
+    const deptCodes = Array.isArray(access.deptCodes) ? access.deptCodes : [];
+    const allowed =
+      access.allNyu === true ||
+      (!!userData.dept_code && deptCodes.includes(userData.dept_code));
+    if (!allowed) continue;
+
+    const name =
+      typeof doc.tenant?.name === "string" && doc.tenant.name.trim()
+        ? doc.tenant.name.trim()
+        : doc.id;
+    const policyName = doc.tenant?.nameForPolicy?.trim();
+    cards.push({
+      id: doc.id,
+      label: name,
+      description: policyName || `Book spaces at ${name}.`,
+    });
+    seen.add(doc.id);
+  }
+
+  return cards;
 }
 
 export async function GET(
@@ -46,9 +110,12 @@ export async function GET(
       return fallback;
     }
 
-    const entitledTenants = getEntitledTenants(userData as UserApiData);
+    const cards = await entitlementCards(userData as UserApiData);
 
-    const res = NextResponse.json({ entitledTenants });
+    const res = NextResponse.json({
+      entitledTenants: cards.map((card) => card.id),
+      tenantCards: cards,
+    });
     res.headers.set(
       "Cache-Control",
       "private, max-age=604800, stale-while-revalidate=604800",

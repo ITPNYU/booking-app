@@ -328,6 +328,15 @@ export type EmailNotifications = {
   approvedUser: string;
 };
 
+/** Which existing booking workflow a generated tenant follows. */
+export type BookingProfile = "itp" | "mc";
+
+/** Who may open a generated tenant. Absent on mc/itp, which keep their current rules. */
+export type TenantAccess = {
+  allNyu: boolean;
+  deptCodes?: string[];
+};
+
 export type SchemaContextType = {
   /** Tenant slug / document id (e.g. mc, itp) */
   tenantId: string;
@@ -374,6 +383,16 @@ export type SchemaContextType = {
     canceled: { development: string; staging: string; production: string };
   };
   emailNotifications: EmailNotifications;
+  /**
+   * Booking workflow for tenants other than mc and itp.
+   * Those two keep their hardcoded machines even when this field is present.
+   */
+  bookingProfile?: BookingProfile;
+  /**
+   * Home-page and entitlement access for tenants other than mc and itp.
+   * Absent means the legacy mc/itp rules, not "open to everyone".
+   */
+  access?: TenantAccess;
 };
 
 function defineObjectArrayWithDefaults<T>(
@@ -593,6 +612,11 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
     noShow: "",
     closed: "",
     approvedUser: "",
+  },
+  bookingProfile: "itp",
+  access: {
+    allNyu: false,
+    deptCodes: [],
   },
 };
 

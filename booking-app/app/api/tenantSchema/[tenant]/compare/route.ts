@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isValidTenant } from "@/components/src/constants/tenants";
+import { isAddressableTenantSlug } from "@/lib/tenant/tenantSlug";
 import { getSchemaFromEnv, ENVIRONMENTS } from "@/lib/firebase/server/multiDb";
 import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
 
@@ -10,7 +10,7 @@ export async function GET(
   try {
     const { tenant } = await params;
 
-    if (!isValidTenant(tenant)) {
+    if (!isAddressableTenantSlug(tenant)) {
       return NextResponse.json(
         { error: `Invalid tenant: ${tenant}` },
         { status: 400 },

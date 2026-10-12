@@ -50,6 +50,18 @@ describe("getTenantPolicy (hardcoded)", () => {
     const policy = getTenantPolicy("unknown");
     expect(policy.approvalLevels).toBe(2);
   });
+
+  it("uses the ITP profile for a generated tenant", () => {
+    const policy = getTenantPolicy("studio", "itp");
+    expect(policy.approvalLevels).toBe(1);
+    expect(policy.hasServiceRequests).toBe(false);
+    expect(policy.autoCloseOnCheckout).toBe(true);
+  });
+
+  it("keeps the MC policy for mc even when a profile is passed", () => {
+    const policy = getTenantPolicy("mc", "itp");
+    expect(policy.approvalLevels).toBe(2);
+  });
 });
 
 describe("getApprovedCcEmail / getCanceledCcEmail (schema-driven)", () => {

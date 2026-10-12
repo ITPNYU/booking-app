@@ -51,6 +51,10 @@ vi.mock("@/lib/api/requireSession", () => ({
   requireSession: vi.fn(),
 }));
 
+vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
+  getCachedTenantSchema: vi.fn(async () => null),
+}));
+
 vi.mock("@/lib/api/authz", () => ({
   resolveCallerRole: vi.fn(),
 }));

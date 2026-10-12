@@ -6,8 +6,12 @@ import TenantSiteBanner from "@/components/src/client/routes/components/TenantSi
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import SchemaProviderWrapper from "@/components/src/client/routes/components/SchemaProviderWrapper";
 import TenantEntitlementGuard from "@/components/src/client/routes/components/TenantEntitlementGuard";
-import { ALLOWED_TENANTS } from "@/components/src/constants/tenants";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import {
+  canonicalizeTenantSlug,
+  isTemplateSchemaId,
+  isTenantSlugShape,
+} from "@/lib/tenant/tenantSlug";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -61,13 +65,14 @@ export async function generateMetadata({
 
 const Layout: React.FC<LayoutProps> = async ({ children, params }) => {
   const { tenant } = await params;
-  if (!ALLOWED_TENANTS.includes(tenant as any)) {
+  const canonical = canonicalizeTenantSlug(tenant);
+  if (isTemplateSchemaId(tenant) || !isTenantSlugShape(canonical)) {
     notFound();
   }
 
   try {
-    console.log("Layout: Fetching schema for tenant:", tenant);
-    const tenantSchema = await getCachedTenantSchema(tenant);
+    console.log("Layout: Fetching schema for tenant:", canonical);
+    const tenantSchema = await getCachedTenantSchema(canonical);
 
     console.log("Layout: Retrieved tenantSchema:", {
       tenantId: tenantSchema?.tenantId,

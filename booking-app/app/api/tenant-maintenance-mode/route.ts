@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   ALLOWED_TENANTS,
-  isValidTenant,
 } from "@/components/src/constants/tenants";
+import { isExistingTenantSlug } from "@/lib/tenant/existingTenant";
 import { TableNames, getTenantCollectionName } from "@/components/src/policy";
 import { PagePermission } from "@/components/src/types";
 import { resolveCallerRole } from "@/lib/api/authz";
@@ -42,7 +42,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const tenant = body.tenant?.trim();
-  if (!tenant || !isValidTenant(tenant)) {
+  if (!tenant || !(await isExistingTenantSlug(tenant))) {
     return NextResponse.json({ error: "Invalid tenant" }, { status: 400 });
   }
 

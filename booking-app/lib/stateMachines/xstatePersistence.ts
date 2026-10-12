@@ -1,3 +1,4 @@
+import type { BookingProfile } from "@/components/src/client/routes/components/schemaTypes";
 import { TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
@@ -8,6 +9,8 @@ import {
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
 import { createActor } from "xstate";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { itpBookingMachine } from "./itpBookingMachine";
@@ -45,17 +48,41 @@ export function mapBookingStatusToXState(status: string): string {
 }
 
 /**
- * Get the appropriate machine for a tenant
+ * Get the appropriate machine for a tenant.
+ * mc and itp stay on their hardcoded machines. Other tenants follow
+ * `bookingProfile` from the schema, defaulting to the ITP machine.
  */
-export function getMachineForTenant(tenant?: string) {
+export function getMachineForTenant(
+  tenant?: string,
+  bookingProfile?: BookingProfile,
+) {
   switch (tenant) {
     case TENANTS.MC:
+    case TENANTS.MEDIA_COMMONS:
       return mcBookingMachine;
     case TENANTS.ITP:
       return itpBookingMachine;
     default:
-      return itpBookingMachine; // default to ITP
+      return bookingProfile === "mc" ? mcBookingMachine : itpBookingMachine;
   }
+}
+
+/** Schema booking profile for tenants other than mc and itp. */
+export async function resolveBookingProfileForTenant(
+  tenant?: string,
+): Promise<BookingProfile | undefined> {
+  if (!tenant || !isCreatableTenantSlug(tenant)) return undefined;
+  if (
+    tenant === TENANTS.MC ||
+    tenant === TENANTS.ITP ||
+    tenant === TENANTS.MEDIA_COMMONS
+  ) {
+    return undefined;
+  }
+  const schema = await getCachedTenantSchema(tenant);
+  return schema?.bookingProfile === "mc" || schema?.bookingProfile === "itp"
+    ? schema.bookingProfile
+    : undefined;
 }
 
 /**
@@ -78,7 +105,8 @@ export async function createXStateDataFromBookingStatus(
     },
   );
 
-  const machine = getMachineForTenant(tenant);
+  const bookingProfile = await resolveBookingProfileForTenant(tenant);
+  const machine = getMachineForTenant(tenant, bookingProfile);
   const bookingStatus = getBookingStatusFromData(bookingData);
   const xstateState = mapBookingStatusToXState(bookingStatus);
 
@@ -315,7 +343,8 @@ export async function restoreXStateFromFirestore(
             actualTenant, // Use actualTenant instead of tenant
           );
 
-          const machine = getMachineForTenant(tenant);
+          const bookingProfile = await resolveBookingProfileForTenant(tenant);
+          const machine = getMachineForTenant(tenant, bookingProfile);
 
           // Create actor with persisted snapshot
           const restoredActor = createActor(machine, {
@@ -390,7 +419,8 @@ export async function restoreXStateFromFirestore(
           tenant,
         );
 
-        const machine = getMachineForTenant(tenant);
+        const bookingProfile = await resolveBookingProfileForTenant(tenant);
+        const machine = getMachineForTenant(tenant, bookingProfile);
 
         // Create actor with new snapshot
         const restoredActor = createActor(machine, {
@@ -421,7 +451,8 @@ export async function restoreXStateFromFirestore(
     const xstateData = rawXStateData as PersistedXStateData;
 
     // Get the appropriate machine for the tenant
-    const machine = getMachineForTenant(tenant);
+    const bookingProfile = await resolveBookingProfileForTenant(tenant);
+    const machine = getMachineForTenant(tenant, bookingProfile);
 
     // Validate machine ID
     if (machine.id !== xstateData.machineId) {

@@ -57,6 +57,10 @@ vi.mock("@/lib/api/authz", () => ({
     mocks.mockResolveCallerRole(...args),
 }));
 
+vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
+  getCachedTenantSchema: vi.fn(async () => null),
+}));
+
 vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
   default: {
     firestore: mocks.mockFirestoreFn,

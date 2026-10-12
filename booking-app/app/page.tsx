@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
-import { TENANTS, TenantValue } from "@/components/src/constants/tenants";
+import { TENANTS } from "@/components/src/constants/tenants";
 import {
   Box,
   Card,
@@ -13,9 +13,13 @@ import {
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 
-const TENANT_DISPLAY: Partial<
-  Record<TenantValue, { label: string; description: string }>
-> = {
+type TenantCard = {
+  id: string;
+  label: string;
+  description: string;
+};
+
+const TENANT_DISPLAY: Record<string, { label: string; description: string }> = {
   [TENANTS.MC]: {
     label: "Media Commons",
     description: "Book spaces and equipment at the Media Commons.",
@@ -27,15 +31,16 @@ const TENANT_DISPLAY: Partial<
 };
 
 /** Canonicalize the mediaCommons alias to mc so the display map has a single entry. */
-const canonicalize = (tenant: TenantValue): TenantValue =>
+const canonicalize = (tenant: string): string =>
   tenant === TENANTS.MEDIA_COMMONS ? TENANTS.MC : tenant;
 
 /** Tenants shown when the entitlements API is unavailable. */
-const FALLBACK_TENANTS: TenantValue[] = [TENANTS.MC];
+const FALLBACK_TENANTS: string[] = [TENANTS.MC];
 
 const HomePage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
-  const [entitledTenants, setEntitledTenants] = useState<TenantValue[]>([]);
+  const [entitledTenants, setEntitledTenants] = useState<string[]>([]);
+  const [tenantCards, setTenantCards] = useState<TenantCard[] | null>(null);
   const [entitlementsError, setEntitlementsError] = useState(false);
   const [loadingEntitlements, setLoadingEntitlements] = useState(false);
 
@@ -52,16 +57,19 @@ const HomePage: React.FC = () => {
         if (response.ok) {
           const data = await response.json();
           setEntitledTenants(data.entitledTenants ?? FALLBACK_TENANTS);
+          setTenantCards(Array.isArray(data.tenantCards) ? data.tenantCards : null);
         } else {
           console.error(
             `Entitlements API returned ${response.status} — falling back to default tenants`,
           );
           setEntitledTenants(FALLBACK_TENANTS);
+          setTenantCards(null);
           setEntitlementsError(true);
         }
       } catch (err) {
         console.error("Failed to fetch entitlements:", err);
         setEntitledTenants(FALLBACK_TENANTS);
+        setTenantCards(null);
         setEntitlementsError(true);
       } finally {
         setLoadingEntitlements(false);
@@ -91,6 +99,14 @@ const HomePage: React.FC = () => {
 
   // Canonicalize aliases (mediaCommons → mc) and deduplicate
   const displayTenants = [...new Set(entitledTenants.map(canonicalize))];
+  const displayCards: TenantCard[] =
+    tenantCards ??
+    displayTenants.flatMap((tenant) => {
+      const display = TENANT_DISPLAY[tenant];
+      return display
+        ? [{ id: tenant, label: display.label, description: display.description }]
+        : [];
+    });
 
   return (
     <Container maxWidth="md" sx={{ mt: 8 }}>
@@ -110,24 +126,20 @@ const HomePage: React.FC = () => {
         flexWrap="wrap"
         gap={3}
       >
-        {displayTenants.map(tenant => {
-          const display = TENANT_DISPLAY[tenant];
-          if (!display) return null; // unknown future tenant — render nothing
-          return (
-            <Card key={tenant} sx={{ flex: "1 1 280px", maxWidth: 360 }}>
-              <CardActionArea href={`/${tenant}`} sx={{ height: "100%" }}>
+        {displayCards.map((card) => (
+            <Card key={card.id} sx={{ flex: "1 1 280px", maxWidth: 360 }}>
+              <CardActionArea href={`/${card.id}`} sx={{ height: "100%" }}>
                 <CardContent>
                   <Typography variant="h6" fontWeight={500} gutterBottom>
-                    {display.label}
+                    {card.label}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {display.description}
+                    {card.description}
                   </Typography>
                 </CardContent>
               </CardActionArea>
             </Card>
-          );
-        })}
+          ))}
       </Box>
     </Container>
   );

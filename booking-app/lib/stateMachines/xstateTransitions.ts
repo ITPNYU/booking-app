@@ -16,6 +16,7 @@ import {
   cleanObjectForFirestore,
   createXStateDataFromBookingStatus,
   getMachineForTenant,
+  resolveBookingProfileForTenant,
   restoreXStateFromFirestore,
 } from "./xstatePersistence";
 import type { PersistedXStateData } from "./xstateTypes";
@@ -284,9 +285,10 @@ export async function executeXStateTransition(
     );
 
     // Create updated XState data
+    const bookingProfile = await resolveBookingProfileForTenant(tenant);
     const updatedXStateData: PersistedXStateData = {
       snapshot: cleanUpdatedSnapshot,
-      machineId: getMachineForTenant(tenant).id,
+      machineId: getMachineForTenant(tenant, bookingProfile).id,
       lastTransition: new Date().toISOString(),
     };
 

@@ -1,3 +1,4 @@
+import type { BookingProfile } from "./client/routes/components/schemaTypes";
 import {
   DEFAULT_TENANT,
   TENANTS,
@@ -35,9 +36,18 @@ function normalizeTenant(tenant?: string): string {
 
 /**
  * Get hardcoded tenant policy (approvalLevels, hasServiceRequests, etc.).
- * Accepts a tenant string (for server-side) or falls back to MC.
+ * mc and itp keep their own policies. Other tenants follow bookingProfile,
+ * and still fall back to Media Commons when no profile is provided.
  */
-export function getTenantPolicy(tenant?: string): TenantPolicy {
+export function getTenantPolicy(
+  tenant?: string,
+  bookingProfile?: BookingProfile,
+): TenantPolicy {
   const key = normalizeTenant(tenant);
-  return TENANT_POLICIES[key] || TENANT_POLICIES[DEFAULT_TENANT];
+  if (key === TENANTS.MC || key === TENANTS.ITP) {
+    return TENANT_POLICIES[key] || TENANT_POLICIES[DEFAULT_TENANT];
+  }
+  if (bookingProfile === "itp") return ITP_POLICY;
+  if (bookingProfile === "mc") return MC_POLICY;
+  return TENANT_POLICIES[DEFAULT_TENANT];
 }

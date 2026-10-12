@@ -1,7 +1,4 @@
-import {
-  DEFAULT_TENANT,
-  isValidTenant,
-} from "@/components/src/constants/tenants";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import {
   isServicesRequestState,
@@ -13,6 +10,7 @@ import {
 } from "@/components/src/server/admin";
 import { BookingStatusLabel, PagePermission } from "@/components/src/types";
 import { ADMIN_POLICY_APPROVED_NOTE } from "@/components/src/utils/bookingHistoryNotes";
+import { isExistingTenantSlug } from "@/lib/tenant/existingTenant";
 import {
   getMediaCommonsServices,
   isMediaCommons,
@@ -128,7 +126,7 @@ export async function POST(req: NextRequest) {
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
-  if (!isValidTenant(tenant)) {
+  if (!(await isExistingTenantSlug(tenant))) {
     return NextResponse.json({ error: "Invalid tenant" }, { status: 400 });
   }
   const email = session.email;

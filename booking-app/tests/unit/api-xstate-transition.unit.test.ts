@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { mockGetCachedTenantSchema } = vi.hoisted(() => ({
+  mockGetCachedTenantSchema: vi.fn(),
+}));
+
 vi.mock("@/lib/stateMachines/xstateUtilsV5", () => ({
   executeXStateTransition: vi.fn(),
   getAvailableXStateTransitions: vi.fn(),
@@ -13,6 +17,11 @@ vi.mock("@/lib/utils/testEnvironment", () => ({
   shouldBypassAuth: vi.fn(),
 }));
 
+vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
+  getCachedTenantSchema: (...args: unknown[]) =>
+    mockGetCachedTenantSchema(...args),
+}));
+
 import { POST } from "@/app/api/xstate-transition/route";
 import { requireSession } from "@/lib/api/requireSession";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
@@ -22,10 +31,13 @@ const mockExecuteXStateTransition = vi.mocked(executeXStateTransition);
 const mockRequireSession = vi.mocked(requireSession);
 const mockShouldBypassAuth = vi.mocked(shouldBypassAuth);
 
-const createRequest = (body: Record<string, unknown>) =>
+const createRequest = (
+  body: Record<string, unknown>,
+  tenant = "mc",
+) =>
   ({
     json: async () => body,
-    headers: new Headers({ "x-tenant": "mc" }),
+    headers: new Headers({ "x-tenant": tenant }),
   }) as any;
 
 describe("POST /api/xstate-transition no-show attribution", () => {
@@ -131,6 +143,36 @@ describe("POST /api/xstate-transition edit", () => {
       undefined,
       undefined,
       ["catering", "staff"],
+    );
+  });
+
+  it("accepts a schema-backed tenant with an ITP booking profile", async () => {
+    mockGetCachedTenantSchema.mockResolvedValue({
+      tenantId: "studio",
+      bookingProfile: "itp",
+    });
+
+    const response = await POST(
+      createRequest(
+        {
+          calendarEventId: "calendar-123",
+          eventType: "edit",
+          email: "user@nyu.edu",
+        },
+        "studio",
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockGetCachedTenantSchema).toHaveBeenCalledWith("studio");
+    expect(mockExecuteXStateTransition).toHaveBeenCalledWith(
+      "calendar-123",
+      "edit",
+      "studio",
+      "user@nyu.edu",
+      undefined,
+      undefined,
+      undefined,
     );
   });
 });

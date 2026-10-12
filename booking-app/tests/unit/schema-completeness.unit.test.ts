@@ -32,6 +32,8 @@ const ALL_SCHEMA_KEYS = [
   "calendarConfig",
   "ccEmails",
   "emailNotifications",
+  "bookingProfile",
+  "access",
 ];
 
 describe("Schema completeness", () => {

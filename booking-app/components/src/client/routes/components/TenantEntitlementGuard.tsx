@@ -1,16 +1,16 @@
 "use client";
 
 import { useAuth } from "@/components/src/client/routes/components/AuthProvider";
-import { TENANTS, TenantValue } from "@/components/src/constants/tenants";
+import { TENANTS } from "@/components/src/constants/tenants";
 import { Box, CircularProgress } from "@mui/material";
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 
 /** Normalize mediaCommons → mc so comparisons use a single canonical value. */
-const canonicalize = (tenant: string): TenantValue =>
-  tenant === TENANTS.MEDIA_COMMONS ? TENANTS.MC : (tenant as TenantValue);
+const canonicalize = (tenant: string): string =>
+  tenant === TENANTS.MEDIA_COMMONS ? TENANTS.MC : tenant;
 
-const FALLBACK_TENANTS: TenantValue[] = [TENANTS.MC];
+const FALLBACK_TENANTS: string[] = [TENANTS.MC];
 
 /**
  * Checks whether the authenticated user is entitled to access the current
@@ -69,9 +69,9 @@ const TenantEntitlementGuard: React.FC<{ children: React.ReactNode }> = ({
 
         if (response.ok) {
           const data = await response.json();
-          const entitledTenants: TenantValue[] = (
+          const entitledTenants: string[] = (
             data.entitledTenants ?? FALLBACK_TENANTS
-          ).map(canonicalize);
+          ).map((id: string) => canonicalize(id));
 
           if (entitledTenants.includes(canonicalTenant)) {
             setEntitled(true);

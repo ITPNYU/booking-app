@@ -2,6 +2,11 @@ import type { SchemaContextType } from "@/components/src/client/routes/component
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
+import {
+  canonicalizeTenantSlug,
+  isTemplateSchemaId,
+  isTenantSlugShape,
+} from "@/lib/tenant/tenantSlug";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { getTestTenantSchema } from "@/lib/utils/testTenantSchema";
 
@@ -19,18 +24,25 @@ const MAX_CACHE_SIZE = 20;
 export async function getCachedTenantSchema(
   tenant: string,
 ): Promise<SchemaContextType | null> {
-  if (!isValidTenant(tenant)) {
+  if (isTemplateSchemaId(tenant)) {
     return null;
   }
-  if (shouldBypassAuth()) {
-    const test = getTestTenantSchema(tenant);
+  const canonical = canonicalizeTenantSlug(tenant);
+  if (!isTenantSlugShape(canonical)) {
+    return null;
+  }
+  if (shouldBypassAuth() && isValidTenant(canonical)) {
+    const test = getTestTenantSchema(canonical);
     return test
-      ? coerceTenantSchema(test as unknown as Record<string, unknown>, tenant)
+      ? coerceTenantSchema(
+          test as unknown as Record<string, unknown>,
+          canonical,
+        )
       : null;
   }
 
   const now = Date.now();
-  const cached = cache.get(tenant);
+  const cached = cache.get(canonical);
   if (cached && now - cached.ts < TTL_MS) {
     return cached.data;
   }
@@ -42,7 +54,7 @@ export async function getCachedTenantSchema(
       if (now - entry.ts >= TTL_MS) cache.delete(key);
     }
 
-    if (cache.size >= MAX_CACHE_SIZE && !cache.has(tenant)) {
+    if (cache.size >= MAX_CACHE_SIZE && !cache.has(canonical)) {
       const oldestKey = cache.keys().next().value;
       if (oldestKey !== undefined) {
         cache.delete(oldestKey);
@@ -54,11 +66,11 @@ export async function getCachedTenantSchema(
     await import("@/lib/firebase/server/adminDb");
   const data = await serverGetDocumentById<Record<string, unknown>>(
     TableNames.TENANT_SCHEMA,
-    tenant,
+    canonical,
   );
-  const coerced = data !== null ? coerceTenantSchema(data, tenant) : null;
+  const coerced = data !== null ? coerceTenantSchema(data, canonical) : null;
   if (coerced !== null) {
-    cache.set(tenant, { data: coerced, ts: now });
+    cache.set(canonical, { data: coerced, ts: now });
   }
   return coerced;
 }

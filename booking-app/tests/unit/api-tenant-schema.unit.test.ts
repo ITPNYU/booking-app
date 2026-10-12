@@ -45,6 +45,10 @@ vi.mock("@/lib/api/requireSuperAdmin", () => ({
   requireSuperAdmin: (...args: any[]) => mockRequireSuperAdmin(...args),
 }));
 
+vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
+  getCachedTenantSchema: vi.fn(async () => null),
+}));
+
 import { GET, PUT } from "@/app/api/tenantSchema/[tenant]/route";
 
 const createRequest = (method: string, body?: any) =>
@@ -144,6 +148,7 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
   });
 
   it("returns 400 when the body cannot be coerced (poison-save guard)", async () => {
+    mockServerGetDocumentById.mockResolvedValue(mockSchema);
     const poison = { resources: [{ resourceId: "a,b" }] };
 
     const response = await PUT(createRequest("PUT", poison), { params });
@@ -182,18 +187,16 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
     );
   });
 
-  it("skips backup when no existing schema", async () => {
+  it("returns 404 when no schema document exists yet", async () => {
     mockServerGetDocumentById.mockResolvedValue(null);
-    mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
 
     const response = await PUT(createRequest("PUT", mockSchema), { params });
     const { data, status } = await parseJson(response);
 
-    expect(status).toBe(200);
-    expect(data.success).toBe(true);
-    expect(data.backupCreated).toBe(false);
+    expect(status).toBe(404);
+    expect(data.error).toContain("Schema not found");
     expect(mockFirestoreCollection).not.toHaveBeenCalled();
-    expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalled();
+    expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
   });
 
   it("returns 400 for invalid tenant", async () => {
@@ -209,7 +212,8 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
   });
 
   it("enforces tenantId from URL param", async () => {
-    mockServerGetDocumentById.mockResolvedValue(null);
+    mockServerGetDocumentById.mockResolvedValue(mockSchema);
+    mockFirestoreSet.mockResolvedValue(undefined);
     mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
 
     const schemaWithWrongTenantId = { ...mockSchema, tenantId: "wrong" };

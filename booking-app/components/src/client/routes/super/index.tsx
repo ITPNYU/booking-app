@@ -17,9 +17,13 @@ const VALID_TABS = ["settings", "schema", "compare", "identity"] as const;
 
 export default function SuperAdmin() {
   const searchParams = useSearchParams();
-  const initialTab = VALID_TABS.includes(searchParams.get("tab") as any)
-    ? searchParams.get("tab")!
-    : "settings";
+  const requested = searchParams.get("tab");
+  const initialTab =
+    requested === "create"
+      ? "schema"
+      : VALID_TABS.includes(requested as (typeof VALID_TABS)[number])
+        ? requested!
+        : "settings";
   const [tab, setTab] = useState(initialTab);
   const { pagePermission, userEmail, superAdminUsers } =
     useContext(DatabaseContext);

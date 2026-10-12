@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TableNames } from "@/components/src/policy";
-import { isValidTenant } from "@/components/src/constants/tenants";
+import { isAddressableTenantSlug } from "@/lib/tenant/tenantSlug";
 import { computeDiff } from "@/lib/utils/schemaDiff";
 import {
   getFirestoreForEnv,
@@ -24,7 +24,7 @@ export async function POST(
   try {
     const { tenant } = await params;
 
-    if (!isValidTenant(tenant)) {
+    if (!isAddressableTenantSlug(tenant)) {
       return NextResponse.json(
         { error: `Invalid tenant: ${tenant}` },
         { status: 400 },

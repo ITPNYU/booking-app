@@ -20,6 +20,7 @@ import {
 } from "@mui/material";
 import type { ChangeEvent } from "react";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   computeDiff,
   formatValue,
@@ -28,6 +29,8 @@ import {
 import { DatabaseContext } from "../components/Provider";
 import type { SchemaContextType } from "../components/SchemaProvider";
 import { defaultScheme } from "../components/SchemaProvider";
+import { TEMPLATE_SCHEMA_ID } from "@/lib/tenant/tenantSlug";
+import SchemaGenerator from "./schemaGenerator";
 
 type SnackState = {
   open: boolean;
@@ -311,7 +314,16 @@ function UnconfiguredFieldsBanner({ schema }: { schema: SchemaContextType }) {
 // ─── Main Component ───
 export default function SchemaEditor() {
   const { userEmail } = useContext(DatabaseContext);
+  const searchParams = useSearchParams();
+  const [creating, setCreating] = useState(
+    () => searchParams.get("tab") === "create",
+  );
   const [tenant, setTenant] = useState<string>("");
+  const [tenantOptions, setTenantOptions] = useState<string[]>([
+    TEMPLATE_SCHEMA_ID,
+    "mc",
+    "itp",
+  ]);
   const [schema, setSchema] = useState<SchemaContextType | null>(null);
   const [originalSchema, setOriginalSchema] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -337,6 +349,27 @@ export default function SchemaEditor() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/tenantSchema");
+        if (!res.ok) return;
+        const data = await res.json();
+        const ids: string[] = Array.isArray(data.ids) ? data.ids : [];
+        const next = Array.from(
+          new Set([TEMPLATE_SCHEMA_ID, "mc", "itp", ...ids]),
+        );
+        if (!cancelled) setTenantOptions(next);
+      } catch {
+        // Keep the built-in list when the directory cannot be loaded.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -419,15 +452,25 @@ export default function SchemaEditor() {
           <Select
             value={tenant}
             label="Tenant"
-            onChange={(e) => setTenant(e.target.value)}
+            onChange={(e) => {
+              setCreating(false);
+              setTenant(e.target.value);
+            }}
           >
-            {["mc", "itp"].map((t) => (
+            {tenantOptions.map((t) => (
               <MenuItem key={t} value={t}>
-                {t}
+                {t === TEMPLATE_SCHEMA_ID ? "_template (defaults)" : t}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
+
+        <Button
+          variant={creating ? "contained" : "outlined"}
+          onClick={() => setCreating((open) => !open)}
+        >
+          {creating ? "Close new tenant" : "New tenant"}
+        </Button>
 
         {canSave && (
           <>
@@ -448,16 +491,30 @@ export default function SchemaEditor() {
         )}
       </Box>
 
-      {loading && (
+      {creating && (
+        <SchemaGenerator
+          onCreated={(tenantId) => {
+            setTenantOptions((options) =>
+              options.includes(tenantId) ? options : [...options, tenantId],
+            );
+            setCreating(false);
+            setTenant(tenantId);
+          }}
+        />
+      )}
+
+      {!creating && loading && (
         <Box display="flex" alignItems="center" gap={1} my={2}>
           <CircularProgress size={20} />
           <Typography variant="body2">Loading schema...</Typography>
         </Box>
       )}
 
-      {schema && !loading && <UnconfiguredFieldsBanner schema={schema} />}
+      {!creating && schema && !loading && (
+        <UnconfiguredFieldsBanner schema={schema} />
+      )}
 
-      {schema && !loading && (
+      {!creating && schema && !loading && (
         <JsonEditor
           schema={schema}
           onSchemaChange={(updated) => setSchema(updated)}

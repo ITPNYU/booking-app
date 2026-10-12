@@ -13,8 +13,13 @@ vi.mock("@/lib/auth", () => ({
   auth: (...args: unknown[]) => mockAuth(...args),
 }));
 
+vi.mock("@/lib/tenant/listTenantSchemas", () => ({
+  listTenantSchemaDocuments: vi.fn(async () => []),
+}));
+
 import { GET } from "@/app/api/nyu/entitlements/[netId]/route";
 import { fetchNYUIdentity } from "@/lib/server/nyuIdentity";
+import { listTenantSchemaDocuments } from "@/lib/tenant/listTenantSchemas";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 
 const mockFetchNYUIdentity = vi.mocked(fetchNYUIdentity);
@@ -240,6 +245,48 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       await GET(createRequest(), { params: createParams("abc123") });
 
       expect(mockFetchNYUIdentity).toHaveBeenCalledWith("abc123");
+    });
+  });
+
+  describe("schema-backed tenants", () => {
+    it("includes a tenant whose access matches the user", async () => {
+      mockFetchNYUIdentity.mockResolvedValue({ dept_code: "STUDIO" });
+      vi.mocked(listTenantSchemaDocuments).mockResolvedValueOnce([
+        {
+          id: "_template",
+          access: { allNyu: true },
+        },
+        {
+          id: "mc",
+          tenant: { name: "Media Commons" },
+        },
+        {
+          id: "studio",
+          tenant: { name: "Studio Lab", nameForPolicy: "Studio Lab spaces" },
+          access: { allNyu: false, deptCodes: ["STUDIO"] },
+          bookingProfile: "itp",
+        },
+        {
+          id: "closed",
+          tenant: { name: "Closed Lab" },
+          access: { allNyu: false, deptCodes: ["OTHER"] },
+        },
+      ]);
+
+      const result = await parseJson(
+        await GET(createRequest(), { params: createParams("st1234") }),
+      );
+
+      expect(result.status).toBe(200);
+      expect(result.data.entitledTenants).toEqual(["mc", "studio"]);
+      expect(result.data.tenantCards).toEqual([
+        expect.objectContaining({ id: "mc", label: "Media Commons" }),
+        {
+          id: "studio",
+          label: "Studio Lab",
+          description: "Studio Lab spaces",
+        },
+      ]);
     });
   });
 });
