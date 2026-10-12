@@ -758,6 +758,57 @@ export const serverSendConfirmationEmail = async ({
   );
 };
 
+/** The approval went through, but the Google Calendar title is still stale. */
+export class CalendarTitleUpdateError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CalendarTitleUpdateError";
+  }
+}
+
+/**
+ * Sets the booking's Google Calendar title prefix to [APPROVED].
+ * Resolves to an error message when the update failed, or null.
+ */
+const updateApprovedCalendarTitle = async (
+  calendarEventId: string,
+  tenant?: string,
+): Promise<string | null> => {
+  const failure = `Google Calendar event title was not updated to [${BookingStatusLabel.APPROVED}]`;
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant": tenant || DEFAULT_TENANT,
+        },
+        body: JSON.stringify({
+          calendarEventId,
+          newValues: { statusPrefix: BookingStatusLabel.APPROVED },
+        }),
+      },
+    );
+    if (response.ok) {
+      return null;
+    }
+    console.error(`🚨 APPROVED CALENDAR TITLE UPDATE FAILED:`, {
+      calendarEventId,
+      tenant,
+      status: response.status,
+    });
+    return `${failure} (calendar update returned ${response.status})`;
+  } catch (error) {
+    console.error(`🚨 APPROVED CALENDAR TITLE UPDATE ERROR:`, {
+      calendarEventId,
+      tenant,
+      error,
+    });
+    return `${failure}: ${error instanceof Error ? error.message : String(error)}`;
+  }
+};
+
 // server
 export const serverApproveEvent = async (id: string, tenant?: string) => {
   const doc = await serverGetDataByCalendarEventId(
@@ -847,6 +898,11 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     );
   }
 
+  // Retitle the event before the invites below, so a failing secondary-contact
+  // invite (which throws) cannot leave an approved booking titled
+  // [PRE-APPROVED] (#1508). A failed retitle is reported after the invites.
+  const calendarTitleError = await updateApprovedCalendarTitle(id, tenant);
+
   // for secondary contact, if we have one
   // secondaryEmail now stores full NYU email (e.g., abc123@nyu.edu)
   // Keep these side effects sequential so a calendar/guest failure cannot
@@ -901,19 +957,6 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     }
   }
 
-  const formDataForCalendarEvents = {
-    calendarEventId: id,
-    newValues: { statusPrefix: BookingStatusLabel.APPROVED },
-  };
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
-    },
-    body: JSON.stringify(formDataForCalendarEvents),
-  });
-
   const formData = {
     guestEmail,
     calendarEventId: id,
@@ -927,6 +970,10 @@ export const serverApproveEvent = async (id: string, tenant?: string) => {
     },
     body: JSON.stringify(formData),
   });
+
+  if (calendarTitleError) {
+    throw new CalendarTitleUpdateError(calendarTitleError);
+  }
 };
 
 export const admins = async (): Promise<AdminUser[]> => {

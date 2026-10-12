@@ -922,6 +922,86 @@ describe("components/src/server/admin", () => {
     expect(ccEmailCall).toBeUndefined();
   });
 
+  describe("serverApproveEvent calendar title (#1508)", () => {
+    const seedApprovedBooking = (secondaryEmail = "") =>
+      seedCollection("tenant-y-bookings", [
+        {
+          id: "booking-approved",
+          data: {
+            calendarEventId: "cal-approved",
+            requestNumber: 7073,
+            title: "Approved Title Test",
+            email: "requester@nyu.edu",
+            secondaryEmail,
+            roomId: "202",
+            startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+            endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+            requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+            role: "Faculty",
+            status: BookingStatusLabel.APPROVED,
+          },
+        },
+      ]);
+
+    const ok = { ok: true, status: 200, json: async () => ({}) };
+    const failed = {
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+      json: async () => ({}),
+      text: async () => "",
+    };
+    const callsTo = (path: string) =>
+      mockFetch.mock.calls
+        .filter(([url]) => url === `https://booking.test${path}`)
+        .map(([, init]) => JSON.parse((init as RequestInit).body as string));
+
+    it("retitles the event even when the secondary contact invite fails", async () => {
+      seedApprovedBooking("secondary@nyu.edu");
+      mockFetch.mockImplementation(async (url: string, init: RequestInit) =>
+        url.endsWith("/api/inviteUser") &&
+        JSON.parse(init.body as string).guestEmail === "secondary@nyu.edu"
+          ? failed
+          : ok,
+      );
+
+      const { serverApproveEvent } =
+        await import("@/components/src/server/admin");
+
+      await expect(
+        serverApproveEvent("cal-approved", "tenant-y"),
+      ).rejects.toThrow("Failed to invite secondary contact");
+      expect(callsTo("/api/calendarEvents")).toEqual([
+        {
+          calendarEventId: "cal-approved",
+          newValues: { statusPrefix: BookingStatusLabel.APPROVED },
+        },
+      ]);
+    });
+
+    it("still invites the requester, then rejects, when the title update fails", async () => {
+      seedApprovedBooking();
+      mockFetch.mockImplementation(async (url: string) =>
+        url.endsWith("/api/calendarEvents") ? failed : ok,
+      );
+
+      const { serverApproveEvent, CalendarTitleUpdateError } =
+        await import("@/components/src/server/admin");
+
+      const result = serverApproveEvent("cal-approved", "tenant-y");
+      await expect(result).rejects.toBeInstanceOf(CalendarTitleUpdateError);
+      await expect(result).rejects.toThrow(
+        "Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
+      );
+      expect(callsTo("/api/inviteUser")).toEqual([
+        expect.objectContaining({
+          guestEmail: "requester@nyu.edu",
+          calendarEventId: "cal-approved",
+        }),
+      ]);
+    });
+  });
+
   it("returns admin records with limited fields", async () => {
     seedCollection("usersAdmin", [
       {

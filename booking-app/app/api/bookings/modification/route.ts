@@ -1,6 +1,7 @@
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import { TableNames } from "@/components/src/policy";
 import {
+  CalendarTitleUpdateError,
   finalApprove,
   serverBookingContents,
   serverSendBookingDetailEmail,
@@ -552,12 +553,19 @@ export async function PUT(request: NextRequest) {
         },
       );
 
-      await finalApprove(
-        newCalendarEventId,
-        modifiedBy,
-        tenant,
-        "Approved via booking modification",
-      );
+      try {
+        await finalApprove(
+          newCalendarEventId,
+          modifiedBy,
+          tenant,
+          "Approved via booking modification",
+        );
+      } catch (error) {
+        // The new event was created with the [APPROVED] title above, so a
+        // failed retitle must not report the whole modification as failed.
+        if (!(error instanceof CalendarTitleUpdateError)) throw error;
+        console.error("🚨 MODIFICATION CALENDAR TITLE UPDATE FAILED:", error);
+      }
     }
 
     console.log(`✅ MODIFICATION COMPLETED [${tenant?.toUpperCase()}]:`, {
