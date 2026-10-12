@@ -8,8 +8,13 @@ import {
 } from "../../../../utils/validationHelpers";
 import {
   getResourceServicesConfig,
+  getServiceResourceId,
   getServiceRooms,
+  getServiceSectionConfig,
+  hasSchemaServicesConfig,
+  isSchemaDrivenEquipmentSection,
 } from "../../../../utils/resourceServicesUtils";
+import { isServiceRequested } from "../../../../utils/tenantUtils";
 import {
   createServiceRuleMemory,
   getRequestOrigin,
@@ -95,6 +100,7 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
     handleSubmit,
     trigger,
     watch,
+    getValues,
     setValue,
     unregister,
     clearErrors,
@@ -166,19 +172,60 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
   }, [cateringValue, unregister, clearErrors, setValue]);
 
   // Legacy setup / equipment switches only hide their detail fields. Clear the
-  // values too, otherwise an edit that turns the service off still stores (and
-  // requests) it. Schema-driven rooms sync these fields themselves.
+  // values they own too, otherwise an edit that turns the service off still
+  // stores (and requests) it. The same flat fields mirror the answers of
+  // schema rooms (BookingFormResourceServices), so those are left alone.
   const roomSetupValue = watch("roomSetup");
-  const equipmentServicesValue = watch("equipmentServices");
+  const roomSetupByRoomValue = watch("roomSetupByRoom");
+  const schemaSetupRequested = serviceRooms.some(
+    (room) =>
+      hasSchemaServicesConfig(room) &&
+      isServiceRequested(roomSetupByRoomValue?.[getServiceResourceId(room)]),
+  );
   useEffect(() => {
-    if (schemaDrivenServices || roomSetupValue === "yes") return;
+    if (!showGenericSetup || roomSetupValue === "yes" || schemaSetupRequested)
+      return;
     setValue("setupDetails", "", { shouldValidate: false });
     setValue("chartFieldForRoomSetup", "", { shouldValidate: false });
-  }, [roomSetupValue, schemaDrivenServices, setValue]);
+  }, [roomSetupValue, schemaSetupRequested, showGenericSetup, setValue]);
+
+  const equipmentServicesValue = watch("equipmentServices");
   useEffect(() => {
-    if (schemaDrivenServices || equipmentServicesValue?.length > 0) return;
-    setValue("equipmentServicesDetails", "", { shouldValidate: false });
-  }, [equipmentServicesValue, schemaDrivenServices, setValue]);
+    if (!showEquipment || equipmentServicesValue?.length > 0) return;
+    // An edit copies the legacy details onto a single room's map entry; only
+    // the entries of rooms whose equipment section the schema renders stay.
+    const byRoom = getValues("equipmentServicesDetailsByRoom") ?? {};
+    const schemaOwned = Object.fromEntries(
+      Object.entries(byRoom).filter(([roomId]) =>
+        serviceRooms.some(
+          (room) =>
+            getServiceResourceId(room) === roomId &&
+            isSchemaDrivenEquipmentSection(
+              getServiceSectionConfig(room, "equipment"),
+            ),
+        ),
+      ),
+    );
+    if (Object.keys(schemaOwned).length !== Object.keys(byRoom).length) {
+      setValue("equipmentServicesDetailsByRoom", schemaOwned, {
+        shouldValidate: false,
+      });
+    }
+    setValue(
+      "equipmentServicesDetails",
+      Object.values(schemaOwned)
+        .map((v) => (typeof v === "string" ? v.trim() : ""))
+        .filter(Boolean)
+        .join("\n"),
+      { shouldValidate: false },
+    );
+  }, [
+    equipmentServicesValue,
+    showEquipment,
+    serviceRooms,
+    getValues,
+    setValue,
+  ]);
 
   const hireSecurityValue = watch("hireSecurity");
 

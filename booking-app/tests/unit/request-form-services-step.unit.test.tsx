@@ -328,6 +328,132 @@ describe("Services step", () => {
     );
   });
 
+  describe("next to a schema room", () => {
+    /** A schema room without a setup section. */
+    const cateringRoom = {
+      roomId: "240",
+      capacity: "40",
+      services: { catering: { label: "Catering" } },
+    };
+    /** A schema room whose setup answer is mirrored into the legacy fields. */
+    const setupRoom = {
+      roomId: "250",
+      capacity: "40",
+      services: { setup: { label: "Room Setup", toggle: "optional" } },
+    };
+
+    const lastAnswers = (setFormData: ReturnType<typeof vi.fn>) =>
+      setFormData.mock.calls.at(-1)?.[0];
+
+    it("clears the generic Room Setup details when that switch is turned off", async () => {
+      const user = userEvent.setup();
+      const setFormData = vi.fn();
+      const { container } = render(
+        wrap(
+          <ServicesInput
+            formContext={FormContextLevel.EDIT}
+            calendarEventId="evt1"
+          />,
+          bookingContext({
+            selectedRooms: [securityRoom, cateringRoom],
+            formData: {
+              roomSetup: "yes",
+              setupDetails: "10 chairs in rows",
+              chartFieldForRoomSetup: "AAAAA-BBBBB",
+            },
+            setFormData,
+          }),
+          setupSchema,
+        ),
+      );
+
+      await user.click(container.querySelector("#roomSetup") as HTMLElement);
+
+      await waitFor(() =>
+        expect(lastAnswers(setFormData)).toMatchObject({
+          roomSetup: "no",
+          setupDetails: "",
+          chartFieldForRoomSetup: "",
+        }),
+      );
+    });
+
+    it("leaves the setup details a schema room mirrors into them", async () => {
+      const user = userEvent.setup();
+      const setFormData = vi.fn();
+      const { container } = render(
+        wrap(
+          <ServicesInput
+            formContext={FormContextLevel.EDIT}
+            calendarEventId="evt1"
+          />,
+          bookingContext({
+            selectedRooms: [securityRoom, setupRoom],
+            formData: {
+              roomSetupByRoom: { "250": "yes" },
+              setupDetailsByRoom: { "250": "Stage on the north wall" },
+            },
+            setFormData,
+          }),
+          setupSchema,
+        ),
+      );
+      const genericSwitch = container.querySelector(
+        "#roomSetup",
+      ) as HTMLInputElement;
+      await waitFor(() => expect(genericSwitch).toBeChecked());
+
+      await user.click(genericSwitch);
+
+      await waitFor(() =>
+        expect(lastAnswers(setFormData)).toMatchObject({ roomSetup: "no" }),
+      );
+      expect(lastAnswers(setFormData)).toMatchObject({
+        setupDetails: "Stage on the north wall",
+        roomSetupByRoom: { "250": "yes" },
+      });
+    });
+  });
+
+  it("clears legacy equipment details, including the per-room copy an edit backfills", async () => {
+    const user = userEvent.setup();
+    const setFormData = vi.fn();
+    const equipmentRoom = {
+      roomId: "101",
+      capacity: "200",
+      services: ["equipment"],
+    };
+    render(
+      wrap(
+        <ServicesInput
+          formContext={FormContextLevel.EDIT}
+          calendarEventId="evt1"
+        />,
+        bookingContext({
+          selectedRooms: [equipmentRoom],
+          formData: {
+            equipmentServices: "Checkout Equipment",
+            equipmentServicesDetails: "2 cameras",
+            equipmentServicesDetailsByRoom: { "101": "2 cameras" },
+          },
+          setFormData,
+        }),
+      ),
+    );
+
+    await user.click(screen.getByRole("checkbox", { checked: true }));
+
+    await waitFor(() =>
+      expect(setFormData.mock.calls.at(-1)?.[0]).toMatchObject({
+        equipmentServices: "",
+        equipmentServicesDetails: "",
+      }),
+    );
+    expect(
+      setFormData.mock.calls.at(-1)?.[0].equipmentServicesDetailsByRoom,
+    ).toEqual({});
+  });
+
   it("leaves security unlocked below the attendance threshold", () => {
     const { container } = render(
       wrap(
