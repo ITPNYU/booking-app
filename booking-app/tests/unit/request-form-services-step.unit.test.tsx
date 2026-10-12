@@ -65,6 +65,17 @@ const rawSchema = {
   resourceName: "Room",
 };
 const schema = coerceTenantSchema(rawSchema, "mc");
+/** Same tenant with the legacy Room Setup switch on. */
+const setupSchema = coerceTenantSchema(
+  {
+    ...rawSchema,
+    form: {
+      ...rawSchema.form,
+      services: { ...rawSchema.form.services, showSetup: true },
+    },
+  },
+  "mc",
+);
 
 /** A legacy room offering security: the Services step has a section to show. */
 const securityRoom = {
@@ -105,10 +116,14 @@ const databaseContext = {
   settings: { bookingTypes: [{ bookingType: "Event" }] },
 } as any;
 
-const wrap = (ui: React.ReactElement, context = bookingContext()) => (
+const wrap = (
+  ui: React.ReactElement,
+  context = bookingContext(),
+  tenantSchema = schema,
+) => (
   <ThemeProvider theme={theme}>
     <DatabaseContext.Provider value={databaseContext}>
-      <SchemaProvider value={schema}>
+      <SchemaProvider value={tenantSchema}>
         <BookingContext.Provider value={context}>{ui}</BookingContext.Provider>
       </SchemaProvider>
     </DatabaseContext.Provider>
@@ -268,6 +283,49 @@ describe("Services step", () => {
     ) as HTMLInputElement;
     await waitFor(() => expect(securitySwitch).not.toBeChecked());
     expect(securitySwitch).not.toBeDisabled();
+  });
+
+  it("clears the hidden setup details when Room Setup is turned off", async () => {
+    // Otherwise an edit that turns setup off still stores, and requests, it.
+    const user = userEvent.setup();
+    const setFormData = vi.fn();
+    const { container } = render(
+      wrap(
+        <ServicesInput
+          formContext={FormContextLevel.EDIT}
+          calendarEventId="evt1"
+        />,
+        bookingContext({
+          formData: {
+            roomSetup: "yes",
+            setupDetails: "10 chairs in rows",
+            chartFieldForRoomSetup: "AAAAA-BBBBB",
+          },
+          setFormData,
+        }),
+        setupSchema,
+      ),
+    );
+
+    const setupSwitch = container.querySelector(
+      "#roomSetup",
+    ) as HTMLInputElement;
+    expect(setupSwitch).toBeChecked();
+    expect(setFormData).not.toHaveBeenCalledWith(
+      expect.objectContaining({ setupDetails: "" }),
+    );
+
+    await user.click(setupSwitch);
+
+    await waitFor(() =>
+      expect(setFormData).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          roomSetup: "no",
+          setupDetails: "",
+          chartFieldForRoomSetup: "",
+        }),
+      ),
+    );
   });
 
   it("leaves security unlocked below the attendance threshold", () => {
