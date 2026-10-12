@@ -7,7 +7,7 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
 }));
 
 import { TableNames } from "@/components/src/policy";
-import { requesterIsBanned } from "@/lib/bookingBan";
+import { anyRequesterIsBanned, requesterIsBanned } from "@/lib/bookingBan";
 
 describe("requesterIsBanned", () => {
   beforeEach(() => {
@@ -44,5 +44,30 @@ describe("requesterIsBanned", () => {
       { email: "guest@nyu.edu", startsAt: start, endsAt: end },
     ]);
     expect(await requesterIsBanned("guest@nyu.edu")).toBe(true);
+  });
+});
+
+describe("anyRequesterIsBanned", () => {
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it("checks each distinct address and stops at the first ban", async () => {
+    mockFetch.mockResolvedValue([{ email: "banned@nyu.edu" }]);
+
+    expect(
+      await anyRequesterIsBanned([
+        "guest@nyu.edu",
+        "guest@nyu.edu",
+        "banned@nyu.edu",
+      ]),
+    ).toBe(true);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("is false when none of the addresses are banned", async () => {
+    mockFetch.mockResolvedValue([]);
+    expect(await anyRequesterIsBanned(["guest@nyu.edu", ""])).toBe(false);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });

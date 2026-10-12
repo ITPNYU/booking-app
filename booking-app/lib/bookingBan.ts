@@ -18,3 +18,16 @@ export async function requesterIsBanned(email: unknown): Promise<boolean> {
   );
   return findActiveBan(bans, email) != null;
 }
+
+/** True when any of these addresses has an active ban. Duplicate addresses are checked once. */
+export async function anyRequesterIsBanned(emails: unknown[]): Promise<boolean> {
+  const seen = new Set<string>();
+  for (const email of emails) {
+    if (typeof email !== "string") continue;
+    const key = email.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    if (await requesterIsBanned(email)) return true;
+  }
+  return false;
+}

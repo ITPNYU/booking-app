@@ -110,6 +110,16 @@ vi.mock("@/lib/api/authz", () => ({
   resolveCallerRole: (...args: any[]) => mockResolveCallerRole(...args),
 }));
 
+const banMocks = vi.hoisted(() => ({
+  anyRequesterIsBanned: vi.fn(async () => false),
+}));
+
+vi.mock("@/lib/bookingBan", () => ({
+  BANNED_FROM_BOOKING_MESSAGE: "You are banned from booking",
+  anyRequesterIsBanned: (...args: unknown[]) =>
+    banMocks.anyRequesterIsBanned(...args),
+}));
+
 import { PUT } from "@/app/api/bookings/modification/route";
 
 const createRequest = (body: object) =>
@@ -135,6 +145,7 @@ const modificationBody = {
 describe("Checked In booking modification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    banMocks.anyRequesterIsBanned.mockResolvedValue(false);
     mockRequireSession.mockResolvedValue({
       email: "pa@nyu.edu",
       netId: "pa",
@@ -172,6 +183,23 @@ describe("Checked In booking modification", () => {
     mockFinalApprove.mockResolvedValue(undefined);
     mockLogServerBookingChange.mockResolvedValue(undefined);
     mockServerSendBookingDetailEmail.mockResolvedValue(undefined);
+  });
+
+  it("rejects when the guest or the staff member is banned", async () => {
+    banMocks.anyRequesterIsBanned.mockResolvedValue(true);
+
+    const res = await PUT(createRequest(modificationBody));
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: "You are banned from booking",
+    });
+    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith([
+      "user@nyu.edu",
+      "pa@nyu.edu",
+    ]);
+    expect(mockDeleteEvent).not.toHaveBeenCalled();
+    expect(mockInsertEvent).not.toHaveBeenCalled();
   });
 
   it("keeps Checked In status, timestamps, and calendar prefix", async () => {
