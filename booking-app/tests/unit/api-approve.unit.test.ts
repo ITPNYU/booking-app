@@ -14,9 +14,9 @@ vi.mock("@/components/src/server/admin", async () => {
     "@/components/src/utils/bookingHistoryNotes"
   );
   const { resolveCallerRole } = await import("@/lib/api/authz");
-  class CalendarTitleUpdateError extends Error {}
+  class ApprovalFollowUpError extends Error {}
   return {
-    CalendarTitleUpdateError,
+    ApprovalFollowUpError,
     serverApproveBooking: vi.fn(),
     finalApprove: vi.fn(),
     serverFirstApproveOnly: vi.fn(),
@@ -72,7 +72,7 @@ import { POST } from "@/app/api/approve/route";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { PagePermission } from "@/components/src/types";
 import {
-  CalendarTitleUpdateError,
+  ApprovalFollowUpError,
   finalApprove,
   serverApproveBooking,
   serverBookingContents,
@@ -539,7 +539,7 @@ describe("POST /api/approve", () => {
   it("flags a fallback approval whose calendar title update failed as approved", async () => {
     mockExecute.mockResolvedValue({ success: false, error: "state error" });
     mockServerApproveBooking.mockRejectedValueOnce(
-      new CalendarTitleUpdateError(
+      new ApprovalFollowUpError(
         "Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
       ),
     );
@@ -553,6 +553,28 @@ describe("POST /api/approve", () => {
       data: {
         error:
           "Booking was approved, but a follow-up step failed: Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
+        approved: true,
+      },
+    });
+  });
+
+  it("flags any follow-up failure of a fallback final approval as approved", async () => {
+    mockExecute.mockResolvedValue({ success: false, error: "state error" });
+    mockServerApproveBooking.mockRejectedValueOnce(
+      new ApprovalFollowUpError(
+        "Failed to invite secondary contact (status 500 Internal Server Error)",
+      ),
+    );
+
+    const response = await POST(
+      createRequest({ id: bookingId, email: bodyEmail }) as any,
+    );
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 500,
+      data: {
+        error:
+          "Booking was approved, but a follow-up step failed: Failed to invite secondary contact (status 500 Internal Server Error)",
         approved: true,
       },
     });

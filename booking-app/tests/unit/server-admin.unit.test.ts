@@ -985,12 +985,15 @@ describe("components/src/server/admin", () => {
         url.endsWith("/api/calendarEvents") ? failed : ok,
       );
 
-      const { serverApproveEvent, CalendarTitleUpdateError } =
+      const { serverApproveEvent, ApprovalFollowUpError } =
         await import("@/components/src/server/admin");
 
-      const result = serverApproveEvent("cal-approved", "tenant-y");
-      await expect(result).rejects.toBeInstanceOf(CalendarTitleUpdateError);
-      await expect(result).rejects.toThrow(
+      const error = await serverApproveEvent("cal-approved", "tenant-y").catch(
+        (e) => e,
+      );
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.calendarTitleOnly).toBe(true);
+      expect(error.message).toBe(
         "Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
       );
       expect(callsTo("/api/inviteUser")).toEqual([
@@ -1001,7 +1004,62 @@ describe("components/src/server/admin", () => {
       ]);
     });
 
-    it("keeps CalendarTitleUpdateError when the fallback final approval fails to retitle", async () => {
+    it("reports both the stale title and the invite failure when both fail", async () => {
+      seedApprovedBooking("secondary@nyu.edu");
+      mockFetch.mockImplementation(async (url: string, init: RequestInit) =>
+        url.endsWith("/api/calendarEvents") ||
+        (url.endsWith("/api/inviteUser") &&
+          JSON.parse(init.body as string).guestEmail === "secondary@nyu.edu")
+          ? failed
+          : ok,
+      );
+
+      const { serverApproveEvent, ApprovalFollowUpError } =
+        await import("@/components/src/server/admin");
+
+      const error = await serverApproveEvent("cal-approved", "tenant-y").catch(
+        (e) => e,
+      );
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      // Not calendarTitleOnly: a modification must still fail on the invite
+      // error.
+      expect(error.calendarTitleOnly).toBe(false);
+      expect(error.message).toContain(
+        "Google Calendar event title was not updated to [APPROVED]",
+      );
+      expect(error.message).toContain("Failed to invite secondary contact");
+    });
+
+    it("reports a fallback final approval whose invite fails as approved", async () => {
+      seedApprovedBooking("secondary@nyu.edu");
+      const store = firestoreStore["tenant-y-bookings"];
+      store.set("booking-approved", {
+        ...store.get("booking-approved"),
+        firstApprovedAt: makeTimestamp("2024-03-02T08:00:00.000Z"),
+      });
+      mockFetch.mockImplementation(async (url: string, init: RequestInit) =>
+        url.endsWith("/api/inviteUser") &&
+        JSON.parse(init.body as string).guestEmail === "secondary@nyu.edu"
+          ? failed
+          : ok,
+      );
+
+      const { serverApproveBooking, ApprovalFollowUpError } =
+        await import("@/components/src/server/admin");
+
+      const error = await serverApproveBooking(
+        "cal-approved",
+        "admin@nyu.edu",
+        "tenant-y",
+      ).catch((e) => e);
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.message).toContain("Failed to invite secondary contact");
+      expect(store.get("booking-approved")?.finalApprovedBy).toBe(
+        "admin@nyu.edu",
+      );
+    });
+
+    it("keeps the title-only follow-up error when the fallback final approval fails to retitle", async () => {
       seedApprovedBooking();
       const store = firestoreStore["tenant-y-bookings"];
       store.set("booking-approved", {
@@ -1012,12 +1070,16 @@ describe("components/src/server/admin", () => {
         url.endsWith("/api/calendarEvents") ? failed : ok,
       );
 
-      const { serverApproveBooking, CalendarTitleUpdateError } =
+      const { serverApproveBooking, ApprovalFollowUpError } =
         await import("@/components/src/server/admin");
 
-      await expect(
-        serverApproveBooking("cal-approved", "admin@nyu.edu", "tenant-y"),
-      ).rejects.toBeInstanceOf(CalendarTitleUpdateError);
+      const error = await serverApproveBooking(
+        "cal-approved",
+        "admin@nyu.edu",
+        "tenant-y",
+      ).catch((e) => e);
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.calendarTitleOnly).toBe(true);
     });
   });
 

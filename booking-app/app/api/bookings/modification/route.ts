@@ -1,7 +1,7 @@
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import { TableNames } from "@/components/src/policy";
 import {
-  CalendarTitleUpdateError,
+  ApprovalFollowUpError,
   finalApprove,
   serverBookingContents,
   serverSendBookingDetailEmail,
@@ -562,8 +562,12 @@ export async function PUT(request: NextRequest) {
         );
       } catch (error) {
         // The new event was created with the [APPROVED] title above, so a
-        // failed retitle must not report the whole modification as failed.
-        if (!(error instanceof CalendarTitleUpdateError)) throw error;
+        // failed retitle alone must not report the modification as failed.
+        if (
+          !(error instanceof ApprovalFollowUpError && error.calendarTitleOnly)
+        ) {
+          throw error;
+        }
         console.error("🚨 MODIFICATION CALENDAR TITLE UPDATE FAILED:", error);
       }
     }

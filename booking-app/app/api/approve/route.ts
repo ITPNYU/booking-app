@@ -8,7 +8,7 @@ import {
   notifyServiceApproversForRequestedServices,
 } from "@/components/src/server/serviceApproverNotifications";
 import {
-  CalendarTitleUpdateError,
+  ApprovalFollowUpError,
   resolveFirstApprovalHistoryNote,
   serverApproveBooking,
 } from "@/components/src/server/admin";
@@ -392,7 +392,8 @@ export async function POST(req: NextRequest) {
         error: getErrorMessage(error),
       },
     );
-    if (error instanceof CalendarTitleUpdateError) {
+    // Fallback approval: finalApprove already recorded the approval.
+    if (error instanceof ApprovalFollowUpError) {
       return approvedWithFollowUpFailure(error);
     }
     return NextResponse.json(
