@@ -1148,6 +1148,17 @@ describe("components/src/server/admin", () => {
     expect(emailsTo("second@nyu.edu")).toHaveLength(1);
     expect(secondaryInviteAttempts).toBe(2);
 
+    const statusUpdates = mockFetch.mock.calls.filter(
+      ([url]) => url === "https://booking.test/api/calendarEvents",
+    );
+    expect(statusUpdates).toHaveLength(1);
+    const guestInvites = mockFetch.mock.calls.filter(([url, opts]) => {
+      if (url !== "https://booking.test/api/inviteUser") return false;
+      const body = JSON.parse((opts as RequestInit).body as string);
+      return body.guestEmail === "requester@nyu.edu";
+    });
+    expect(guestInvites).toHaveLength(1);
+
     const secondaryInvites = mockFetch.mock.calls.filter(([url, opts]) => {
       if (url !== "https://booking.test/api/inviteUser") return false;
       const body = JSON.parse((opts as RequestInit).body as string);

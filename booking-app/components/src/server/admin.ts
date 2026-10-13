@@ -551,6 +551,8 @@ export interface ApprovalProgress {
   >;
   secondaryContactEmailed?: boolean;
   secondaryContactInvited?: boolean;
+  calendarStatusUpdated?: boolean;
+  guestInvited?: boolean;
   preApprovedEmailsSent?: boolean;
 }
 
@@ -1123,32 +1125,27 @@ export const serverApproveEvent = async (
     }
   }
 
-  const formDataForCalendarEvents = {
-    calendarEventId: id,
-    newValues: { statusPrefix: BookingStatusLabel.APPROVED },
-  };
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
-    },
-    body: JSON.stringify(formDataForCalendarEvents),
-  });
+  if (!progress.calendarStatusUpdated) {
+    await updateCalendarStatusPrefix(id, BookingStatusLabel.APPROVED, tenant);
+    progress.calendarStatusUpdated = true;
+  }
 
-  const formData = {
-    guestEmail,
-    calendarEventId: id,
-    roomId: contents.roomId,
-  };
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
-    },
-    body: JSON.stringify(formData),
-  });
+  if (!progress.guestInvited) {
+    const formData = {
+      guestEmail,
+      calendarEventId: id,
+      roomId: contents.roomId,
+    };
+    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify(formData),
+    });
+    progress.guestInvited = true;
+  }
 };
 
 export const admins = async (): Promise<AdminUser[]> => {

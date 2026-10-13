@@ -123,6 +123,31 @@ describe("server/calendars", () => {
     });
   });
 
+  it("inviteUserToCalendarEvent skips the patch when the guest is already an attendee", async () => {
+    const existingEvent = {
+      data: {
+        attendees: [{ email: "Guest@NYU.edu" }],
+      },
+    };
+
+    const patchMock = vi.fn();
+    mockGetCalendarClient.mockResolvedValue({
+      events: {
+        get: vi.fn().mockResolvedValue(existingEvent),
+        patch: patchMock,
+      },
+    });
+    mockServerGetRoomCalendarIds.mockResolvedValue(["room-cal-1"]);
+
+    const { inviteUserToCalendarEvent } = await import(
+      "@/components/src/server/calendars"
+    );
+
+    await inviteUserToCalendarEvent("evt-1", "guest@nyu.edu", 123);
+
+    expect(patchMock).not.toHaveBeenCalled();
+  });
+
   it("insertEvent logs the Google error body and rethrows on failure", async () => {
     const googleError = Object.assign(new Error("Bad Request"), {
       code: 400,

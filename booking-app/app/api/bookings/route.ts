@@ -496,8 +496,14 @@ async function handleBookingApprovalEmails(
           );
         } catch (notifyError) {
           console.error(
-            `Committed instant approval follow-up failed [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-            notifyError,
+            `🚨 INSTANT APPROVAL FOLLOW-UP FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]: staff must check this booking`,
+            {
+              calendarEventId,
+              requestNumber: sequentialId,
+              committedStatus,
+              approvalProgress,
+              error: notifyError,
+            },
           );
         }
         return {
