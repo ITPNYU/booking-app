@@ -7,6 +7,7 @@ import {
   serverDeleteDocumentFields,
   serverFetchAllDataFromCollection,
   serverGetDataByCalendarEventId,
+  serverGetDataByCalendarEventIdStrict,
   serverGetDocumentById,
   serverGetFinalApproverEmail,
   serverResolveResourceApproverEmails,
@@ -503,15 +504,39 @@ export const serverFinalApprove = async (
 };
 
 // server
+export type CommittedApprovalRead =
+  | { known: true; status: BookingStatusLabel | null }
+  | { known: false; error: unknown };
+
+/**
+ * Re-reads the booking after instant approval threw. `known: false` means the
+ * read kept failing (or the just-created booking was missing), so the caller
+ * cannot tell whether the approval write landed.
+ */
 export async function serverCommittedInstantApprovalStatus(
   id: string,
   tenant?: string,
-): Promise<BookingStatusLabel | null> {
-  const booking = await serverGetDataByCalendarEventId<{
-    finalApprovedAt?: unknown;
-    firstApprovedAt?: unknown;
-  }>(TableNames.BOOKING, id, tenant);
-  return committedApprovalStatus(booking);
+  { attempts = 3, delayMs = 250 }: { attempts?: number; delayMs?: number } = {},
+): Promise<CommittedApprovalRead> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const booking = await serverGetDataByCalendarEventIdStrict<{
+        finalApprovedAt?: unknown;
+        firstApprovedAt?: unknown;
+      }>(TableNames.BOOKING, id, tenant);
+      if (!booking) {
+        throw new Error(`Booking not found for calendar event id ${id}`);
+      }
+      return { known: true, status: committedApprovalStatus(booking) };
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts && delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
+      }
+    }
+  }
+  return { known: false, error: lastError };
 }
 
 /**

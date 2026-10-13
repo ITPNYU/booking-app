@@ -237,6 +237,7 @@ async function createBookingCalendarEvent(
 type BookingApprovalEmailResult = {
   instantApprovalStatus: BookingStatusLabel | null;
   instantApprovalFailed: boolean;
+  instantApprovalStatusUnknown?: boolean;
 };
 
 async function handleBookingApprovalEmails(
@@ -458,18 +459,30 @@ async function handleBookingApprovalEmails(
       // A calendar or logging step can throw after finalApprovedAt or
       // firstApprovedAt is already stored. That booking is approved; asking
       // for first approval again would contradict the write.
-      let committedStatus: BookingStatusLabel | null = null;
-      try {
-        committedStatus = await serverCommittedInstantApprovalStatus(
-          calendarEventId,
-          tenant,
-        );
-      } catch (readError) {
+      const committed = await serverCommittedInstantApprovalStatus(
+        calendarEventId,
+        tenant,
+      );
+      if (!committed.known) {
+        // The approval write may or may not have landed. Manual-approval
+        // emails or a REQUESTED status could contradict an approved booking,
+        // so send neither and leave this for staff to reconcile.
         console.error(
-          `Could not read approval status after instant approval failed [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-          readError,
+          `🚨 INSTANT APPROVAL STATUS UNKNOWN [${tenant?.toUpperCase() || "UNKNOWN"}]: staff must check this booking`,
+          {
+            calendarEventId,
+            requestNumber: sequentialId,
+            approvalError: error,
+            readError: committed.error,
+          },
         );
+        return {
+          instantApprovalStatus: null,
+          instantApprovalFailed: false,
+          instantApprovalStatusUnknown: true,
+        };
       }
+      const committedStatus = committed.status;
       if (committedStatus) {
         // The write landed, but history, the calendar status prefix, and the
         // approval emails may not have finished. Complete those steps without
@@ -1198,6 +1211,19 @@ export async function POST(request: NextRequest) {
 
     console.log(" Done handleBookingApprovalEmails");
 
+    if (approvalEmails.instantApprovalStatusUnknown) {
+      return NextResponse.json(
+        {
+          result: "error",
+          message:
+            "Your booking was created, but we could not confirm its approval status. Check My Bookings for the latest status.",
+          calendarEventId,
+          requestNumber: sequentialId,
+        },
+        { status: 500 },
+      );
+    }
+
     if (approvalEmails.instantApprovalFailed) {
       return NextResponse.json(
         {
@@ -1206,6 +1232,7 @@ export async function POST(request: NextRequest) {
             "Your booking was created, but we could not notify approvers. It is waiting for review.",
           calendarEventId,
           requestNumber: sequentialId,
+          status: BookingStatusLabel.REQUESTED,
         },
         { status: 500 },
       );
@@ -1230,6 +1257,24 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Error creating booking:", error);
+    // Once the booking document exists, the client needs its identity so it
+    // shows the confirmation and does not resubmit into an overlap error.
+    if (doc?.id) {
+      console.error(
+        `🚨 BOOKING CREATED BUT POST-SAVE STEP FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]: staff must check this booking`,
+        { calendarEventId, requestNumber: sequentialId },
+      );
+      return NextResponse.json(
+        {
+          result: "error",
+          message:
+            "Your booking was created, but we could not finish processing it. Check My Bookings for the latest status.",
+          calendarEventId,
+          requestNumber: sequentialId,
+        },
+        { status: 500 },
+      );
+    }
     return NextResponse.json(
       { result: "error", message: "Failed to create booking" },
       { status: 500 },

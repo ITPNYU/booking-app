@@ -380,6 +380,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             let maintenanceMode = res.status === 503;
             let maintenanceMessage = "";
             let createdRequestNumber: number | undefined;
+            let createdStatus: string | undefined;
             try {
               const errorData = (await res.json()) as {
                 error?: string;
@@ -398,6 +399,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               const identity = readSavedIdentity(errorData);
               if (errorData.calendarEventId && identity.requestNumber != null) {
                 createdRequestNumber = identity.requestNumber;
+                createdStatus = identity.status;
               }
             } catch (e) {
               // If response is not JSON, use default message
@@ -412,7 +414,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               try {
                 rememberSubmission({
                   requestNumber: createdRequestNumber,
-                  status: BookingStatusLabel.REQUESTED,
+                  status: createdStatus,
                 });
               } catch (summaryError) {
                 console.error(

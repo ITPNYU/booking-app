@@ -388,6 +388,33 @@ export const serverGetDataByCalendarEventId = async <T>(
   }
 };
 
+/**
+ * Same lookup as serverGetDataByCalendarEventId, but read failures throw
+ * instead of resolving to null, so callers can tell "missing" from "unknown".
+ */
+export const serverGetDataByCalendarEventIdStrict = async <T>(
+  collectionName: TableNames,
+  calendarEventId: string,
+  tenant?: string,
+) => {
+  const tenantCollection = getServerTenantCollection(collectionName, tenant);
+  const snapshot = await traceDatabase(
+    "query",
+    `Firestore/${tenantCollection}`,
+    () =>
+      db
+        .collection(tenantCollection)
+        .where("calendarEventId", "==", calendarEventId)
+        .limit(1)
+        .get(),
+  );
+  if (snapshot.empty) {
+    return null;
+  }
+  const doc = snapshot.docs[0];
+  return { id: doc.id, ...(doc.data() as T) };
+};
+
 export const serverUpdateInFirestore = async (
   collectionName: string,
   docId: string,

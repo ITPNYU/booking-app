@@ -1216,6 +1216,108 @@ describe("components/src/server/admin", () => {
     expect(emailsTo("cc@nyu.edu")).toHaveLength(1);
   });
 
+  describe("serverCommittedInstantApprovalStatus", () => {
+    const seedApprovedBooking = () =>
+      seedCollection("tenant-y-bookings", [
+        {
+          id: "booking-read",
+          data: {
+            calendarEventId: "cal-read",
+            requestNumber: 106,
+            finalApprovedAt: makeTimestamp("2024-03-01T09:00:00.000Z"),
+            firstApprovedAt: null,
+          },
+        },
+      ]);
+
+    const failBookingReads = async (failures: number) => {
+      const firebaseAdmin = (await import("firebase-admin")).default;
+      const firestoreInstance = firebaseAdmin.firestore() as {
+        collection: (name: string) => unknown;
+      };
+      const originalCollection = firestoreInstance.collection;
+      let remaining = failures;
+      firestoreInstance.collection = (name: string) => {
+        if (name === "tenant-y-bookings" && remaining > 0) {
+          remaining -= 1;
+          throw new Error("transient firestore error");
+        }
+        return originalCollection(name);
+      };
+      return () => {
+        firestoreInstance.collection = originalCollection;
+      };
+    };
+
+    it("retries a failed read and reports the committed status", async () => {
+      seedApprovedBooking();
+      const restore = await failBookingReads(1);
+      try {
+        const { serverCommittedInstantApprovalStatus } =
+          await import("@/components/src/server/admin");
+        await expect(
+          serverCommittedInstantApprovalStatus("cal-read", "tenant-y", {
+            delayMs: 0,
+          }),
+        ).resolves.toEqual({
+          known: true,
+          status: BookingStatusLabel.APPROVED,
+        });
+      } finally {
+        restore();
+      }
+    });
+
+    it("reports unknown when every read fails", async () => {
+      seedApprovedBooking();
+      const restore = await failBookingReads(3);
+      try {
+        const { serverCommittedInstantApprovalStatus } =
+          await import("@/components/src/server/admin");
+        const result = await serverCommittedInstantApprovalStatus(
+          "cal-read",
+          "tenant-y",
+          { delayMs: 0 },
+        );
+        expect(result.known).toBe(false);
+      } finally {
+        restore();
+      }
+    });
+
+    it("reports unknown when the just-created booking is missing", async () => {
+      const { serverCommittedInstantApprovalStatus } =
+        await import("@/components/src/server/admin");
+      const result = await serverCommittedInstantApprovalStatus(
+        "cal-missing",
+        "tenant-y",
+        { delayMs: 0 },
+      );
+      expect(result.known).toBe(false);
+    });
+
+    it("reports confirmed not approved when the read succeeds without approval fields", async () => {
+      seedCollection("tenant-y-bookings", [
+        {
+          id: "booking-requested",
+          data: {
+            calendarEventId: "cal-requested",
+            requestNumber: 107,
+            finalApprovedAt: null,
+            firstApprovedAt: null,
+          },
+        },
+      ]);
+      const { serverCommittedInstantApprovalStatus } =
+        await import("@/components/src/server/admin");
+      await expect(
+        serverCommittedInstantApprovalStatus("cal-requested", "tenant-y", {
+          delayMs: 0,
+        }),
+      ).resolves.toEqual({ known: true, status: null });
+    });
+  });
+
   it("does not add a second history entry when the approval was already logged", async () => {
     seedCollection("tenant-y-bookings", [
       {
