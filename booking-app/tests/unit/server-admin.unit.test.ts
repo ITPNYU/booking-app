@@ -237,6 +237,17 @@ vi.mock("@/components/src/policy", async () => {
   };
 });
 
+vi.mock("@/components/src/tenantPolicyServer", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/components/src/tenantPolicyServer")
+  >("@/components/src/tenantPolicyServer");
+  return {
+    ...actual,
+    getApprovalCcEmail: async (...args: any[]) =>
+      mockGetApprovalCcEmail(...args),
+  };
+});
+
 import { ApproverLevel, TableNames } from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
 
@@ -958,6 +969,7 @@ describe("components/src/server/admin", () => {
       BookingStatusLabel.APPROVED,
       "tenant-y",
     );
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     const requesterEmail = mockFetch.mock.calls.find(([url, opts]) => {
       if (url !== "https://booking.test/api/sendEmail") return false;
@@ -1063,6 +1075,134 @@ describe("components/src/server/admin", () => {
         requestNumber: 102,
       }),
     ]);
+  });
+
+  it("does not resend approval emails when recovery follows a secondary invite failure", async () => {
+    seedCollection("tenant-y-bookings", [
+      {
+        id: "booking-partial-approve",
+        data: {
+          calendarEventId: "cal-partial-approve",
+          requestNumber: 104,
+          title: "Partial Approve",
+          email: "requester@nyu.edu",
+          secondaryEmail: "second@nyu.edu",
+          startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+          firstApprovedAt: null,
+          finalApprovedAt: makeTimestamp("2024-03-01T09:00:00.000Z"),
+          declinedAt: null,
+          canceledAt: null,
+          checkedInAt: null,
+          checkedOutAt: null,
+          noShowedAt: null,
+          walkedInAt: null,
+          role: "Faculty",
+          status: BookingStatusLabel.APPROVED,
+        },
+      },
+    ]);
+
+    let secondaryInviteAttempts = 0;
+    mockFetch.mockImplementation(async (url, opts) => {
+      if (url === "https://booking.test/api/inviteUser") {
+        const body = JSON.parse((opts as RequestInit).body as string);
+        if (body.guestEmail === "second@nyu.edu") {
+          secondaryInviteAttempts += 1;
+          if (secondaryInviteAttempts === 1) {
+            return {
+              ok: false,
+              status: 500,
+              statusText: "Error",
+              text: async () => "",
+            } as any;
+          }
+        }
+      }
+      return { ok: true, json: async () => ({}) } as any;
+    });
+
+    const { serverApproveEvent, notifyCommittedInstantApproval } =
+      await import("@/components/src/server/admin");
+
+    const progress = {};
+    await expect(
+      serverApproveEvent("cal-partial-approve", "tenant-y", progress),
+    ).rejects.toThrow("Failed to invite secondary contact");
+
+    await notifyCommittedInstantApproval(
+      "cal-partial-approve",
+      BookingStatusLabel.APPROVED,
+      "tenant-y",
+      progress,
+    );
+
+    const emailsTo = (target: string) =>
+      mockFetch.mock.calls.filter(([url, opts]) => {
+        if (url !== "https://booking.test/api/sendEmail") return false;
+        const body = JSON.parse((opts as RequestInit).body as string);
+        return body.targetEmail === target;
+      });
+    expect(emailsTo("requester@nyu.edu")).toHaveLength(1);
+    expect(emailsTo("second@nyu.edu")).toHaveLength(1);
+    expect(secondaryInviteAttempts).toBe(2);
+  });
+
+  it("does not resend requester or resource-approver emails when the cc lookup throws", async () => {
+    seedCollection("tenant-y-bookings", [
+      {
+        id: "booking-cc-throw",
+        data: {
+          calendarEventId: "cal-cc-throw",
+          requestNumber: 105,
+          title: "CC Lookup Throws",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+          firstApprovedAt: null,
+          finalApprovedAt: makeTimestamp("2024-03-01T09:00:00.000Z"),
+          declinedAt: null,
+          canceledAt: null,
+          checkedInAt: null,
+          checkedOutAt: null,
+          noShowedAt: null,
+          walkedInAt: null,
+          role: "Faculty",
+          status: BookingStatusLabel.APPROVED,
+        },
+      },
+    ]);
+    mockGetApprovalCcEmail.mockImplementationOnce(() => {
+      throw new Error("cc lookup failed");
+    });
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) } as any);
+
+    const { serverApproveEvent, notifyCommittedInstantApproval } =
+      await import("@/components/src/server/admin");
+
+    const progress = {};
+    await expect(
+      serverApproveEvent("cal-cc-throw", "tenant-y", progress),
+    ).rejects.toThrow("cc lookup failed");
+
+    await notifyCommittedInstantApproval(
+      "cal-cc-throw",
+      BookingStatusLabel.APPROVED,
+      "tenant-y",
+      progress,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const emailsTo = (target: string) =>
+      mockFetch.mock.calls.filter(([url, opts]) => {
+        if (url !== "https://booking.test/api/sendEmail") return false;
+        const body = JSON.parse((opts as RequestInit).body as string);
+        return body.targetEmail === target;
+      });
+    expect(emailsTo("requester@nyu.edu")).toHaveLength(1);
+    expect(emailsTo("cc@nyu.edu")).toHaveLength(1);
   });
 
   it("does not add a second history entry when the approval was already logged", async () => {

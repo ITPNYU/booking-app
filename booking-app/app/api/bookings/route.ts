@@ -1,6 +1,7 @@
 import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import {
+  type ApprovalProgress,
   firstApproverEmails,
   notifyCommittedInstantApproval,
   serverApproveInstantBooking,
@@ -438,11 +439,15 @@ async function handleBookingApprovalEmails(
         message: "Approving booking before returning status",
       },
     );
+    // Shared with the recovery path so emails the first attempt already sent
+    // are not sent again.
+    const approvalProgress: ApprovalProgress = {};
     try {
       const instantApprovalStatus = await serverApproveInstantBooking(
         calendarEventId,
         email,
         tenant,
+        approvalProgress,
       );
       return { instantApprovalStatus, instantApprovalFailed: false };
     } catch (error) {
@@ -474,6 +479,7 @@ async function handleBookingApprovalEmails(
             calendarEventId,
             committedStatus,
             tenant,
+            approvalProgress,
           );
         } catch (notifyError) {
           console.error(
