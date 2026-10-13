@@ -433,13 +433,13 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             return;
           }
 
+          let saved: unknown = {};
           try {
-            let saved: unknown = {};
-            try {
-              saved = await res.json();
-            } catch {
-              saved = {};
-            }
+            saved = await res.json();
+          } catch {
+            saved = {};
+          }
+          try {
             rememberSubmission(readSavedIdentity(saved));
           } catch (summaryError) {
             console.error(
@@ -447,9 +447,14 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               summaryError,
             );
           }
-          // Drop an error from an earlier attempt in this flow. The warning
-          // on the confirmation page is only for this response.
-          setError(null);
+          // Replace any error from an earlier attempt in this flow. The
+          // warning on the confirmation page is only for this response.
+          const warning = (saved as { warning?: unknown })?.warning;
+          setError(
+            typeof warning === "string" && warning.trim()
+              ? new Error(warning)
+              : null,
+          );
           setSubmitting("success");
 
           // clear stored booking data after submit confirmation

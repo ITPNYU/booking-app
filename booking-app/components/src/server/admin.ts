@@ -12,6 +12,7 @@ import {
   serverGetFinalApproverEmail,
   serverResolveResourceApproverEmails,
   serverUpdateInFirestore,
+  serverUpdateInFirestoreStrict,
 } from "@/lib/firebase/server/adminDb";
 import { Timestamp } from "firebase-admin/firestore";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
@@ -356,14 +357,39 @@ export async function resolveFirstApprovalHistoryNote(
   }
 }
 
+/**
+ * Writes approval fields, throwing if the read or write fails. Returns false
+ * only when the booking document does not exist.
+ */
+async function writeApprovalFields(
+  id: string,
+  fields: Record<string, unknown>,
+  tenant?: string,
+): Promise<boolean> {
+  const booking = await serverGetDataByCalendarEventIdStrict(
+    TableNames.BOOKING,
+    id,
+    tenant,
+  );
+  if (!booking) {
+    return false;
+  }
+  await serverUpdateInFirestoreStrict(
+    TableNames.BOOKING,
+    booking.id,
+    fields,
+    tenant,
+  );
+  return true;
+}
+
 // from server
 const serverFirstApprove = async (
   id: string,
   email?: string,
   tenant?: string,
 ) => {
-  await serverUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
+  const written = await writeApprovalFields(
     id,
     {
       firstApprovedAt: Timestamp.now(),
@@ -371,6 +397,9 @@ const serverFirstApprove = async (
     },
     tenant,
   );
+  if (!written) {
+    throw new Error("Booking not found");
+  }
 };
 
 // Export version for external use (for XState integration)
@@ -473,35 +502,23 @@ export const serverFirstApproveOnly = async (
   );
 };
 
+/**
+ * Returns false when the booking document does not exist, so there is nothing
+ * to approve. A failed read or write throws.
+ */
 export const serverFinalApprove = async (
   id: string,
   email?: string,
   tenant?: string,
-) => {
-  // Get the booking data to check for services
-  const bookingData = await serverGetDataByCalendarEventId(
-    TableNames.BOOKING,
+): Promise<boolean> =>
+  writeApprovalFields(
     id,
+    {
+      finalApprovedAt: Timestamp.now(),
+      finalApprovedBy: email,
+    },
     tenant,
   );
-  // A missing document has nothing to approve. Callers such as finalApprove
-  // then skip the history log instead of failing the request.
-  if (!bookingData) {
-    return;
-  }
-
-  const updateData: any = {
-    finalApprovedAt: Timestamp.now(),
-    finalApprovedBy: email,
-  };
-
-  await serverUpdateDataByCalendarEventId(
-    TableNames.BOOKING,
-    id,
-    updateData,
-    tenant,
-  );
-};
 
 // server
 export type CommittedApprovalRead = {
@@ -597,7 +614,16 @@ export const serverApproveInstantBooking = async (
 
   if (shouldDoFinalApproval) {
     // For instant booking with no services, use finalApprove for consistent processing
-    await finalApprove(id, "System", tenant, undefined, progress);
+    const approved = await finalApprove(
+      id,
+      "System",
+      tenant,
+      undefined,
+      progress,
+    );
+    if (!approved) {
+      throw new Error("Booking not found; instant approval was not written");
+    }
     return BookingStatusLabel.APPROVED;
   }
 
@@ -824,26 +850,32 @@ export const finalApprove = async (
   note?: string,
   progress?: ApprovalProgress,
 ) => {
-  await serverFinalApprove(id, email, tenant);
+  const approved = await serverFinalApprove(id, email, tenant);
+  if (!approved) {
+    console.error("Booking document not found for calendar event id:", id);
+    return false;
+  }
 
   // Log the final approval action
-  const doc = await serverGetDataByCalendarEventId<{
+  const doc = await serverGetDataByCalendarEventIdStrict<{
     id: string;
     requestNumber: number;
   }>(TableNames.BOOKING, id, tenant);
-  if (doc && id) {
-    await logServerBookingChange({
-      bookingId: doc.id,
-      status: BookingStatusLabel.APPROVED,
-      changedBy: email,
-      requestNumber: doc.requestNumber,
-      calendarEventId: id,
-      note: note || "",
-      tenant,
-    });
+  if (!doc) {
+    throw new Error("Booking document not found after final approval");
   }
+  await logServerBookingChange({
+    bookingId: doc.id,
+    status: BookingStatusLabel.APPROVED,
+    changedBy: email,
+    requestNumber: doc.requestNumber,
+    calendarEventId: id,
+    note: note || "",
+    tenant,
+  });
 
   await serverApproveEvent(id, tenant, progress);
+  return true;
 };
 
 interface SendBookingEmailOptions {

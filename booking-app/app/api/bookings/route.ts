@@ -238,6 +238,7 @@ type BookingApprovalEmailResult = {
   instantApprovalStatus: BookingStatusLabel | null;
   instantApprovalFailed: boolean;
   instantApprovalStatusUnknown?: boolean;
+  instantApprovalFollowUpFailed?: boolean;
 };
 
 async function handleBookingApprovalEmails(
@@ -505,6 +506,32 @@ async function handleBookingApprovalEmails(
               error: notifyError,
             },
           );
+          // Stored on the booking so staff can find it from the data, not
+          // only from logs.
+          try {
+            await serverUpdateDataByCalendarEventId(
+              TableNames.BOOKING,
+              calendarEventId,
+              {
+                approvalFollowUpFailedAt: Timestamp.now(),
+                approvalFollowUpError:
+                  notifyError instanceof Error
+                    ? notifyError.message
+                    : String(notifyError),
+              },
+              tenant,
+            );
+          } catch (markError) {
+            console.error(
+              `Could not record approval follow-up failure [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+              markError,
+            );
+          }
+          return {
+            instantApprovalStatus: committedStatus,
+            instantApprovalFailed: false,
+            instantApprovalFollowUpFailed: true,
+          };
         }
         return {
           instantApprovalStatus: committedStatus,
@@ -1258,6 +1285,10 @@ export async function POST(request: NextRequest) {
         calendarEventId,
         requestNumber: sequentialId,
         status,
+        ...(approvalEmails.instantApprovalFollowUpFailed && {
+          warning:
+            "Your booking is approved, but some confirmation emails or calendar updates may not have gone out. Staff have been alerted.",
+        }),
       },
       { status: 200 },
     );

@@ -1227,6 +1227,50 @@ describe("components/src/server/admin", () => {
     expect(emailsTo("cc@nyu.edu")).toHaveLength(1);
   });
 
+  it("finalApprove throws and sends nothing when the booking read fails", async () => {
+    seedCollection("tenant-y-bookings", [
+      {
+        id: "booking-read-fail",
+        data: {
+          calendarEventId: "cal-read-fail",
+          requestNumber: 108,
+          email: "requester@nyu.edu",
+          finalApprovedAt: null,
+          firstApprovedAt: null,
+        },
+      },
+    ]);
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) } as any);
+
+    const firebaseAdmin = (await import("firebase-admin")).default;
+    const firestoreInstance = firebaseAdmin.firestore() as {
+      collection: (name: string) => unknown;
+    };
+    const originalCollection = firestoreInstance.collection;
+    firestoreInstance.collection = (name: string) => {
+      if (name === "tenant-y-bookings") {
+        throw new Error("transient firestore error");
+      }
+      return originalCollection(name);
+    };
+
+    try {
+      const { finalApprove } = await import("@/components/src/server/admin");
+      await expect(
+        finalApprove("cal-read-fail", "System", "tenant-y"),
+      ).rejects.toThrow("transient firestore error");
+    } finally {
+      firestoreInstance.collection = originalCollection;
+    }
+
+    expect(readCollection("tenant-y-bookingLogs")).toHaveLength(0);
+    expect(
+      mockFetch.mock.calls.filter(
+        ([url]) => url === "https://booking.test/api/sendEmail",
+      ),
+    ).toHaveLength(0);
+  });
+
   describe("serverCommittedInstantApprovalStatus", () => {
     const seedApprovedBooking = () =>
       seedCollection("tenant-y-bookings", [

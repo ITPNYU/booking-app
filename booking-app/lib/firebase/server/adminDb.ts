@@ -434,6 +434,23 @@ export const serverUpdateInFirestore = async (
     console.error("Error updating document: ", error);
   }
 };
+
+/** Same update as serverUpdateInFirestore, but a failed write throws. */
+export const serverUpdateInFirestoreStrict = async (
+  collectionName: string,
+  docId: string,
+  updatedData: object,
+  tenant?: string,
+) => {
+  const tenantCollection = getServerTenantCollection(
+    collectionName as TableNames,
+    tenant,
+  );
+  await traceDatabase("update", `Firestore/${tenantCollection}`, () =>
+    db.collection(tenantCollection).doc(docId).update(updatedData),
+  );
+};
+
 export const serverGetFinalApproverEmailFromDatabase = async (
   tenant?: string,
 ): Promise<string | null> => {
