@@ -10,6 +10,93 @@ import { isValidTenant } from "@/components/src/constants/tenants";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { requireSession } from "@/lib/api/requireSession";
 import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
+import {
+  isTemplateSchemaId,
+  plainResource,
+  plainResourceDefault,
+  TEMPLATE_SCHEMA_ID,
+} from "@/lib/tenant/resourceDefault";
+
+async function writeSchemaDocument(
+  tenant: string,
+  document: Record<string, unknown>,
+): Promise<boolean> {
+  const existingSchema = await serverGetDocumentById(
+    TableNames.TENANT_SCHEMA,
+    tenant,
+  );
+
+  let backupCreated = false;
+  if (existingSchema) {
+    const db = admin.firestore();
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .replace("T", "_")
+      .replace("Z", "");
+    const backupDocId = `${tenant}-backup-ui-edit-${timestamp}`;
+    await db
+      .collection("tenantSchemaBackup")
+      .doc(backupDocId)
+      .set(existingSchema, { merge: false });
+    backupCreated = true;
+  }
+
+  await serverSaveDataToFirestoreWithId(
+    TableNames.TENANT_SCHEMA,
+    tenant,
+    document,
+  );
+
+  return backupCreated;
+}
+
+async function getTemplateDocument(): Promise<NextResponse> {
+  const auth = await requireSuperAdmin(TEMPLATE_SCHEMA_ID);
+  if ("error" in auth) return auth.error;
+
+  const rawDoc = await serverGetDocumentById<Record<string, unknown>>(
+    TableNames.TENANT_SCHEMA,
+    TEMPLATE_SCHEMA_ID,
+  );
+  if (!rawDoc) {
+    return NextResponse.json(
+      { error: "Resource default not found" },
+      { status: 404 },
+    );
+  }
+
+  return NextResponse.json(rawDoc);
+}
+
+async function putTemplateDocument(request: NextRequest): Promise<NextResponse> {
+  const auth = await requireSuperAdmin(TEMPLATE_SCHEMA_ID);
+  if ("error" in auth) return auth.error;
+
+  const body = await request.json();
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json(
+      { error: "Resource default document must be a JSON object" },
+      { status: 400 },
+    );
+  }
+
+  const resourceDefault = plainResource(
+    (body as { resourceDefault?: unknown }).resourceDefault,
+  );
+  if (!resourceDefault) {
+    return NextResponse.json(
+      { error: "resourceDefault must be an object" },
+      { status: 400 },
+    );
+  }
+
+  const backupCreated = await writeSchemaDocument(TEMPLATE_SCHEMA_ID, {
+    ...(body as Record<string, unknown>),
+    resourceDefault,
+  });
+  return NextResponse.json({ success: true, backupCreated });
+}
 
 export async function GET(
   request: NextRequest,
@@ -17,6 +104,9 @@ export async function GET(
 ) {
   try {
     const { tenant } = await params;
+    if (isTemplateSchemaId(tenant)) {
+      return getTemplateDocument();
+    }
 
     // The schema exposes calendar IDs, email templates, and org mappings, so it
     // requires an authenticated NYU session (the collection is `anyNYU`-read).
@@ -73,6 +163,9 @@ export async function PUT(
 ) {
   try {
     const { tenant } = await params;
+    if (isTemplateSchemaId(tenant)) {
+      return putTemplateDocument(request);
+    }
 
     // Validate tenant
     if (!isValidTenant(tenant)) {
@@ -111,40 +204,60 @@ export async function PUT(
       );
     }
 
-    // Backup current schema before overwriting
-    const existingSchema = await serverGetDocumentById(
-      TableNames.TENANT_SCHEMA,
-      tenant,
-    );
-
-    let backupCreated = false;
-    if (existingSchema) {
-      const db = admin.firestore();
-      const timestamp = new Date()
-        .toISOString()
-        .replace(/[:.]/g, "-")
-        .replace("T", "_")
-        .replace("Z", "");
-      const backupDocId = `${tenant}-backup-ui-edit-${timestamp}`;
-      await db
-        .collection("tenantSchemaBackup")
-        .doc(backupDocId)
-        .set(existingSchema, { merge: false });
-      backupCreated = true;
-    }
-
-    // Write the updated schema
-    await serverSaveDataToFirestoreWithId(
-      TableNames.TENANT_SCHEMA,
-      tenant,
-      newSchema,
-    );
+    const backupCreated = await writeSchemaDocument(tenant, newSchema);
 
     return NextResponse.json({ success: true, backupCreated });
   } catch (error) {
     console.error("Error updating tenant schema:", error);
     return NextResponse.json(
       { error: "Failed to update tenant schema" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ tenant: string }> },
+) {
+  try {
+    const { tenant } = await params;
+    if (!isTemplateSchemaId(tenant)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const auth = await requireSuperAdmin(TEMPLATE_SCHEMA_ID);
+    if ("error" in auth) return auth.error;
+
+    const body = await request.json().catch(() => null);
+    if (
+      !body ||
+      typeof body !== "object" ||
+      (body as { action?: unknown }).action !== "initialize-resource-default"
+    ) {
+      return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    }
+
+    const existing = await serverGetDocumentById<Record<string, unknown>>(
+      TableNames.TENANT_SCHEMA,
+      TEMPLATE_SCHEMA_ID,
+    );
+    if (plainResource(existing?.resourceDefault)) {
+      return NextResponse.json(
+        { error: "Resource default already exists" },
+        { status: 409 },
+      );
+    }
+
+    const backupCreated = await writeSchemaDocument(TEMPLATE_SCHEMA_ID, {
+      ...(existing ?? {}),
+      resourceDefault: plainResourceDefault(),
+    });
+    return NextResponse.json({ success: true, backupCreated });
+  } catch (error) {
+    console.error("Error initializing resource default:", error);
+    return NextResponse.json(
+      { error: "Failed to initialize resource default" },
       { status: 500 },
     );
   }

@@ -25,9 +25,17 @@ import {
   formatValue,
   type DiffEntry,
 } from "@/lib/utils/schemaDiff";
+import { isTemplateSchemaId, TEMPLATE_SCHEMA_ID } from "@/lib/tenant/resourceDefault";
 import { DatabaseContext } from "../components/Provider";
 import type { SchemaContextType } from "../components/SchemaProvider";
 import { defaultScheme } from "../components/SchemaProvider";
+import SchemaResourceForm, {
+  initializeResourceDefault,
+} from "./schemaResourceForm";
+
+const SCHEMA_TARGETS = ["mc", "itp", TEMPLATE_SCHEMA_ID] as const;
+
+type EditorDocument = SchemaContextType | Record<string, unknown>;
 
 type SnackState = {
   open: boolean;
@@ -199,8 +207,8 @@ function JsonEditor({
   schema,
   onSchemaChange,
 }: {
-  schema: SchemaContextType;
-  onSchemaChange: (schema: SchemaContextType) => void;
+  schema: EditorDocument;
+  onSchemaChange: (schema: EditorDocument) => void;
 }) {
   const [text, setText] = useState(() => JSON.stringify(schema, null, 2));
   const [parseError, setParseError] = useState<string | null>(null);
@@ -312,9 +320,11 @@ function UnconfiguredFieldsBanner({ schema }: { schema: SchemaContextType }) {
 export default function SchemaEditor() {
   const { userEmail } = useContext(DatabaseContext);
   const [tenant, setTenant] = useState<string>("");
-  const [schema, setSchema] = useState<SchemaContextType | null>(null);
+  const [schema, setSchema] = useState<EditorDocument | null>(null);
   const [originalSchema, setOriginalSchema] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [templateMissing, setTemplateMissing] = useState(false);
+  const [initializing, setInitializing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [diffDialogOpen, setDiffDialogOpen] = useState(false);
   const [diffs, setDiffs] = useState<DiffEntry[]>([]);
@@ -323,21 +333,44 @@ export default function SchemaEditor() {
     message: "",
     severity: "success",
   });
+  const fetchGeneration = useRef(0);
 
   const fetchSchema = useCallback(async (tenantId: string) => {
+    const generation = ++fetchGeneration.current;
     setLoading(true);
+    setTemplateMissing(false);
     try {
       const res = await fetch(`/api/tenantSchema/${tenantId}?raw=1`);
+      if (generation !== fetchGeneration.current) return;
+      if (res.status === 404 && isTemplateSchemaId(tenantId)) {
+        setSchema(null);
+        setOriginalSchema("");
+        setTemplateMissing(true);
+        return;
+      }
       if (!res.ok) throw new Error(`Failed to fetch schema: ${res.status}`);
       const data = await res.json();
       setSchema(data);
       setOriginalSchema(JSON.stringify(data));
     } catch (err: any) {
+      if (generation !== fetchGeneration.current) return;
       setSnack({ open: true, message: err.message, severity: "error" });
     } finally {
-      setLoading(false);
+      if (generation === fetchGeneration.current) setLoading(false);
     }
   }, []);
+
+  const handleInitializeTemplate = async () => {
+    setInitializing(true);
+    try {
+      await initializeResourceDefault();
+      await fetchSchema(TEMPLATE_SCHEMA_ID);
+    } catch (err: any) {
+      setSnack({ open: true, message: err.message, severity: "error" });
+    } finally {
+      setInitializing(false);
+    }
+  };
 
   useEffect(() => {
     if (tenant) {
@@ -403,6 +436,15 @@ export default function SchemaEditor() {
     ? computeDiff(JSON.parse(originalSchema), schema).length > 0
     : false;
   const canSave = isDirty && !saving && !!tenant;
+  const storedDefault = (schema as { resourceDefault?: unknown } | null)
+    ?.resourceDefault;
+  const templateNeedsDefault =
+    isTemplateSchemaId(tenant) &&
+    !templateMissing &&
+    !!schema &&
+    (!storedDefault ||
+      typeof storedDefault !== "object" ||
+      Array.isArray(storedDefault));
 
   return (
     <Box>
@@ -410,7 +452,8 @@ export default function SchemaEditor() {
         Tenant Schema Editor
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        A backup is created automatically before each save.
+        Edits stay on this page until you confirm Save. A backup is created
+        automatically before each save.
       </Typography>
 
       <Box display="flex" gap={2} alignItems="center" mb={2} flexWrap="wrap">
@@ -421,9 +464,9 @@ export default function SchemaEditor() {
             label="Tenant"
             onChange={(e) => setTenant(e.target.value)}
           >
-            {["mc", "itp"].map((t) => (
+            {SCHEMA_TARGETS.map((t) => (
               <MenuItem key={t} value={t}>
-                {t}
+                {t === TEMPLATE_SCHEMA_ID ? "_template (defaults)" : t}
               </MenuItem>
             ))}
           </Select>
@@ -455,7 +498,34 @@ export default function SchemaEditor() {
         </Box>
       )}
 
-      {schema && !loading && <UnconfiguredFieldsBanner schema={schema} />}
+      {(templateMissing || templateNeedsDefault) && !loading && (
+        <Alert
+          severity="info"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={handleInitializeTemplate}
+              disabled={initializing}
+            >
+              Initialize resource default
+            </Button>
+          }
+        >
+          No resource default is stored in the database yet.
+        </Alert>
+      )}
+
+      {schema && !loading && !isTemplateSchemaId(tenant) && (
+        <SchemaResourceForm
+          schema={schema as SchemaContextType}
+          onSchemaChange={(updated) => setSchema(updated)}
+        />
+      )}
+
+      {schema && !loading && !isTemplateSchemaId(tenant) && (
+        <UnconfiguredFieldsBanner schema={schema as SchemaContextType} />
+      )}
 
       {schema && !loading && (
         <JsonEditor

@@ -1,0 +1,95 @@
+import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
+import SchemaEditor from "@/components/src/client/routes/super/schemaEditor";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mcSchema = {
+  tenantId: "mc",
+  resources: [{ name: "Room A", resourceId: "room-a", capacity: 4 }],
+};
+
+const resourceDefault = {
+  name: "",
+  resourceId: "",
+  capacity: 0,
+  calendarId: "",
+  calendarIdProd: "",
+  isEquipment: false,
+  isWalkIn: false,
+  requestLimits: { perSemester: { admin: -1, faculty: -1, student: -1 } },
+};
+
+function jsonResponse(body: unknown, status = 200) {
+  return Promise.resolve({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  } as Response);
+}
+
+function renderEditor() {
+  return render(
+    <DatabaseContext.Provider value={{ userEmail: "admin@nyu.edu" } as never}>
+      <SchemaEditor />
+    </DatabaseContext.Provider>,
+  );
+}
+
+describe("SchemaEditor add resource", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        if (method === "PUT") {
+          return jsonResponse({ success: true, backupCreated: true });
+        }
+        if (String(url).includes("_template")) {
+          return jsonResponse({ resourceDefault });
+        }
+        if (String(url).includes("/api/tenantSchema/mc")) {
+          return jsonResponse(mcSchema);
+        }
+        return jsonResponse({ error: "not found" }, 404);
+      }),
+    );
+  });
+
+  it("updates the JSON on the page and writes only after Save is confirmed", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "mc" }));
+
+    await waitFor(() => {
+      expect(document.querySelector("textarea")?.value).toContain("room-a");
+    });
+
+    const addButton = await screen.findByRole("button", { name: "Add resource" });
+    await waitFor(() => expect(addButton).toBeEnabled());
+    await user.click(addButton);
+    await user.type(screen.getByLabelText("Name"), "Studio");
+    await user.type(screen.getByLabelText("Resource id"), "studio");
+    await user.click(screen.getByRole("button", { name: "Add to schema" }));
+
+    await waitFor(() => {
+      expect(document.querySelector("textarea")?.value).toContain("studio");
+    });
+    expect(
+      vi.mocked(fetch).mock.calls.some((call) => call[1]?.method === "PUT"),
+    ).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await user.click(await screen.findByRole("button", { name: /Save \(.*changes\)/ }));
+
+    await waitFor(() => {
+      const put = vi
+        .mocked(fetch)
+        .mock.calls.find((call) => call[1]?.method === "PUT");
+      expect(put?.[0]).toBe("/api/tenantSchema/mc");
+      expect(String(put?.[1]?.body)).toContain("studio");
+    });
+  });
+});
