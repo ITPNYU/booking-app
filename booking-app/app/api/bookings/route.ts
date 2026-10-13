@@ -511,7 +511,15 @@ async function handleBookingApprovalEmails(
     }
   }
 
-  await sendManualApprovalEmails();
+  try {
+    await sendManualApprovalEmails();
+  } catch (notifyError) {
+    console.error(
+      `Manual approval notification failed [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+      notifyError,
+    );
+    return { instantApprovalStatus: null, instantApprovalFailed: true };
+  }
 
   return { instantApprovalStatus: null, instantApprovalFailed: false };
 }

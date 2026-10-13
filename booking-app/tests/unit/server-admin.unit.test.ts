@@ -1147,6 +1147,17 @@ describe("components/src/server/admin", () => {
     expect(emailsTo("requester@nyu.edu")).toHaveLength(1);
     expect(emailsTo("second@nyu.edu")).toHaveLength(1);
     expect(secondaryInviteAttempts).toBe(2);
+
+    const secondaryInvites = mockFetch.mock.calls.filter(([url, opts]) => {
+      if (url !== "https://booking.test/api/inviteUser") return false;
+      const body = JSON.parse((opts as RequestInit).body as string);
+      return body.guestEmail === "second@nyu.edu";
+    });
+    secondaryInvites.forEach(([, opts]) => {
+      expect((opts as RequestInit).headers).toMatchObject({
+        "x-tenant": "tenant-y",
+      });
+    });
   });
 
   it("does not resend requester or resource-approver emails when the cc lookup throws", async () => {

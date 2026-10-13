@@ -1074,6 +1074,7 @@ export const serverApproveEvent = async (
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "x-tenant": tenant || DEFAULT_TENANT,
           },
           body: JSON.stringify(secondaryFormData),
         },
