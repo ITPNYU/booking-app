@@ -504,9 +504,11 @@ export const serverFinalApprove = async (
 };
 
 // server
-export type CommittedApprovalRead =
-  | { known: true; status: BookingStatusLabel | null }
-  | { known: false; error: unknown };
+export type CommittedApprovalRead = {
+  known: boolean;
+  status: BookingStatusLabel | null;
+  error?: unknown;
+};
 
 /**
  * Re-reads the booking after instant approval threw. `known: false` means the
@@ -536,7 +538,7 @@ export async function serverCommittedInstantApprovalStatus(
       }
     }
   }
-  return { known: false, error: lastError };
+  return { known: false, status: null, error: lastError };
 }
 
 /**
