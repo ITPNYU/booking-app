@@ -5,10 +5,10 @@ permissions:
 
 on:
   schedule:
-    # Friday and Sunday at 14:00 UTC (10:00 AM ET during standard time, 9:00 AM ET during daylight time).
-    # The PR deadline is Sunday. GitHub schedules can be delayed by several minutes under load.
+    # Friday and Saturday at 14:00 UTC (10:00 AM ET during standard time, 9:00 AM ET during daylight time).
+    # The PR deadline is Saturday. GitHub schedules can be delayed by several minutes under load.
     - cron: "0 14 * * 5"
-    - cron: "0 14 * * 0"
+    - cron: "0 14 * * 6"
   workflow_dispatch:
     inputs:
       message:
@@ -34,16 +34,17 @@ jobs:
           if [ -n "${MESSAGE_OVERRIDE}" ]; then
             MESSAGE="${MESSAGE_OVERRIDE}"
           else
-            # Sunday is the deadline itself; on Friday it is still two days away.
-            if [ "$(date -u +%u)" = "7" ]; then
-              DEADLINE="today (Sunday)"
+            # Saturday is the deadline itself; on Friday it is still a day away.
+            if [ "$(date -u +%u)" = "6" ]; then
+              DEADLINE="today (Saturday)"
             else
-              DEADLINE="this Sunday"
+              DEADLINE="this Saturday"
             fi
 
             MESSAGE=$(printf '%s\n' \
               "<users/all> The PR deadline is ${DEADLINE}." \
-              "Please finish your implementation by Sunday, open a PR with Riho assigned as the reviewer, and mention her in this chat when it is ready.")
+              "Please finish your implementation by Saturday, open a PR, and resolve all automated code review comments first." \
+              "Once the automated review is all clear, assign Riho as the reviewer and mention her in this chat.")
           fi
 
           PAYLOAD=$(jq -n --arg text "${MESSAGE}" '{text: $text}')
