@@ -54,6 +54,7 @@ import {
   sectionKeys,
   selectionId,
   setSlice,
+  sortKeysDeep,
   type Selection,
 } from "./schemaEditorNav";
 
@@ -242,6 +243,11 @@ function DiffDialog({
 }
 
 // ─── JSON Editor (one slice of the schema) ───
+/** Keys sorted at every level to match the Firestore console's field order. */
+function toEditorText(value: unknown): string {
+  return JSON.stringify(sortKeysDeep(value), null, 2);
+}
+
 function JsonEditor({
   value,
   onChange,
@@ -254,7 +260,7 @@ function JsonEditor({
   onParseErrorChange?: (hasError: boolean) => void;
   minHeight?: number;
 }) {
-  const [text, setText] = useState(() => JSON.stringify(value, null, 2));
+  const [text, setText] = useState(() => toEditorText(value));
   const [parseError, setParseError] = useState<string | null>(null);
 
   // Sync external value changes into the text (e.g. on reset)
@@ -263,7 +269,7 @@ function JsonEditor({
     const incoming = JSON.stringify(value);
     if (incoming !== lastExternalRef.current) {
       lastExternalRef.current = incoming;
-      setText(JSON.stringify(value, null, 2));
+      setText(toEditorText(value));
       setParseError(null);
     }
   }, [value]);

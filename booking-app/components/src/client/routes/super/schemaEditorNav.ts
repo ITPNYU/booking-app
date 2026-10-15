@@ -175,3 +175,23 @@ export function sectionKeys(
   ];
   return ordered.map((key) => ({ key, present: key in schema }));
 }
+
+/**
+ * Return a deep copy with object keys sorted alphabetically at every level,
+ * so the editor's JSON reads in the same order as the Firestore console.
+ * Arrays keep their order. Key order carries no meaning for the schema, so
+ * this is display-only and does not create diffs.
+ */
+export function sortKeysDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => sortKeysDeep(item)) as unknown as T;
+  }
+  if (value !== null && typeof value === "object") {
+    const sorted: AnyRecord = {};
+    for (const key of Object.keys(value as AnyRecord).sort()) {
+      sorted[key] = sortKeysDeep((value as AnyRecord)[key]);
+    }
+    return sorted as T;
+  }
+  return value;
+}

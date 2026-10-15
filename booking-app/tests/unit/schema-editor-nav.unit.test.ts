@@ -8,6 +8,7 @@ import {
   resourceLabels,
   sectionKeys,
   setSlice,
+  sortKeysDeep,
 } from "@/components/src/client/routes/super/schemaEditorNav";
 
 const schema = {
@@ -134,5 +135,29 @@ describe("sectionKeys", () => {
       { key: "resources", present: true },
       { key: "calendarConfig", present: true },
     ]);
+  });
+});
+
+describe("sortKeysDeep", () => {
+  it("sorts object keys at every level and keeps array order", () => {
+    const input = {
+      zeta: { b: 1, a: 2 },
+      alpha: [{ y: 1, x: 2 }, "s", 3],
+      mid: null,
+    };
+    const out = sortKeysDeep(input);
+    expect(Object.keys(out)).toEqual(["alpha", "mid", "zeta"]);
+    expect(Object.keys(out.zeta)).toEqual(["a", "b"]);
+    expect(Object.keys(out.alpha[0] as object)).toEqual(["x", "y"]);
+    expect(out.alpha[1]).toBe("s");
+    expect(out.alpha[2]).toBe(3);
+    expect(out.mid).toBeNull();
+  });
+
+  it("does not mutate the input and produces no diff", () => {
+    const input = { b: { d: 1, c: 2 }, a: 0 };
+    const out = sortKeysDeep(input);
+    expect(Object.keys(input)).toEqual(["b", "a"]);
+    expect(computeDiff(input, out)).toEqual([]);
   });
 });
