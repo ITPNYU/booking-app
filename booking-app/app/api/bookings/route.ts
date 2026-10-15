@@ -30,6 +30,11 @@ import {
 import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
 import { canRequestAuxiliarySpaces } from "@/components/src/utils/roleUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
 import {
   logServerBookingChange,
   serverGetNextSequentialId,
@@ -58,6 +63,7 @@ import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 import {
   extractTenantFromRequest,
   getAffiliationDisplayValues,
@@ -206,7 +212,7 @@ async function createBookingCalendarEvent(
       ...otherRooms.map((r: { calendarId: string }) => r.calendarId),
       ...annexCalendarIds,
     ]),
-  ].filter((email) => email && email !== calendarId);
+  ].filter(email => email && email !== calendarId);
 
   // Limit title to 25 characters
   const truncatedTitle =
@@ -493,8 +499,15 @@ async function checkOverlap(
 }
 
 export async function POST(request: NextRequest) {
-  const { email, selectedRooms, bookingCalendarInfo, data: rawData, isAutoApproval } =
-    await request.json();
+  const {
+    email,
+    selectedRooms,
+    bookingCalendarInfo,
+    data: postedData,
+    isAutoApproval,
+  } = await request.json();
+  // memo and the cart number are written only through their dedicated routes.
+  const rawData = omitStaffOnlyBookingFieldWrites(postedData);
 
   // Students cannot request auxiliary spaces — strip even if posted directly.
   const data =
@@ -517,13 +530,33 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Enforce production-schedule requirement server-side (schema-driven).
+  const tenantSchema = await getCachedTenantSchema(tenant ?? DEFAULT_TENANT);
+  const productionScheduleConfig = tenantSchema?.form?.productionSchedule;
+  if (
+    isProductionScheduleMissingWhenRequired({
+      enabled: productionScheduleConfig?.enabled,
+      requiredAboveHours: productionScheduleConfig?.requiredAboveHours,
+      start: bookingCalendarInfo?.start ?? bookingCalendarInfo?.startStr,
+      end: bookingCalendarInfo?.end ?? bookingCalendarInfo?.endStr,
+      productionSchedule: data?.productionSchedule,
+    })
+  ) {
+    return NextResponse.json(
+      {
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
+      },
+      { status: 400 },
+    );
+  }
+
   // Annex resources can only be requested via a parent room's annex
   // checkboxes (annexByRoom); reject them if posted as bookable rooms.
   const tenantResources = await serverGetTenantResources(tenant);
   const annexResourceIds = new Set(
-    tenantResources
-      .filter((r) => r.parentResourceId)
-      .map((r) => r.resourceId),
+    tenantResources.filter(r => r.parentResourceId).map(r => r.resourceId),
   );
   const requestedAnnexRoom = Array.isArray(selectedRooms)
     ? selectedRooms.find((r: any) => annexResourceIds.has(String(r?.roomId)))

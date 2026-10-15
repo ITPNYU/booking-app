@@ -339,8 +339,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
       dateRange: getDateRangeFromDateSelection(selectedDateRange),
       sortField: "startDate",
       sortDirection:
-        pageContext >= PageContextLevel.PA &&
-        selectedDateRange === "All Future"
+        pageContext >= PageContextLevel.PA && selectedDateRange === "All Future"
           ? "asc"
           : undefined,
       searchQuery,

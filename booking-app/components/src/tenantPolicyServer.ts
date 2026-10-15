@@ -12,9 +12,11 @@ function resolveEnvironment(): Environment {
   return "production";
 }
 
-function resolveEmail(
-  emailConfig?: { development: string; staging: string; production: string },
-): string {
+function resolveEmail(emailConfig?: {
+  development: string;
+  staging: string;
+  production: string;
+}): string {
   if (!emailConfig) return "";
   return emailConfig[resolveEnvironment()] || "";
 }
@@ -34,7 +36,10 @@ export async function getApprovedCcEmail(tenant: string): Promise<string> {
       return resolveEmail(schema.ccEmails?.approved);
     }
   } catch (error) {
-    console.error("Failed to fetch tenant schema for approved CC email:", error);
+    console.error(
+      "Failed to fetch tenant schema for approved CC email:",
+      error,
+    );
   }
   return "";
 }
@@ -54,7 +59,10 @@ export async function getCanceledCcEmail(tenant: string): Promise<string> {
       return resolveEmail(schema.ccEmails?.canceled);
     }
   } catch (error) {
-    console.error("Failed to fetch tenant schema for canceled CC email:", error);
+    console.error(
+      "Failed to fetch tenant schema for canceled CC email:",
+      error,
+    );
   }
   return "";
 }

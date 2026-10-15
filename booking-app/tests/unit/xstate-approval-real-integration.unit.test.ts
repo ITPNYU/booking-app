@@ -124,6 +124,10 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverResolveResourceApproverEmails: mockServerResolveResourceApproverEmails,
 }));
 
+vi.mock("@/lib/api/authz", () => ({
+  resolveCallerRole: vi.fn(async () => "LIAISON"),
+}));
+
 // Don't mock XState utilities - we want to test the real XState machine
 // vi.mock("@/lib/stateMachines/xstateUtilsV5", () => ({
 //   executeXStateTransition: mockExecuteXStateTransition,

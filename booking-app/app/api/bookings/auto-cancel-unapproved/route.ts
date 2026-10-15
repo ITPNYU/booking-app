@@ -203,18 +203,21 @@ export async function GET(request: NextRequest) {
 
         if (xstateResult.newState === "Closed") {
           try {
-            await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-tenant": tenant,
+            await fetch(
+              `${process.env.NEXT_PUBLIC_BASE_URL}/api/close-processing`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-tenant": tenant,
+                },
+                body: JSON.stringify({
+                  calendarEventId: booking.calendarEventId,
+                  email: "system",
+                  tenant,
+                }),
               },
-              body: JSON.stringify({
-                calendarEventId: booking.calendarEventId,
-                email: "system",
-                tenant,
-              }),
-            });
+            );
           } catch (procError) {
             BookingLogger.apiError(
               "POST",
@@ -231,7 +234,9 @@ export async function GET(request: NextRequest) {
     }
 
     const response = {
-      message: isDryRun ? "Dry run completed" : "Auto-cancel unapproved completed",
+      message: isDryRun
+        ? "Dry run completed"
+        : "Auto-cancel unapproved completed",
       totalUpdatedCount,
       updatedBookingIds: allUpdatedBookingIds,
       dryRunResults: isDryRun ? dryRunResults : undefined,
@@ -240,7 +245,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    BookingLogger.apiError("GET", "/api/bookings/auto-cancel-unapproved", {}, error);
+    BookingLogger.apiError(
+      "GET",
+      "/api/bookings/auto-cancel-unapproved",
+      {},
+      error,
+    );
 
     return NextResponse.json(
       {
@@ -252,4 +262,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

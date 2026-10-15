@@ -72,7 +72,10 @@ export const handleCheckedInEntry: StateHandler = async (
   } catch (error) {
     console.error(
       `🚨 XSTATE CHECK-IN: FAILED TO PERSIST SNAPSHOT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      { calendarEventId, error: error instanceof Error ? error.message : String(error) },
+      {
+        calendarEventId,
+        error: error instanceof Error ? error.message : String(error),
+      },
     );
   }
 };

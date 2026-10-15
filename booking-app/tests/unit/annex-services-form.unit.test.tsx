@@ -125,16 +125,17 @@ describe("getSelectedAnnexResources / getServiceRooms", () => {
     ).toEqual([]);
   });
 
-  it("appends checked annex rooms after the selected rooms", () => {
+  it("merges checked annex rooms with the selected rooms, sorted by ID", () => {
     const selected = [{ roomId: "1201", services: room1201.services }];
     const rooms = getServiceRooms(
       selected,
-      { "1201": ["1200L-6"] },
+      { "1201": ["1202", "1200L-6"] },
       resources,
     );
-    expect(rooms).toHaveLength(2);
-    expect(rooms[0]).toBe(selected[0]);
-    expect(rooms[1].resourceId).toBe("1200L-6");
+    expect(rooms).toHaveLength(3);
+    expect(rooms[0].resourceId).toBe("1200L-6");
+    expect(rooms[1]).toBe(selected[0]);
+    expect(rooms[2].resourceId).toBe("1202");
   });
 
   it("returns the selected rooms unchanged when nothing is checked", () => {

@@ -141,34 +141,34 @@ export default function BookingFormMediaServices(props: Props) {
           render={({ field }) => {
             const value = typeof field.value === "string" ? field.value : "";
             return (
-            <div>
-              {checkboxes.map((checkbox) => (
-                <FormControlLabel
-                  key={checkbox}
-                  label={checkbox}
-                  sx={{ display: "block" }}
-                  control={
-                    <Checkbox
-                      checked={value.includes(checkbox)}
-                      onChange={(e) => {
-                        const values = value ? value.split(", ") : [];
-                        let newValue: string[];
-                        if (e.target.checked) {
-                          newValue = [...values, checkbox];
-                        } else {
-                          newValue = values.filter(
-                            (value) => value !== checkbox,
-                          );
-                        }
-                        field.onChange(newValue.join(", "));
-                        trigger(id);
-                      }}
-                      onBlur={() => trigger(id)}
-                    />
-                  }
-                />
-              ))}
-            </div>
+              <div>
+                {checkboxes.map((checkbox) => (
+                  <FormControlLabel
+                    key={checkbox}
+                    label={checkbox}
+                    sx={{ display: "block" }}
+                    control={
+                      <Checkbox
+                        checked={value.includes(checkbox)}
+                        onChange={(e) => {
+                          const values = value ? value.split(", ") : [];
+                          let newValue: string[];
+                          if (e.target.checked) {
+                            newValue = [...values, checkbox];
+                          } else {
+                            newValue = values.filter(
+                              (value) => value !== checkbox,
+                            );
+                          }
+                          field.onChange(newValue.join(", "));
+                          trigger(id);
+                        }}
+                        onBlur={() => trigger(id)}
+                      />
+                    }
+                  />
+                ))}
+              </div>
             );
           }}
         ></Controller>

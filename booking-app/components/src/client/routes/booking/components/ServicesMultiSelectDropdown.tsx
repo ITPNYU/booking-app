@@ -1,6 +1,6 @@
 import { Checkbox, MenuItem, Select, SxProps, Theme, Box } from "@mui/material";
 import {
-  RoomService,
+  RoomPreferences,
   TableBar,
   Headset,
   PeopleAlt,
@@ -9,10 +9,11 @@ import {
   LocalPolice,
 } from "@mui/icons-material";
 import React from "react";
+import { SERVICE_ORDER } from "../../../utils/serviceOrder";
 
 // Map services to their icons
 const serviceIcons: Record<string, React.ElementType> = {
-  Setup: RoomService,
+  Setup: RoomPreferences,
   Equipment: Headset,
   Staffing: PeopleAlt,
   Catering: LocalDining,
@@ -20,16 +21,6 @@ const serviceIcons: Record<string, React.ElementType> = {
   Security: LocalPolice,
   Furniture: TableBar,
 };
-
-const SERVICE_ORDER = [
-  "Setup",
-  "Equipment",
-  "Staffing",
-  "Catering",
-  "Cleaning",
-  "Security",
-  "Furniture",
-];
 
 interface ServicesMultiSelectDropdownProps {
   value: string[] | null;

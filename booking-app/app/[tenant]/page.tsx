@@ -2,13 +2,12 @@
 
 "use client";
 
-import { useContext, useEffect } from "react";
+import React, { useContext, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import MyBookingsPage from "@/components/src/client/routes/myBookings/myBookingsPage";
 import { PagePermission } from "@/components/src/types";
 import { PERMISSION_PATH } from "@/components/src/utils/permissions";
-import React from "react";
 
 const FLAG_KEY = "hasRedirectedToDefaultContext";
 

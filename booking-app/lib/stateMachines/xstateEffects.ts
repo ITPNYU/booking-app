@@ -31,12 +31,12 @@ type HandledState =
 // must still be looked up via a string index since `newState` is typed
 // as `string`.
 const stateHandlers = {
-  "Approved": handleApprovedEntry,
-  "Requested": handleRequestedEntry,
+  Approved: handleApprovedEntry,
+  Requested: handleRequestedEntry,
   "No Show": handleNoShowEntry,
-  "Canceled": handleCanceledEntry,
-  "Closed": handleClosedEntry,
-  "Declined": handleDeclinedEntry,
+  Canceled: handleCanceledEntry,
+  Closed: handleClosedEntry,
+  Declined: handleDeclinedEntry,
   "Checked In": handleCheckedInEntry,
   "Pre-approved": handlePreApprovedEntry,
 } satisfies Record<HandledState, StateHandler>;

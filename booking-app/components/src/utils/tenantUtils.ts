@@ -13,7 +13,7 @@ import {
  */
 export const ITP_DEPT_CODES = [
   "GTITPG", // Interactive Telecommunications
-  "TIIMA",  // Low Res anomaly
+  "TIIMA", // Low Res anomaly
   "TS1001", // Interactive Telecommunications Program (Administrators)
   "TS1067", // Interactive Telecommunications Program (Staff)
   "TS1068", // Interactive Telecommunications Program (Student Workers)
@@ -135,9 +135,9 @@ export const getMediaCommonsServices = (
       String(data.roomSetup).trim().toLowerCase() !== "yes");
   // Additional event furniture is its own service region in the MC machine
   // ("Furnishings Request" / "Furnishings Closeout").
-  const furnishingsRequested = Object.values(
-    data.furnishingsByRoom ?? {},
-  ).some((v: unknown) => isServiceRequested(v));
+  const furnishingsRequested = Object.values(data.furnishingsByRoom ?? {}).some(
+    (v: unknown) => isServiceRequested(v),
+  );
 
   return {
     staff: isServiceRequested(data.staffingServices),

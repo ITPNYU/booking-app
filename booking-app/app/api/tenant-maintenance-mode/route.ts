@@ -84,9 +84,11 @@ export async function PUT(req: NextRequest) {
   const db = admin.firestore();
   try {
     await Promise.all(
-      ALLOWED_TENANTS.map((targetTenant) =>
+      ALLOWED_TENANTS.map(targetTenant =>
         db
-          .collection(getTenantCollectionName(TableNames.SETTINGS, targetTenant))
+          .collection(
+            getTenantCollectionName(TableNames.SETTINGS, targetTenant),
+          )
           .doc(MAINTENANCE_MODE_SETTINGS_DOC_ID)
           .set(
             {

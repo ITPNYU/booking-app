@@ -124,7 +124,11 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
 
   const template = Handlebars.compile(templateSource);
   const approvalUrl = approverType
-    ? getApprovalUrl(String(contents.calendarEventId ?? ""), approverType, tenant)
+    ? getApprovalUrl(
+        String(contents.calendarEventId ?? ""),
+        approverType,
+        tenant,
+      )
     : undefined;
 
   const annexByRoom = contents.annexByRoom;
@@ -138,7 +142,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
 
   const fallbackRooms =
     annexByRoom && typeof annexByRoom === "object"
-      ? Object.keys(annexByRoom).map((roomId) => ({
+      ? Object.keys(annexByRoom).map(roomId => ({
           resourceId: roomId,
         }))
       : [];

@@ -10,9 +10,7 @@ import type { HandlerContext, StateHandler } from "./types";
  * after this dispatcher returns; the special-case log below documents
  * that flow.
  */
-export const handleClosedEntry: StateHandler = async (
-  ctx: HandlerContext,
-) => {
+export const handleClosedEntry: StateHandler = async (ctx: HandlerContext) => {
   const { calendarEventId, tenant, previousState, newState } = ctx;
 
   console.log(
@@ -27,7 +25,12 @@ export const handleClosedEntry: StateHandler = async (
   if (previousState === "Checked In") {
     console.log(
       `📤 XSTATE CHECKOUT VIA AUTO-CLOSE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      { calendarEventId, previousState, newState, note: "checkout-processing will be called by client" },
+      {
+        calendarEventId,
+        previousState,
+        newState,
+        note: "checkout-processing will be called by client",
+      },
     );
   }
 };

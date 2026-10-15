@@ -2,7 +2,6 @@
 
 import { deepPurple, lightGreen } from "@mui/material/colors";
 
-import { Roboto } from "next/font/google";
 import { createTheme } from "@mui/material/styles";
 
 const theme = createTheme({
@@ -24,11 +23,6 @@ const theme = createTheme({
     success: { main: lightGreen.A400 },
     warning: { main: "rgb(255 167 0)" },
     error: { main: "rgba(255, 26, 26, 1)" },
-  },
-  typography: {
-    allVariants: {
-      fontFamily: "unset",
-    },
   },
   components: {
     MuiCssBaseline: {

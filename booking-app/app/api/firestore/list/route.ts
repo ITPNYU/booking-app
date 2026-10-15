@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/api/requireSession";
 import { authorizeRead, isAccessDenied } from "@/lib/api/authz";
 import { listDocs } from "@/lib/api/firestoreServer";
+import { redactBookingDocsForCaller } from "@/lib/api/bookingRedaction";
 import type { ListRequest } from "@/lib/api/firestoreShared";
 
 export async function POST(req: NextRequest) {
@@ -16,10 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
   if (!body?.collection) {
-    return NextResponse.json(
-      { error: "collection required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "collection required" }, { status: 400 });
   }
   const decision = await authorizeRead(session, body.tenant, body.collection);
   if (isAccessDenied(decision)) {
@@ -34,7 +32,14 @@ export async function POST(req: NextRequest) {
       orderBy: body.orderBy,
       limit: body.limit,
     });
-    return NextResponse.json({ docs });
+    return NextResponse.json({
+      docs: await redactBookingDocsForCaller(
+        session,
+        body.tenant,
+        body.collection,
+        docs,
+      ),
+    });
   } catch (error) {
     console.error("[/api/firestore/list] error:", error);
     return NextResponse.json(

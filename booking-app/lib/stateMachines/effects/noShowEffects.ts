@@ -8,10 +8,15 @@ import type { HandlerContext, StateHandler } from "./types";
  * updates and emails for no-show are handled by the calling API layer;
  * this handler only persists the audit fields.
  */
-export const handleNoShowEntry: StateHandler = async (
-  ctx: HandlerContext,
-) => {
-  const { calendarEventId, email, tenant, previousState, newState, firestoreUpdates } = ctx;
+export const handleNoShowEntry: StateHandler = async (ctx: HandlerContext) => {
+  const {
+    calendarEventId,
+    email,
+    tenant,
+    previousState,
+    newState,
+    firestoreUpdates,
+  } = ctx;
 
   firestoreUpdates.noShowedAt = admin.firestore.Timestamp.now();
   if (email) {
