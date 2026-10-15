@@ -1,0 +1,63 @@
+name: PR Deadline Reminder
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # Friday and Sunday at 14:00 UTC (10:00 AM ET during standard time, 9:00 AM ET during daylight time).
+    # The PR deadline is Sunday. GitHub schedules can be delayed by several minutes under load.
+    - cron: "0 14 * * 5"
+    - cron: "0 14 * * 0"
+  workflow_dispatch:
+    inputs:
+      message:
+        description: "Override the reminder text (leave blank to send the default)"
+        type: string
+        default: ""
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post reminder to Google Chat
+        env:
+          GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
+          MESSAGE_OVERRIDE: ${{ github.event.inputs.message }}
+        run: |
+          if [ -z "${GCHAT_WEBHOOK_URL}" ]; then
+            echo "Error: GCHAT_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+
+          if [ -n "${MESSAGE_OVERRIDE}" ]; then
+            MESSAGE="${MESSAGE_OVERRIDE}"
+          else
+            # Sunday is the deadline itself; on Friday it is still two days away.
+            if [ "$(date -u +%u)" = "7" ]; then
+              DEADLINE="today (Sunday)"
+            else
+              DEADLINE="this Sunday"
+            fi
+
+            MESSAGE=$(printf '%s\n' \
+              "<users/all> The PR deadline is ${DEADLINE}." \
+              "Please finish your implementation by Sunday, open a PR with Riho assigned as the reviewer, and mention her in this chat when it is ready.")
+          fi
+
+          PAYLOAD=$(jq -n --arg text "${MESSAGE}" '{text: $text}')
+
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            --data "${PAYLOAD}" \
+            "${GCHAT_WEBHOOK_URL}" \
+            --connect-timeout 10 --max-time 30 || echo "000")
+
+          if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
+            echo "Reminder sent (HTTP ${HTTP_STATUS})"
+          else
+            echo "Failed to send reminder (HTTP ${HTTP_STATUS})"
+            cat /tmp/response.txt
+            exit 1
+          fi
