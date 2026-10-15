@@ -110,6 +110,19 @@ function normalizeToggle(raw: unknown): ServiceToggle | undefined {
     : undefined;
 }
 
+/**
+ * `autoCloseout` as a boolean. The first drafts of this flag were entered as
+ * `autoCloseoutOnCancel`; that spelling is read as an alias so rooms that
+ * still carry it keep working until the schema is updated.
+ */
+function normalizeAutoCloseout(
+  raw: Record<string, unknown>,
+): boolean | undefined {
+  const value = asBool(raw.autoCloseout);
+  if (value !== undefined) return value;
+  return asBool(raw.autoCloseoutOnCancel);
+}
+
 function normalizeSection(
   raw: Record<string, unknown>,
 ): ResourceFormSectionConfig {
@@ -152,6 +165,7 @@ function normalizeSection(
   const showInOrigin =
     (raw.showInOrigin as ShowInOrigin | undefined) ??
     hideFlagsToShowInOrigin(raw);
+  const autoCloseout = normalizeAutoCloseout(raw);
 
   const section: ResourceFormSectionConfig = {
     ...(typeof raw.label === "string" ? { label: raw.label } : {}),
@@ -160,6 +174,7 @@ function normalizeSection(
       : {}),
     ...(mode ? { mode } : {}),
     ...(toggle ? { toggle } : {}),
+    ...(autoCloseout !== undefined ? { autoCloseout } : {}),
     ...(typeof raw.defaultValue === "string"
       ? { defaultValue: raw.defaultValue }
       : {}),
@@ -268,6 +283,9 @@ function normalizeObjectServices(
         : {}),
       ...(normalizeToggle(staffingRaw.toggle)
         ? { toggle: normalizeToggle(staffingRaw.toggle) }
+        : {}),
+      ...(normalizeAutoCloseout(staffingRaw) !== undefined
+        ? { autoCloseout: normalizeAutoCloseout(staffingRaw) }
         : {}),
       ...(staffingRaw.showInOrigin
         ? { showInOrigin: staffingRaw.showInOrigin as ShowInOrigin }
