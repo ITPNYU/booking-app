@@ -43,7 +43,7 @@ jobs:
 
             MESSAGE=$(printf '%s\n' \
               "<users/all> The PR deadline is ${DEADLINE}." \
-              "Please finish your implementation by Saturday, open a PR, and resolve all automated code review comments first." \
+              "Please finish your implementations, test locally, open a PR, address any conflicts or test failures, and resolve all automated code review comments no later than end of day Saturday." \
               "Once the automated review is all clear, assign Riho as the reviewer and mention her in this chat.")
           fi
 
