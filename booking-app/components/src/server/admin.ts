@@ -652,6 +652,8 @@ export const serverApproveBooking = async (
       await firstApprove(id, email, tenant);
     }
   } catch (error) {
+    // Keep the class so /api/approve can tell the booking was approved.
+    if (error instanceof ApprovalFollowUpError) throw error;
     throw error.status ? error : { status: 500, message: error.message };
   }
 };
@@ -856,25 +858,31 @@ export const finalApprove = async (
     return false;
   }
 
-  // Log the final approval action
-  const doc = await serverGetDataByCalendarEventIdStrict<{
-    id: string;
-    requestNumber: number;
-  }>(TableNames.BOOKING, id, tenant);
-  if (!doc) {
-    throw new Error("Booking document not found after final approval");
-  }
-  await logServerBookingChange({
-    bookingId: doc.id,
-    status: BookingStatusLabel.APPROVED,
-    changedBy: email,
-    requestNumber: doc.requestNumber,
-    calendarEventId: id,
-    note: note || "",
-    tenant,
-  });
+  // The booking is approved from here on; report any later failure as a
+  // follow-up failure so callers do not offer approval again.
+  try {
+    const doc = await serverGetDataByCalendarEventIdStrict<{
+      id: string;
+      requestNumber: number;
+    }>(TableNames.BOOKING, id, tenant);
+    if (!doc) {
+      throw new Error("Booking document not found after final approval");
+    }
+    await logServerBookingChange({
+      bookingId: doc.id,
+      status: BookingStatusLabel.APPROVED,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+      calendarEventId: id,
+      note: note || "",
+      tenant,
+    });
 
-  await serverApproveEvent(id, tenant, progress);
+    await serverApproveEvent(id, tenant, progress);
+  } catch (error) {
+    if (error instanceof ApprovalFollowUpError) throw error;
+    throw new ApprovalFollowUpError(errorMessage(error));
+  }
   return true;
 };
 
@@ -961,6 +969,60 @@ export const serverSendConfirmationEmail = async ({
         }),
     ),
   );
+};
+
+const errorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+
+/** The booking was approved, but a step after the approval failed. */
+export class ApprovalFollowUpError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApprovalFollowUpError";
+  }
+}
+
+/**
+ * Sets the booking's Google Calendar title prefix to [APPROVED].
+ * Resolves to an error message when the update failed, or null.
+ */
+const updateApprovedCalendarTitle = async (
+  calendarEventId: string,
+  tenant?: string,
+): Promise<string | null> => {
+  const failure = `Google Calendar event title was not updated to [${BookingStatusLabel.APPROVED}]`;
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant": tenant || DEFAULT_TENANT,
+        },
+        body: JSON.stringify({
+          calendarEventId,
+          newValues: { statusPrefix: BookingStatusLabel.APPROVED },
+        }),
+      },
+    );
+    if (response.ok) {
+      return null;
+    }
+    console.error(`🚨 APPROVED CALENDAR TITLE UPDATE FAILED:`, {
+      calendarEventId,
+      tenant,
+      status: response.status,
+    });
+    return `${failure} (calendar update returned ${response.status})`;
+  } catch (error) {
+    console.error(`🚨 APPROVED CALENDAR TITLE UPDATE ERROR:`, {
+      calendarEventId,
+      tenant,
+      error,
+    });
+    return `${failure}: ${error instanceof Error ? error.message : String(error)}`;
+  }
 };
 
 // Requester, resource approver, cc, and sponsor notices. All fire-and-forget.
@@ -1095,41 +1157,88 @@ export const serverApproveEvent = async (
     progress,
   );
 
-  // for secondary contact, if we have one
-  // secondaryEmail now stores full NYU email (e.g., abc123@nyu.edu)
-  // Keep these side effects sequential so a calendar/guest failure cannot
-  // skip secondary contact email/invite (and so invites run after calendar update).
-  if (contents.secondaryEmail && contents.secondaryEmail.length > 0) {
-    // Handle both legacy net ID format and new full email format
-    const secondaryEmailAddress = contents.secondaryEmail.includes("@")
-      ? contents.secondaryEmail
-      : `${contents.secondaryEmail}@nyu.edu`;
+  // Retitle the event before the invites below, so a failing secondary-contact
+  // invite (which throws) cannot leave an approved booking titled
+  // [PRE-APPROVED] (#1508). A failed retitle is reported after the invites.
+  // Skip the update on retry once it has already succeeded.
+  let calendarTitleError: string | null = null;
+  if (!progress.calendarStatusUpdated) {
+    calendarTitleError = await updateApprovedCalendarTitle(id, tenant);
+    if (!calendarTitleError) {
+      progress.calendarStatusUpdated = true;
+    }
+  }
 
-    if (!progress.secondaryContactEmailed) {
-      const emailConfig = await getTenantEmailConfig(tenant);
-      // Await the email to ensure it's sent before proceeding
-      await serverSendBookingDetailEmail({
-        calendarEventId: id,
-        targetEmail: secondaryEmailAddress,
-        headerMessage: `A reservation where you are listed as a Secondary Point of Contact has been approved.<br /><br />${
-          emailConfig.emailNotifications.approvedUser
-        }`,
-        status: BookingStatusLabel.APPROVED,
-        replyTo: guestEmail,
-        tenant,
-      });
-      progress.secondaryContactEmailed = true;
+  try {
+    // for secondary contact, if we have one
+    // secondaryEmail now stores full NYU email (e.g., abc123@nyu.edu)
+    // Keep these side effects sequential so a calendar/guest failure cannot
+    // skip secondary contact email/invite (and so invites run after calendar update).
+    if (contents.secondaryEmail && contents.secondaryEmail.length > 0) {
+      // Handle both legacy net ID format and new full email format
+      const secondaryEmailAddress = contents.secondaryEmail.includes("@")
+        ? contents.secondaryEmail
+        : `${contents.secondaryEmail}@nyu.edu`;
+
+      if (!progress.secondaryContactEmailed) {
+        const emailConfig = await getTenantEmailConfig(tenant);
+        // Await the email to ensure it's sent before proceeding
+        await serverSendBookingDetailEmail({
+          calendarEventId: id,
+          targetEmail: secondaryEmailAddress,
+          headerMessage: `A reservation where you are listed as a Secondary Point of Contact has been approved.<br /><br />${
+            emailConfig.emailNotifications.approvedUser
+          }`,
+          status: BookingStatusLabel.APPROVED,
+          replyTo: guestEmail,
+          tenant,
+        });
+        progress.secondaryContactEmailed = true;
+      }
+
+      if (!progress.secondaryContactInvited) {
+        const secondaryFormData = {
+          guestEmail: secondaryEmailAddress,
+          calendarEventId: id,
+          roomId: contents.roomId,
+        };
+        // Intentionally awaiting without swallowing errors: if email delivery
+        // fails, we want the approval process to fail with the API error message.
+        const inviteSecondaryResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant || DEFAULT_TENANT,
+            },
+            body: JSON.stringify(secondaryFormData),
+          },
+        );
+        if (!inviteSecondaryResponse.ok) {
+          let errorBody = "";
+          try {
+            errorBody = await inviteSecondaryResponse.text();
+          } catch {
+            // ignore body read errors
+          }
+          throw new Error(
+            `Failed to invite secondary contact (status ${inviteSecondaryResponse.status} ${inviteSecondaryResponse.statusText})${
+              errorBody ? `: ${errorBody}` : ""
+            }`,
+          );
+        }
+        progress.secondaryContactInvited = true;
+      }
     }
 
-    if (!progress.secondaryContactInvited) {
-      const secondaryFormData = {
-        guestEmail: secondaryEmailAddress,
+    if (!progress.guestInvited) {
+      const formData = {
+        guestEmail,
         calendarEventId: id,
         roomId: contents.roomId,
       };
-      // Intentionally awaiting without try-catch: if email delivery fails,
-      // we want the approval process to fail with the API error message.
-      const inviteSecondaryResponse = await fetch(
+      const inviteGuestResponse = await fetch(
         `${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`,
         {
           method: "POST",
@@ -1137,46 +1246,34 @@ export const serverApproveEvent = async (
             "Content-Type": "application/json",
             "x-tenant": tenant || DEFAULT_TENANT,
           },
-          body: JSON.stringify(secondaryFormData),
+          body: JSON.stringify(formData),
         },
       );
-      if (!inviteSecondaryResponse.ok) {
+      if (!inviteGuestResponse.ok) {
         let errorBody = "";
         try {
-          errorBody = await inviteSecondaryResponse.text();
+          errorBody = await inviteGuestResponse.text();
         } catch {
           // ignore body read errors
         }
         throw new Error(
-          `Failed to invite secondary contact (status ${inviteSecondaryResponse.status} ${inviteSecondaryResponse.statusText})${
+          `Failed to invite requester (status ${inviteGuestResponse.status} ${inviteGuestResponse.statusText})${
             errorBody ? `: ${errorBody}` : ""
           }`,
         );
       }
-      progress.secondaryContactInvited = true;
+      progress.guestInvited = true;
     }
+  } catch (error) {
+    // Do not lose the stale title behind an invite failure.
+    if (!calendarTitleError) throw error;
+    throw new ApprovalFollowUpError(
+      `${calendarTitleError}; ${errorMessage(error)}`,
+    );
   }
 
-  if (!progress.calendarStatusUpdated) {
-    await updateCalendarStatusPrefix(id, BookingStatusLabel.APPROVED, tenant);
-    progress.calendarStatusUpdated = true;
-  }
-
-  if (!progress.guestInvited) {
-    const formData = {
-      guestEmail,
-      calendarEventId: id,
-      roomId: contents.roomId,
-    };
-    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/inviteUser`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify(formData),
-    });
-    progress.guestInvited = true;
+  if (calendarTitleError) {
+    throw new ApprovalFollowUpError(calendarTitleError);
   }
 };
 

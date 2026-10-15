@@ -17,7 +17,12 @@ const mockGetTenantRooms = vi.fn();
 const mockRequireSession = vi.fn();
 const mockResolveCallerRole = vi.fn();
 
+const { ApprovalFollowUpError } = vi.hoisted(() => ({
+  ApprovalFollowUpError: class ApprovalFollowUpError extends Error {},
+}));
+
 vi.mock("@/components/src/server/admin", () => ({
+  ApprovalFollowUpError,
   serverBookingContents: (...args: any[]) => mockServerBookingContents(...args),
   serverUpdateDataByCalendarEventId: (...args: any[]) =>
     mockServerUpdateDataByCalendarEventId(...args),
@@ -347,6 +352,43 @@ describe("Checked In booking modification", () => {
     );
     expect(mockLogServerBookingChange).not.toHaveBeenCalled();
     expect(mockServerSendBookingDetailEmail).not.toHaveBeenCalled();
+  });
+
+  it("still succeeds, with a warning, when a post-approval step fails", async () => {
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-123",
+      origin: "user",
+      finalApprovedAt: { seconds: 1700000000 },
+      xstateData: { snapshot: { value: "Approved" } },
+    });
+    const followUp =
+      "Failed to invite secondary contact (status 500 Internal Server Error)";
+    mockFinalApprove.mockRejectedValueOnce(new ApprovalFollowUpError(followUp));
+
+    const res = await PUT(createRequest(modificationBody));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      result: "success",
+      calendarEventId: "new-cal-456",
+      requestNumber: 100,
+      status: BookingStatusLabel.APPROVED,
+      warning: followUp,
+    });
+  });
+
+  it("still fails when final approval itself fails", async () => {
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-123",
+      origin: "user",
+      finalApprovedAt: { seconds: 1700000000 },
+      xstateData: { snapshot: { value: "Approved" } },
+    });
+    mockFinalApprove.mockRejectedValueOnce(new Error("Booking not found"));
+
+    const res = await PUT(createRequest(modificationBody));
+
+    expect(res.status).toBe(500);
   });
 
   it("rejects unauthenticated callers", async () => {
