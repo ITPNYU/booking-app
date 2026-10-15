@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidTenant } from "@/components/src/constants/tenants";
-import {
-  getSchemaFromEnv,
-  ENVIRONMENTS,
-} from "@/lib/firebase/server/multiDb";
+import { getSchemaFromEnv, ENVIRONMENTS } from "@/lib/firebase/server/multiDb";
 import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
 
 export async function GET(
@@ -27,7 +24,7 @@ export async function GET(
     // Fetch schemas from all environments in parallel.
     // Catch per-env errors so one failing environment doesn't break the response.
     const results = await Promise.all(
-      ENVIRONMENTS.map(async (env) => {
+      ENVIRONMENTS.map(async env => {
         try {
           const schema = await getSchemaFromEnv(env, tenant);
           return [env, schema] as const;

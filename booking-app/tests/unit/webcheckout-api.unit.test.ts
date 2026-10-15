@@ -3,19 +3,55 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as UpdateCartPost } from "../../app/api/updateWebcheckoutCart/route";
 import { GET } from "../../app/api/webcheckout/cart/[cartNumber]/route";
 
-// Mock server admin functions
-vi.mock("@/components/src/server/admin", () => ({
-  serverUpdateDataByCalendarEventId: vi.fn(),
+// The cart route writes through firebase-admin directly: collection(name)
+// .where("calendarEventId", "==", id).limit(1).get(), then docs[0].ref.update.
+const dbMocks = vi.hoisted(() => {
+  const update = vi.fn();
+  const get = vi.fn();
+  const where = vi.fn(() => ({ limit: () => ({ get: () => get() }) }));
+  const collection = vi.fn(() => ({
+    where: (...args: unknown[]) => (where as any)(...args),
+  }));
+  return { update, get, where, collection };
+});
+
+vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
+  default: {
+    firestore: () => ({
+      collection: (...args: unknown[]) => (dbMocks.collection as any)(...args),
+    }),
+  },
 }));
 
-// Mock firebase admin
-vi.mock("@/lib/firebase/server/adminDb", () => ({
-  serverFetchAllDataFromCollection: vi.fn(),
+const bookingFound = () => ({
+  empty: false,
+  docs: [{ id: "booking-1", ref: { update: dbMocks.update } }],
+});
+
+// The cart route authorizes the session's role against the tenant schema.
+const authMocks = vi.hoisted(() => ({
+  requireSession: vi.fn(),
+  resolveCallerRole: vi.fn(),
+  getCachedTenantSchema: vi.fn(),
+}));
+
+vi.mock("@/lib/api/requireSession", () => ({
+  requireSession: () => authMocks.requireSession(),
+}));
+
+vi.mock("@/lib/api/authz", () => ({
+  resolveCallerRole: (...args: unknown[]) =>
+    authMocks.resolveCallerRole(...args),
+}));
+
+vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
+  getCachedTenantSchema: (...args: unknown[]) =>
+    authMocks.getCachedTenantSchema(...args),
 }));
 
 // Import the mocked modules
-import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
-import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
+import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
+import { PagePermission } from "@/components/src/types";
 
 // Mock environment variables
 const mockEnvVars = {
@@ -538,6 +574,18 @@ describe("WebCheckout API Route", () => {
 });
 
 describe("UpdateWebcheckoutCart API Route", () => {
+  const schemaWith = (
+    detailsModal: Partial<
+      ReturnType<typeof generateDefaultSchema>["detailsModal"]
+    >,
+  ) => {
+    const base = generateDefaultSchema("mc");
+    return {
+      ...base,
+      detailsModal: { ...base.detailsModal, ...detailsModal },
+    };
+  };
+
   const createMockUpdateRequest = (body: any) => {
     return new NextRequest("http://localhost/api/updateWebcheckoutCart", {
       method: "POST",
@@ -549,25 +597,40 @@ describe("UpdateWebcheckoutCart API Route", () => {
     });
   };
 
+  const okCalendarUpdate = () =>
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ message: "Event updated successfully" }),
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    authMocks.requireSession.mockResolvedValue({
+      email: "admin@nyu.edu",
+      netId: "admin",
+    });
+    authMocks.resolveCallerRole.mockResolvedValue(PagePermission.ADMIN);
+    authMocks.getCachedTenantSchema.mockResolvedValue(schemaWith({}));
+    dbMocks.get.mockResolvedValue(bookingFound());
+    dbMocks.update.mockResolvedValue(undefined);
+  });
+
   describe("Input Validation", () => {
-    it("should return 400 if required fields are missing", async () => {
-      const request = createMockUpdateRequest({
-        cartNumber: "CK-2614",
-        // Missing calendarEventId and userEmail
-      });
-
-      const response = await UpdateCartPost(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("Missing required fields");
+    it("should return 401 without a session", async () => {
+      authMocks.requireSession.mockResolvedValue(null);
+      const response = await UpdateCartPost(
+        createMockUpdateRequest({
+          calendarEventId: "test-event-id",
+          cartNumber: "CK-2614",
+        }),
+      );
+      expect(response.status).toBe(401);
+      expect(dbMocks.update).not.toHaveBeenCalled();
     });
 
     it("should return 400 if calendarEventId is missing", async () => {
       const request = createMockUpdateRequest({
         cartNumber: "CK-2614",
-        userEmail: "test@nyu.edu",
-        // Missing calendarEventId
       });
 
       const response = await UpdateCartPost(request);
@@ -577,142 +640,154 @@ describe("UpdateWebcheckoutCart API Route", () => {
       expect(data.error).toBe("Missing required fields");
     });
 
-    it("should return 400 if userEmail is missing", async () => {
-      const request = createMockUpdateRequest({
-        calendarEventId: "test-event-id",
-        cartNumber: "CK-2614",
-        // Missing userEmail
-      });
-
-      const response = await UpdateCartPost(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.error).toBe("Missing required fields");
+    it("ignores a client-supplied userEmail and authorizes the session", async () => {
+      okCalendarUpdate();
+      const response = await UpdateCartPost(
+        createMockUpdateRequest({
+          calendarEventId: "test-event-id",
+          cartNumber: "CK-2614",
+          userEmail: "someone-else@nyu.edu",
+        }),
+      );
+      expect(response.status).toBe(200);
+      expect(authMocks.resolveCallerRole).toHaveBeenCalledWith(
+        { email: "admin@nyu.edu", netId: "admin" },
+        "mc",
+      );
     });
   });
 
   describe("Authorization", () => {
-    beforeEach(() => {
-      const mockAdminUsers = [{ email: "admin@nyu.edu" }];
-      const mockPaUsers = [{ email: "pa@nyu.edu" }];
-
-      vi.mocked(serverFetchAllDataFromCollection)
-        .mockResolvedValueOnce(mockAdminUsers)
-        .mockResolvedValueOnce(mockPaUsers);
-    });
-
-    it("should return 403 if user is not authorized", async () => {
+    it("should return 403 for a role outside webCheckoutEditRoles", async () => {
+      authMocks.resolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
       const request = createMockUpdateRequest({
         calendarEventId: "test-event-id",
         cartNumber: "CK-2614",
-        userEmail: "unauthorized@nyu.edu",
       });
 
       const response = await UpdateCartPost(request);
+
+      expect(response.status).toBe(403);
+      expect(dbMocks.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects Liaison and Services callers under the default roles", async () => {
+      for (const role of [PagePermission.LIAISON, PagePermission.SERVICES]) {
+        authMocks.resolveCallerRole.mockResolvedValue(role);
+        const response = await UpdateCartPost(
+          createMockUpdateRequest({
+            calendarEventId: "test-event-id",
+            cartNumber: "CK-2614",
+          }),
+        );
+        expect(response.status).toBe(403);
+      }
+      expect(dbMocks.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      PagePermission.PA,
+      PagePermission.ADMIN,
+      PagePermission.SUPER_ADMIN,
+    ])("should allow %s callers under the default roles", async (role) => {
+      authMocks.resolveCallerRole.mockResolvedValue(role);
+      okCalendarUpdate();
+
+      const response = await UpdateCartPost(
+        createMockUpdateRequest({
+          calendarEventId: "test-event-id",
+          cartNumber: "CK-2614",
+        }),
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.message).toBe("Cart number updated successfully");
+    });
+
+    it("honors a tenant webCheckoutEditRoles list that includes SERVICES", async () => {
+      authMocks.getCachedTenantSchema.mockResolvedValue(
+        schemaWith({ webCheckoutEditRoles: ["SERVICES", "ADMIN"] }),
+      );
+      authMocks.resolveCallerRole.mockResolvedValue(PagePermission.SERVICES);
+      okCalendarUpdate();
+
+      const response = await UpdateCartPost(
+        createMockUpdateRequest({
+          calendarEventId: "test-event-id",
+          cartNumber: "CK-2614",
+        }),
+      );
+      expect(response.status).toBe(200);
+    });
+
+    it("rejects a PA caller when webCheckoutEditRoles is ADMIN only, even if PA can view", async () => {
+      authMocks.getCachedTenantSchema.mockResolvedValue(
+        schemaWith({
+          webCheckoutViewRoles: ["PA"],
+          webCheckoutEditRoles: ["ADMIN"],
+        }),
+      );
+      authMocks.resolveCallerRole.mockResolvedValue(PagePermission.PA);
+
+      const response = await UpdateCartPost(
+        createMockUpdateRequest({
+          calendarEventId: "test-event-id",
+          cartNumber: "CK-2614",
+        }),
+      );
+      expect(response.status).toBe(403);
+      expect(dbMocks.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects everyone when showWebCheckout is off", async () => {
+      authMocks.getCachedTenantSchema.mockResolvedValue(
+        schemaWith({ showWebCheckout: false }),
+      );
+
+      const response = await UpdateCartPost(
+        createMockUpdateRequest({
+          calendarEventId: "test-event-id",
+          cartNumber: "CK-2614",
+        }),
+      );
       const data = await response.json();
 
       expect(response.status).toBe(403);
-      expect(data.error).toBe(
-        "Unauthorized: Only PA, Admin, and Super Admin users can update cart numbers"
-      );
-    });
-
-    it("should allow admin users to update cart numbers", async () => {
-      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
-
-      // Mock successful calendar update
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ message: "Event updated successfully" }),
-      });
-
-      const request = createMockUpdateRequest({
-        calendarEventId: "test-event-id",
-        cartNumber: "CK-2614",
-        userEmail: "admin@nyu.edu",
-      });
-
-      const response = await UpdateCartPost(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(data.message).toBe("Cart number updated successfully");
-    });
-
-    it("should allow PA users to update cart numbers", async () => {
-      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
-
-      // Mock successful calendar update
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ message: "Event updated successfully" }),
-      });
-
-      const request = createMockUpdateRequest({
-        calendarEventId: "test-event-id",
-        cartNumber: "CK-2614",
-        userEmail: "pa@nyu.edu",
-      });
-
-      const response = await UpdateCartPost(request);
-      const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(data.message).toBe("Cart number updated successfully");
+      expect(data.error).toBe("WebCheckout is not enabled for this tenant");
+      expect(dbMocks.update).not.toHaveBeenCalled();
     });
   });
 
   describe("Database and Calendar Updates", () => {
-    beforeEach(() => {
-      const mockAdminUsers = [{ email: "admin@nyu.edu" }];
-      const mockPaUsers = [{ email: "pa@nyu.edu" }];
-
-      vi.mocked(serverFetchAllDataFromCollection)
-        .mockResolvedValueOnce(mockAdminUsers)
-        .mockResolvedValueOnce(mockPaUsers);
-    });
-
     it("should update database with cart number", async () => {
-      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
-
-      // Mock successful calendar update
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ message: "Event updated successfully" }),
-      });
+      okCalendarUpdate();
 
       const request = createMockUpdateRequest({
         calendarEventId: "test-event-id",
         cartNumber: "CK-2614",
-        userEmail: "admin@nyu.edu",
       });
 
       await UpdateCartPost(request);
 
-      expect(vi.mocked(serverUpdateDataByCalendarEventId)).toHaveBeenCalledWith(
-        "bookings",
+      expect(dbMocks.collection).toHaveBeenCalledWith("mc-bookings");
+      expect(dbMocks.where).toHaveBeenCalledWith(
+        "calendarEventId",
+        "==",
         "test-event-id",
-        { webcheckoutCartNumber: "CK-2614" },
-        "mc"
       );
+      expect(dbMocks.update).toHaveBeenCalledWith({
+        webcheckoutCartNumber: "CK-2614",
+      });
     });
 
     it("should update calendar event description with cart number", async () => {
-      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
-
-      // Mock successful calendar update
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ message: "Event updated successfully" }),
-      });
+      okCalendarUpdate();
 
       const request = createMockUpdateRequest({
         calendarEventId: "test-event-id",
         cartNumber: "CK-2614",
-        userEmail: "admin@nyu.edu",
       });
 
       await UpdateCartPost(request);
@@ -730,40 +805,27 @@ describe("UpdateWebcheckoutCart API Route", () => {
             calendarEventId: "test-event-id",
             newValues: {},
           }),
-        }
+        },
       );
     });
 
     it("should handle cart number removal (null value)", async () => {
-      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
-
-      // Mock successful calendar update
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ message: "Event updated successfully" }),
-      });
+      okCalendarUpdate();
 
       const request = createMockUpdateRequest({
         calendarEventId: "test-event-id",
         cartNumber: null,
-        userEmail: "admin@nyu.edu",
       });
 
       const response = await UpdateCartPost(request);
-      const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(vi.mocked(serverUpdateDataByCalendarEventId)).toHaveBeenCalledWith(
-        "bookings",
-        "test-event-id",
-        { webcheckoutCartNumber: null },
-        "mc"
-      );
+      expect(dbMocks.update).toHaveBeenCalledWith({
+        webcheckoutCartNumber: null,
+      });
     });
 
     it("should continue if calendar update fails", async () => {
-      vi.mocked(serverUpdateDataByCalendarEventId).mockResolvedValue(undefined);
-
       // Mock failed calendar update
       mockFetch.mockResolvedValueOnce({
         ok: false,
@@ -773,7 +835,6 @@ describe("UpdateWebcheckoutCart API Route", () => {
       const request = createMockUpdateRequest({
         calendarEventId: "test-event-id",
         cartNumber: "CK-2614",
-        userEmail: "admin@nyu.edu",
       });
 
       const response = await UpdateCartPost(request);
@@ -787,24 +848,12 @@ describe("UpdateWebcheckoutCart API Route", () => {
   });
 
   describe("Error Handling", () => {
-    beforeEach(() => {
-      const mockAdminUsers = [{ email: "admin@nyu.edu" }];
-      const mockPaUsers = [{ email: "pa@nyu.edu" }];
-
-      vi.mocked(serverFetchAllDataFromCollection)
-        .mockResolvedValueOnce(mockAdminUsers)
-        .mockResolvedValueOnce(mockPaUsers);
-    });
-
-    it("should return 500 if database update fails", async () => {
-      vi.mocked(serverUpdateDataByCalendarEventId).mockRejectedValue(
-        new Error("Database error")
-      );
+    it("should return 500 and skip the calendar update if the Firestore write fails", async () => {
+      dbMocks.update.mockRejectedValue(new Error("PERMISSION_DENIED"));
 
       const request = createMockUpdateRequest({
         calendarEventId: "test-event-id",
         cartNumber: "CK-2614",
-        userEmail: "admin@nyu.edu",
       });
 
       const response = await UpdateCartPost(request);
@@ -812,6 +861,40 @@ describe("UpdateWebcheckoutCart API Route", () => {
 
       expect(response.status).toBe(500);
       expect(data.error).toBe("Internal server error");
+      expect(data.success).toBeUndefined();
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("should return 500 if the booking lookup fails", async () => {
+      dbMocks.get.mockRejectedValue(new Error("UNAVAILABLE"));
+
+      const response = await UpdateCartPost(
+        createMockUpdateRequest({
+          calendarEventId: "test-event-id",
+          cartNumber: "CK-2614",
+        }),
+      );
+
+      expect(response.status).toBe(500);
+      expect(dbMocks.update).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("should return 404 if no booking has that calendarEventId", async () => {
+      dbMocks.get.mockResolvedValue({ empty: true, docs: [] });
+
+      const response = await UpdateCartPost(
+        createMockUpdateRequest({
+          calendarEventId: "missing-event-id",
+          cartNumber: "CK-2614",
+        }),
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.error).toBe("Booking not found");
+      expect(dbMocks.update).not.toHaveBeenCalled();
+      expect(mockFetch).not.toHaveBeenCalled();
     });
   });
 });

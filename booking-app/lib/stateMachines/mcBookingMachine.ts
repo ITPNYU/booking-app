@@ -188,6 +188,10 @@ export const mcBookingMachine = setup({
         cancel: {
           target: "Canceled",
         },
+        decline: {
+          target: "Declined",
+          actions: "setDeclineReason",
+        },
       },
       onDone: {
         target: "Evaluate Services Request",

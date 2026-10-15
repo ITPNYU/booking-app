@@ -33,8 +33,7 @@ const TenantEntitlementGuard: React.FC<{ children: React.ReactNode }> = ({
   // false → not entitled; redirect in progress
   const [entitled, setEntitled] = useState<boolean | null>(null);
 
-  const tenant =
-    typeof params?.tenant === "string" ? params.tenant : null;
+  const tenant = typeof params?.tenant === "string" ? params.tenant : null;
   const netId = user?.email?.split("@")[0];
 
   useEffect(() => {
@@ -84,7 +83,7 @@ const TenantEntitlementGuard: React.FC<{ children: React.ReactNode }> = ({
           // Auth failures mean the caller is not authenticated or not
           // authorized — fail closed to avoid granting access on bad tokens.
           console.warn(
-            `TenantEntitlementGuard: auth failure (${response.status}) — denying access`
+            `TenantEntitlementGuard: auth failure (${response.status}) — denying access`,
           );
           setEntitled(false);
           router.replace("/");
@@ -92,7 +91,7 @@ const TenantEntitlementGuard: React.FC<{ children: React.ReactNode }> = ({
           // Transient upstream errors (5xx, etc.) — fail open so a flaky
           // entitlements service doesn't lock out authenticated users.
           console.warn(
-            `TenantEntitlementGuard: entitlements API returned ${response.status} — allowing access`
+            `TenantEntitlementGuard: entitlements API returned ${response.status} — allowing access`,
           );
           setEntitled(true);
         }
@@ -100,7 +99,7 @@ const TenantEntitlementGuard: React.FC<{ children: React.ReactNode }> = ({
         // Fail open on network/parse errors.
         console.warn(
           "TenantEntitlementGuard: failed to fetch entitlements — allowing access",
-          err
+          err,
         );
         if (!cancelled) setEntitled(true);
       }

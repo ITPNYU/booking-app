@@ -525,10 +525,7 @@ const findGuestEmails = (event: any, description: string): string[] => {
 // to eyeball raw JSON.
 const validateBooking = (
   booking: any,
-  {
-    rawEmail,
-    testMode,
-  }: { rawEmail: string; testMode: boolean },
+  { rawEmail, testMode }: { rawEmail: string; testMode: boolean },
 ): string[] => {
   const issues: string[] = [];
 
@@ -553,8 +550,7 @@ const validateBooking = (
   }
 
   // Dates.
-  const startSecs =
-    booking?.startDate?.seconds ?? booking?.startDate?._seconds;
+  const startSecs = booking?.startDate?.seconds ?? booking?.startDate?._seconds;
   const endSecs = booking?.endDate?.seconds ?? booking?.endDate?._seconds;
   if (typeof startSecs !== "number") issues.push("Missing startDate");
   if (typeof endSecs !== "number") issues.push("Missing endDate");
@@ -587,9 +583,7 @@ const validateBooking = (
     typeof booking?.staffingServices === "string" &&
     /\(\d+\)/.test(booking.staffingServices)
   ) {
-    issues.push(
-      `Unmatched staffing option(s) "${booking.staffingServices}"`,
-    );
+    issues.push(`Unmatched staffing option(s) "${booking.staffingServices}"`);
   }
 
   return issues;
@@ -676,7 +670,10 @@ export async function POST(request: NextRequest) {
     // production Firestore database (e.g. a local .env.local pointing at
     // booking-app-prod), refuse testMode so a local run can't plant test
     // records in the real mc-bookings collection.
-    if (testMode && process.env.NEXT_PUBLIC_DATABASE_NAME === "booking-app-prod") {
+    if (
+      testMode &&
+      process.env.NEXT_PUBLIC_DATABASE_NAME === "booking-app-prod"
+    ) {
       return NextResponse.json(
         {
           error:

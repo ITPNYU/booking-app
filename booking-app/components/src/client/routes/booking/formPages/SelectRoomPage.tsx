@@ -22,7 +22,14 @@ const CalendarVerticalResource = dynamic(
   {
     ssr: false,
     loading: () => (
-      <Box sx={{ minHeight: 400, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box
+        sx={{
+          minHeight: 400,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         Loading calendar...
       </Box>
     ),

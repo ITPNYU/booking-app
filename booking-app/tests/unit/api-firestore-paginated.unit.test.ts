@@ -291,3 +291,55 @@ describe("POST /api/firestore/paginated — sortDirection", () => {
     expect(mocks.getOrderByDirection()).toBe("asc");
   });
 });
+
+describe("POST /api/firestore/paginated — limit", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.reset();
+    mocks.mockRequireSession.mockResolvedValue({
+      email: "alice@nyu.edu",
+      netId: "alice",
+    });
+    mocks.mockAuthorizeRead.mockResolvedValue({ ok: true, role: "BOOKING" });
+  });
+
+  it("applies the requested limit", async () => {
+    const res = await POST(
+      request({
+        collection: "bookings",
+        tenant: "mc",
+        filters: {
+          dateRange: [
+            new Date("2026-01-01").toISOString(),
+            new Date("2026-06-01").toISOString(),
+          ],
+          sortField: "startDate",
+        },
+        limit: 500,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.getLimit()).toBe(500);
+  });
+
+  it("returns the whole range when the request omits limit", async () => {
+    // The open-ended "All Future" view omits `limit` so client-side status
+    // chips (e.g. "Pre-Approved") see every future booking, not just the
+    // nearest LIMIT of them.
+    const res = await POST(
+      request({
+        collection: "bookings",
+        tenant: "mc",
+        filters: {
+          dateRange: [new Date("2026-01-01").toISOString(), null],
+          sortField: "startDate",
+          sortDirection: "asc",
+        },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mocks.getLimit()).toBeUndefined();
+  });
+});

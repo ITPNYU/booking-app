@@ -404,14 +404,17 @@ export const clientResolveResourceApproverEmails = async (
   for (const approver of approvers) {
     if (!requestedResourceIds.has(approver.resourceId)) continue;
     const email = normalizeEmail(approver.email);
-    const approverResourceIds = resourceIdsByEmail.get(email) ?? new Set<string>();
+    const approverResourceIds =
+      resourceIdsByEmail.get(email) ?? new Set<string>();
     approverResourceIds.add(approver.resourceId);
     resourceIdsByEmail.set(email, approverResourceIds);
   }
 
   const recipients = [...resourceIdsByEmail.entries()]
     .filter(([, approverResourceIds]) =>
-      uniqueResourceIds.every((resourceId) => approverResourceIds.has(resourceId)),
+      uniqueResourceIds.every((resourceId) =>
+        approverResourceIds.has(resourceId),
+      ),
     )
     .map(([email]) => email);
 
@@ -454,7 +457,8 @@ export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(
 
 export const getPaginatedData = async <T>(
   collectionName: string,
-  itemsPerPage: number = 10,
+  /** `null` fetches the whole filtered range (no LIMIT). */
+  itemsPerPage: number | null = 10,
   filters: Filters,
   lastVisible: Record<string, unknown> | null = null,
   tenant?: string,
@@ -500,7 +504,7 @@ export const getPaginatedData = async <T>(
         searchQuery: filters.searchQuery,
         userEmail: filters.userEmail,
       },
-      limit: itemsPerPage,
+      limit: itemsPerPage ?? undefined,
       lastVisible: serializedLast,
     });
     return docs as unknown as T[];
@@ -543,9 +547,7 @@ export const clientGetDataByCalendarEventId = async <T>(
     >("/api/firestore/list", {
       collection: collectionName,
       tenant: resolveTenantArg(tenant),
-      where: [
-        { field: "calendarEventId", op: "==", value: calendarEventId },
-      ],
+      where: [{ field: "calendarEventId", op: "==", value: calendarEventId }],
       limit: 1,
     });
     if (docs.length === 0) return null;

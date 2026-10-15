@@ -13,7 +13,9 @@ import {
 } from "@mui/material";
 import React, { useEffect, useState } from "react";
 
-const TENANT_DISPLAY: Partial<Record<TenantValue, { label: string; description: string }>> = {
+const TENANT_DISPLAY: Partial<
+  Record<TenantValue, { label: string; description: string }>
+> = {
   [TENANTS.MC]: {
     label: "Media Commons",
     description: "Book spaces and equipment at the Media Commons.",
@@ -51,7 +53,9 @@ const HomePage: React.FC = () => {
           const data = await response.json();
           setEntitledTenants(data.entitledTenants ?? FALLBACK_TENANTS);
         } else {
-          console.error(`Entitlements API returned ${response.status} — falling back to default tenants`);
+          console.error(
+            `Entitlements API returned ${response.status} — falling back to default tenants`,
+          );
           setEntitledTenants(FALLBACK_TENANTS);
           setEntitlementsError(true);
         }
@@ -91,12 +95,22 @@ const HomePage: React.FC = () => {
   return (
     <Container maxWidth="md" sx={{ mt: 8 }}>
       {entitlementsError && (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: "center" }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mb: 3, textAlign: "center" }}
+        >
           Could not load your full access list. Showing available facilities.
         </Typography>
       )}
-      <Box display="flex" alignItems="center" justifyContent="center" flexWrap="wrap" gap={3}>
-        {displayTenants.map((tenant) => {
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+        flexWrap="wrap"
+        gap={3}
+      >
+        {displayTenants.map(tenant => {
           const display = TENANT_DISPLAY[tenant];
           if (!display) return null; // unknown future tenant — render nothing
           return (

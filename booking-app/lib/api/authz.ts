@@ -74,12 +74,7 @@ export async function resolveCallerRole(
  * Firestore security rules were the trust boundary; once the admin SDK
  * bypasses them, this table is the boundary.
  */
-type Role =
-  | "anyNYU"
-  | "paOrAbove"
-  | "adminOrSuper"
-  | "superOnly"
-  | "deny";
+type Role = "anyNYU" | "paOrAbove" | "adminOrSuper" | "superOnly" | "deny";
 
 type Policy = { read: Role; write: Role };
 
@@ -91,8 +86,14 @@ const POLICY: Record<string, Policy> = {
   [TableNames.SUPER_ADMINS]: { read: "anyNYU", write: "superOnly" },
   [TableNames.USERS_RIGHTS]: { read: "anyNYU", write: "adminOrSuper" },
   [TableNames.APPROVERS]: { read: "anyNYU", write: "adminOrSuper" },
-  [TableNames.RESOURCE_APPROVERS]: { read: "adminOrSuper", write: "adminOrSuper" },
-  [TableNames.SERVICE_APPROVERS]: { read: "adminOrSuper", write: "adminOrSuper" },
+  [TableNames.RESOURCE_APPROVERS]: {
+    read: "adminOrSuper",
+    write: "adminOrSuper",
+  },
+  [TableNames.SERVICE_APPROVERS]: {
+    read: "adminOrSuper",
+    write: "adminOrSuper",
+  },
   [TableNames.ADMINS]: { read: "anyNYU", write: "adminOrSuper" },
   [TableNames.PAS]: { read: "anyNYU", write: "adminOrSuper" },
 
@@ -156,8 +157,7 @@ function roleSatisfies(actual: PagePermission, required: Role): boolean {
       );
     case "adminOrSuper":
       return (
-        actual === PagePermission.ADMIN ||
-        actual === PagePermission.SUPER_ADMIN
+        actual === PagePermission.ADMIN || actual === PagePermission.SUPER_ADMIN
       );
     case "superOnly":
       return actual === PagePermission.SUPER_ADMIN;

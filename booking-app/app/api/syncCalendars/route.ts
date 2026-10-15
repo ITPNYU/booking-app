@@ -112,9 +112,7 @@ const findRoomIds = (event: any, resources: any[]): string => {
   });
 
   // Resource IDs are opaque strings; numeric sorting is only a display aid.
-  return Array.from(roomIds)
-    .sort(compareResourceIds)
-    .join(",");
+  return Array.from(roomIds).sort(compareResourceIds).join(",");
 };
 
 export async function POST(request: Request) {
@@ -216,7 +214,10 @@ export async function POST(request: Request) {
                 ) as Timestamp,
                 calendarEventId: calendarEventId || "",
                 roomId: roomIds,
-                requestNumber: await serverGetNextSequentialId("bookings", tenant),
+                requestNumber: await serverGetNextSequentialId(
+                  "bookings",
+                  tenant,
+                ),
                 mediaServices: MediaServices.CHECKOUT_EQUIPMENT,
               });
               console.log("newBooking", newBooking);

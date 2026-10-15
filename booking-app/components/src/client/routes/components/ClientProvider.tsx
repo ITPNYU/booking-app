@@ -33,9 +33,7 @@ const ClientProvider: React.FC<ClientProviderProps> = ({ children }) => {
     // Tenant root `/[tenant]` renders MyBookingsPage for BOOKING users
     // (PERMISSION_PATH omits BOOKING), so Edit preload needs BookingProvider.
     if (segments.length === 1) return true;
-    return segments.some((segment) =>
-      BOOKING_FLOW_SEGMENTS.includes(segment),
-    );
+    return segments.some((segment) => BOOKING_FLOW_SEGMENTS.includes(segment));
   }, [pathname]);
 
   return (
