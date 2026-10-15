@@ -561,7 +561,7 @@ export default function SchemaEditor() {
   }, [selected, schema]);
 
   const handleSaveClick = () => {
-    if (!schema || !original) return;
+    if (!schema || !original || hasParseError) return;
     setDiffDialogOpen(true);
   };
 
@@ -681,15 +681,20 @@ export default function SchemaEditor() {
             <Button
               variant="contained"
               onClick={handleSaveClick}
-              disabled={saving}
+              disabled={saving || hasParseError}
             >
               Save
             </Button>
             <Button variant="outlined" color="secondary" onClick={handleReset}>
               Reset
             </Button>
-            <Typography variant="body2" color="warning.main">
-              {diffs.length} unsaved change{diffs.length === 1 ? "" : "s"}
+            <Typography
+              variant="body2"
+              color={hasParseError ? "error.main" : "warning.main"}
+            >
+              {hasParseError
+                ? "Fix the JSON syntax error in the editor to save"
+                : `${diffs.length} unsaved change${diffs.length === 1 ? "" : "s"}`}
             </Typography>
           </>
         )}
