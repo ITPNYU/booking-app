@@ -245,10 +245,13 @@ function DiffDialog({
 function JsonEditor({
   value,
   onChange,
+  onParseErrorChange,
   minHeight = 500,
 }: {
   value: unknown;
   onChange: (value: unknown) => void;
+  /** Reports whether the textarea currently holds text that does not parse. */
+  onParseErrorChange?: (hasError: boolean) => void;
   minHeight?: number;
 }) {
   const [text, setText] = useState(() => JSON.stringify(value, null, 2));
@@ -270,10 +273,12 @@ function JsonEditor({
     try {
       const parsed = JSON.parse(next);
       setParseError(null);
+      onParseErrorChange?.(false);
       lastExternalRef.current = JSON.stringify(parsed);
       onChange(parsed);
     } catch (e: any) {
       setParseError(e.message);
+      onParseErrorChange?.(true);
     }
   };
 
@@ -499,6 +504,9 @@ export default function SchemaEditor() {
   const [schema, setSchema] = useState<AnyRecord | null>(null);
   const [originalSchema, setOriginalSchema] = useState<string>("");
   const [selected, setSelected] = useState<Selection>(SELECT_ALL);
+  // True while the textarea holds text that does not parse. Such text has
+  // not reached `schema`, so leaving the slice would discard it.
+  const [hasParseError, setHasParseError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [diffDialogOpen, setDiffDialogOpen] = useState(false);
@@ -592,28 +600,36 @@ export default function SchemaEditor() {
     }
   };
 
-  const handleResetAll = () => {
-    if (original) setSchema(original);
+  const handleReset = () => {
+    if (!original) return;
+    setSchema(original);
+    setHasParseError(false);
   };
 
-  const handleResetSection = () => {
-    if (!schema || !original) return;
-    const sel = effectiveSelected;
-    if (sel.kind === "all") {
-      handleResetAll();
-      return;
-    }
-    if (sel.kind === "section" && !(sel.key in original)) {
-      const { [sel.key]: _omit, ...rest } = schema;
-      setSchema(rest);
-      return;
-    }
-    setSchema(setSlice(schema, sel, getSlice(original, sel)));
+  /** Leaving a slice remounts the editor; confirm first if it holds unparsed text. */
+  const confirmLeaveSlice = (): boolean => {
+    if (!hasParseError) return true;
+    const ok = window.confirm(
+      "The JSON in the editor has a syntax error. Text typed since it last parsed has not been kept and will be discarded if you switch. Switch anyway?",
+    );
+    if (ok) setHasParseError(false);
+    return ok;
+  };
+
+  const handleSelect = (sel: Selection) => {
+    if (isSameSelection(sel, effectiveSelected)) return;
+    if (!confirmLeaveSlice()) return;
+    setSelected(sel);
+  };
+
+  const handleTenantChange = (next: string) => {
+    if (next === tenant) return;
+    if (!confirmLeaveSlice()) return;
+    setTenant(next);
   };
 
   const isDirty = diffs.length > 0;
   const canSave = isDirty && !saving && !!tenant;
-  const sectionDirty = isDirtyUnder(diffs, pathPrefix(effectiveSelected));
 
   const labelFor = useCallback(
     (path: string) =>
@@ -650,7 +666,7 @@ export default function SchemaEditor() {
           <Select
             value={tenant}
             label="Tenant"
-            onChange={(e) => setTenant(e.target.value)}
+            onChange={(e) => handleTenantChange(e.target.value)}
           >
             {["mc", "itp"].map((t) => (
               <MenuItem key={t} value={t}>
@@ -669,12 +685,8 @@ export default function SchemaEditor() {
             >
               Save
             </Button>
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={handleResetAll}
-            >
-              Reset all
+            <Button variant="outlined" color="secondary" onClick={handleReset}>
+              Reset
             </Button>
             <Typography variant="body2" color="warning.main">
               {diffs.length} unsaved change{diffs.length === 1 ? "" : "s"}
@@ -710,7 +722,7 @@ export default function SchemaEditor() {
               schema={schema}
               diffs={diffs}
               selected={effectiveSelected}
-              onSelect={setSelected}
+              onSelect={handleSelect}
             />
           </Box>
 
@@ -776,16 +788,6 @@ export default function SchemaEditor() {
                   variant="outlined"
                 />
               )}
-              <Box flex={1} />
-              {sectionDirty && effectiveSelected.kind !== "all" && (
-                <Button
-                  size="small"
-                  color="secondary"
-                  onClick={handleResetSection}
-                >
-                  Reset this section
-                </Button>
-              )}
             </Box>
 
             <JsonEditor
@@ -801,6 +803,7 @@ export default function SchemaEditor() {
                     : prev,
                 )
               }
+              onParseErrorChange={setHasParseError}
               minHeight={effectiveSelected.kind === "all" ? 600 : 400}
             />
           </Box>
