@@ -1,4 +1,8 @@
 import {
+  CALENDAR_FLOW_SEGMENTS,
+  isFlowSegment,
+} from "@/components/src/constants/flowSegments";
+import {
   createContext,
   useCallback,
   useContext,
@@ -103,16 +107,6 @@ export interface BookingContextType {
   setError: (x: Error | null) => void;
 }
 
-// Route segments whose pages render the room calendar (selectRoom) or check
-// overlap against it.
-const CALENDAR_FLOW_SEGMENTS = [
-  "book",
-  "walk-in",
-  "vip",
-  "edit",
-  "modification",
-];
-
 export const BookingContext = createContext<BookingContextType>({
   bookingCalendarInfo: undefined,
   department: undefined,
@@ -172,7 +166,7 @@ export function BookingProvider({ children }) {
     () =>
       (pathname ?? "")
         .split("/")
-        .some((segment) => CALENDAR_FLOW_SEGMENTS.includes(segment)),
+        .some((segment) => isFlowSegment(CALENDAR_FLOW_SEGMENTS, segment)),
     [pathname],
   );
   const schema = useTenantSchema();
