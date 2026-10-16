@@ -73,6 +73,10 @@ export type ServiceToggle = "on" | "off" | "optional";
  * - omit mode + description only (no options/chartField/toggle): treated as static on migrate
  * - toggle: lock the yes/no switch (see ServiceToggle). For equipment, omitting
  *   toggle keeps the legacy layout (details field always shown, no switch).
+ * - autoCloseout: when the booking reaches Service Closeout (after Cancel or
+ *   Check Out), an approved request for this service is closed out by the
+ *   system instead of waiting for a service user. Omitted/false keeps the
+ *   manual closeout. Any booked room with the flag set closes the service out.
  */
 export type ResourceFormSectionConfig = {
   showInOrigin?: ShowInOrigin;
@@ -80,6 +84,7 @@ export type ResourceFormSectionConfig = {
   descriptionHtml?: string;
   mode?: "radio" | "select" | "checkbox" | "static" | "hidden";
   toggle?: ServiceToggle;
+  autoCloseout?: boolean;
   options?: ResourceFormOption[];
   defaultValue?: string;
   required?: boolean;
@@ -121,6 +126,8 @@ export type ResourceStaffingConfig = {
   descriptionHtml?: string;
   /** Lock the staffing yes/no switch (see ServiceToggle). */
   toggle?: ServiceToggle;
+  /** System closes out an approved staffing request (see ResourceFormSectionConfig). */
+  autoCloseout?: boolean;
   sections?: Record<string, ResourceStaffingSectionConfig>;
   /** @deprecated Prefer sections with options */
   staffingOptions?: ResourceStaffingServiceOption[];

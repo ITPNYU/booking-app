@@ -30,7 +30,7 @@ afterEach(() => {
 
 describe("fetchCalendarEvents enabled flag", () => {
   it("does not hit /api/calendarEvents while disabled, even on reload", async () => {
-    const { result } = renderHook(() => fetchCalendarEvents(rooms, false));
+    const { result } = renderHook(() => fetchCalendarEvents(rooms, new Date(), false));
 
     result.current.reloadExistingCalendarEvents();
 
@@ -40,7 +40,7 @@ describe("fetchCalendarEvents enabled flag", () => {
 
   it("fetches once it becomes enabled (entering a booking flow)", async () => {
     const { result, rerender } = renderHook(
-      ({ enabled }) => fetchCalendarEvents(rooms, enabled),
+      ({ enabled }) => fetchCalendarEvents(rooms, new Date(), enabled),
       { initialProps: { enabled: false } },
     );
     expect(fetchMock).not.toHaveBeenCalled();
@@ -62,7 +62,7 @@ describe("fetchCalendarEvents enabled flag", () => {
     });
 
     const { rerender } = renderHook(
-      ({ enabled }) => fetchCalendarEvents(rooms, enabled),
+      ({ enabled }) => fetchCalendarEvents(rooms, new Date(), enabled),
       { initialProps: { enabled: true } },
     );
     await waitFor(() => expect(signal).toBeDefined());
@@ -76,5 +76,33 @@ describe("fetchCalendarEvents enabled flag", () => {
   it("still fetches by default when the flag is omitted", async () => {
     renderHook(() => fetchCalendarEvents(rooms));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  });
+
+  it("carries a fresh reload requested while disabled into the first enabled fetch", async () => {
+    // "Request a Reservation" on the tenant root reloads with fresh=true and
+    // then navigates into the booking flow; the reload itself is gated off, so
+    // the fetch that follows enabling must bypass the server cache instead.
+    const { result, rerender } = renderHook(
+      ({ enabled }) => fetchCalendarEvents(rooms, new Date(), enabled),
+      { initialProps: { enabled: false } },
+    );
+    result.current.reloadExistingCalendarEvents();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const first = new URL(String(fetchMock.mock.calls[0][0]), "http://x");
+    expect(first.searchParams.get("fresh")).toBe("1");
+    expect(first.searchParams.get("start")).toBeTruthy();
+    expect(first.searchParams.get("end")).toBeTruthy();
+
+    // The carry-over is consumed: a later plain reload is a normal cached fetch.
+    await waitFor(() => expect(result.current.fetchingStatus).toBe("loaded"));
+    rerender({ enabled: false });
+    rerender({ enabled: true });
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    const second = new URL(String(fetchMock.mock.calls[1][0]), "http://x");
+    expect(second.searchParams.get("fresh")).toBeNull();
   });
 });

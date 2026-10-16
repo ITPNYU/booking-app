@@ -62,6 +62,7 @@ export default defineConfig({
         "**/auto-approval.e2e.test.ts",
         "**/calendar-constraints.e2e.test.ts",
         "**/calendar-events-booking-flow-only.e2e.test.ts",
+        "**/calendar-events-window.e2e.test.ts",
         "**/liaison-first-approve.e2e.test.ts",
         "**/admin-final-approve.e2e.test.ts",
         // "**/services-approve.e2e.test.ts", // TODO: fix combobox click timeout after first service approval
