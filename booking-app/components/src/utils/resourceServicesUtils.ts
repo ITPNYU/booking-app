@@ -226,6 +226,9 @@ export function getServiceSectionConfig(
       label: staffing.label,
       descriptionHtml: staffing.descriptionHtml,
       toggle: staffing.toggle,
+      ...(staffing.autoCloseout !== undefined
+        ? { autoCloseout: staffing.autoCloseout }
+        : {}),
       mode: staffing.mode ?? (hasSections ? undefined : "static"),
       hideForUser: staffing.hideForUser,
       hideForVIP: staffing.hideForVIP,
