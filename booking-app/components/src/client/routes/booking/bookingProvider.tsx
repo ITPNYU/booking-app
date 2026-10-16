@@ -79,6 +79,8 @@ export interface BookingContextType {
   needsSafetyTraining: boolean;
   isInBlackoutPeriod: boolean;
   reloadExistingCalendarEvents: () => void;
+  viewDate: Date;
+  setViewDate: (x: Date) => void;
   role: Role | undefined;
   selectedRooms: RoomSetting[];
   /** Selected auxiliary spaces keyed by parent room id. */
@@ -118,6 +120,8 @@ export const BookingContext = createContext<BookingContextType>({
   needsSafetyTraining: false,
   isInBlackoutPeriod: false,
   reloadExistingCalendarEvents: () => {},
+  viewDate: new Date(),
+  setViewDate: (x: Date) => {},
   role: undefined,
   selectedRooms: [],
   annexByRoom: {},
@@ -253,11 +257,12 @@ export function BookingProvider({ children }) {
     (status: SubmitStatus) => setSubmission({ flowKey, status }),
     [flowKey],
   );
+  const [viewDate, setViewDate] = useState<Date>(new Date());
   const {
     existingCalendarEvents,
     reloadExistingCalendarEvents,
     fetchingStatus,
-  } = fetchCalendarEvents(roomSettings);
+  } = fetchCalendarEvents(roomSettings, viewDate);
   const [error, setError] = useState<Error | null>(null);
 
   // Update safety trained users when selected rooms change
@@ -374,6 +379,8 @@ export function BookingProvider({ children }) {
         department,
         existingCalendarEvents,
         reloadExistingCalendarEvents,
+        viewDate,
+        setViewDate,
         formData,
         isDetailsValid,
         serviceRuleMemory: serviceRuleMemory.current,
