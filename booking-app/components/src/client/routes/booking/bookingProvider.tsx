@@ -1,4 +1,8 @@
 import {
+  CALENDAR_FLOW_SEGMENTS,
+  isFlowSegment,
+} from "@/components/src/constants/flowSegments";
+import {
   createContext,
   useCallback,
   useContext,
@@ -155,6 +159,16 @@ export function BookingProvider({ children }) {
     pagePermission,
   } = useContext(DatabaseContext);
   const pathname = usePathname();
+  // The provider is also mounted on booking-table pages (admin, liaison, PA,
+  // my-bookings, tenant root) for the edit preload, but only these flows render
+  // the room calendar. Fetching every room's events elsewhere is pure load.
+  const showsBookingCalendar = useMemo(
+    () =>
+      (pathname ?? "")
+        .split("/")
+        .some((segment) => isFlowSegment(CALENDAR_FLOW_SEGMENTS, segment)),
+    [pathname],
+  );
   const schema = useTenantSchema();
 
   const [bookingCalendarInfo, setBookingCalendarInfo] =
@@ -262,7 +276,7 @@ export function BookingProvider({ children }) {
     existingCalendarEvents,
     reloadExistingCalendarEvents,
     fetchingStatus,
-  } = fetchCalendarEvents(roomSettings, viewDate);
+  } = fetchCalendarEvents(roomSettings, viewDate, showsBookingCalendar);
   const [error, setError] = useState<Error | null>(null);
 
   // Update safety trained users when selected rooms change

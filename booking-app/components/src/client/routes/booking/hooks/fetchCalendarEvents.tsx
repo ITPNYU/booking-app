@@ -20,9 +20,12 @@ function monthWindow(viewDate: Date) {
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
+// `enabled` lets the provider mount on pages that never render the calendar
+// (admin, liaison, PA, my-bookings, ...) without paying for the fetch there.
 export default function fetchCalendarEvents(
   allRooms: RoomSetting[],
   viewDate: Date = new Date(),
+  enabled: boolean = true,
 ) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [fetchingStatus, setFetchingStatus] = useState<
@@ -32,6 +35,10 @@ export default function fetchCalendarEvents(
 
   // Track in-flight request to prevent duplicate fetches
   const inflightRef = useRef<AbortController | null>(null);
+  // A cache-bypassing reload requested while disabled (e.g. "Request a
+  // Reservation" on the tenant root reloads before navigating into the flow)
+  // must not be lost: the next fetch after enabling bypasses the cache instead.
+  const pendingFreshRef = useRef(false);
 
   // The fetched window only depends on the viewed month, not the exact day, so
   // navigating day-to-day within a month does not change these and does not
@@ -95,10 +102,17 @@ export default function fetchCalendarEvents(
         inflightRef.current = null;
       }
 
+      if (!enabled) {
+        if (opts.fresh) pendingFreshRef.current = true;
+        return;
+      }
+
       if (allRooms.length === 0) {
         setEvents([]);
         return;
       }
+      const fresh = Boolean(opts.fresh) || pendingFreshRef.current;
+      pendingFreshRef.current = false;
       const controller = new AbortController();
       inflightRef.current = controller;
 
@@ -112,7 +126,7 @@ export default function fetchCalendarEvents(
       };
       // After a booking is created/changed, refetch bypassing the server cache
       // so the new calendar event is reflected immediately.
-      if (opts.fresh) params.fresh = "1";
+      if (fresh) params.fresh = "1";
       const query = new URLSearchParams(params).toString();
 
       fetch(`/api/calendarEvents?${query}`, {
@@ -155,7 +169,7 @@ export default function fetchCalendarEvents(
           setFetchingStatus("error");
         });
     },
-    [allRooms, tenant, mapEventsForRoom, windowStart, windowEnd],
+    [allRooms, tenant, mapEventsForRoom, windowStart, windowEnd, enabled],
   );
 
   useEffect(() => {
