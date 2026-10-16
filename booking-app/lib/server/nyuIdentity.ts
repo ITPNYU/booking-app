@@ -32,7 +32,9 @@ type CachedRecord = {
   expiresAt: admin.firestore.Timestamp;
 };
 
-async function readCache(uniqueId: string): Promise<Record<string, unknown> | null> {
+async function readCache(
+  uniqueId: string,
+): Promise<Record<string, unknown> | null> {
   try {
     const snap = await admin
       .firestore()

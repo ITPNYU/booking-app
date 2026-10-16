@@ -8,8 +8,13 @@ import {
 } from "../../../../utils/validationHelpers";
 import {
   getResourceServicesConfig,
+  getServiceResourceId,
   getServiceRooms,
+  getServiceSectionConfig,
+  hasSchemaServicesConfig,
+  isSchemaDrivenEquipmentSection,
 } from "../../../../utils/resourceServicesUtils";
+import { isServiceRequested } from "../../../../utils/tenantUtils";
 import {
   createServiceRuleMemory,
   getRequestOrigin,
@@ -24,6 +29,7 @@ import BookingFormEquipmentServices from "./BookingFormEquipmentServices";
 import BookingFormResourceServices from "./BookingFormResourceServices";
 import BookingFormStaffingServices from "./BookingFormStaffingServices";
 import { RequestFormShell, Section } from "./RequestFormShell";
+import ServiceDecisionMark from "./ServiceDecisionMark";
 import SubmitBlock from "./SubmitBlock";
 
 interface Props {
@@ -37,8 +43,13 @@ interface Props {
  * BookingContext like Details does, so the two steps share one answer set.
  */
 export default function ServicesInput({ calendarEventId, formContext }: Props) {
-  const { selectedRooms, formData, annexByRoom, serviceRuleMemory } =
-    useContext(BookingContext);
+  const {
+    selectedRooms,
+    formData,
+    annexByRoom,
+    serviceRuleMemory,
+    serviceDecisions,
+  } = useContext(BookingContext);
   // Rule bookkeeping lives in BookingContext so it outlives this step.
   const localRuleMemory = useRef(createServiceRuleMemory());
   const memory = serviceRuleMemory ?? localRuleMemory.current;
@@ -50,7 +61,10 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
   } = useTenantSchema();
 
   const origin = getRequestOrigin(formContext, formData?.origin);
-  const { isWalkIn, isVIP } = origin;
+  const { isWalkIn, isVIP, isEdit, isMod } = origin;
+
+  // Decision marks only make sense for a saved booking: edit and modification.
+  const decisions = isEdit || isMod ? (serviceDecisions ?? {}) : {};
 
   const { isSubmitting, createSubmitHandler } = useSubmitRequest(
     formContext,
@@ -86,6 +100,7 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
     handleSubmit,
     trigger,
     watch,
+    getValues,
     setValue,
     unregister,
     clearErrors,
@@ -155,6 +170,62 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
     clearErrors("chartFieldForCatering");
     setValue("chartFieldForCatering", "", { shouldValidate: false });
   }, [cateringValue, unregister, clearErrors, setValue]);
+
+  // Legacy setup / equipment switches only hide their detail fields. Clear the
+  // values they own too, otherwise an edit that turns the service off still
+  // stores (and requests) it. The same flat fields mirror the answers of
+  // schema rooms (BookingFormResourceServices), so those are left alone.
+  const roomSetupValue = watch("roomSetup");
+  const roomSetupByRoomValue = watch("roomSetupByRoom");
+  const schemaSetupRequested = serviceRooms.some(
+    (room) =>
+      hasSchemaServicesConfig(room) &&
+      isServiceRequested(roomSetupByRoomValue?.[getServiceResourceId(room)]),
+  );
+  useEffect(() => {
+    if (!showGenericSetup || roomSetupValue === "yes" || schemaSetupRequested)
+      return;
+    setValue("setupDetails", "", { shouldValidate: false });
+    setValue("chartFieldForRoomSetup", "", { shouldValidate: false });
+  }, [roomSetupValue, schemaSetupRequested, showGenericSetup, setValue]);
+
+  const equipmentServicesValue = watch("equipmentServices");
+  useEffect(() => {
+    if (!showEquipment || equipmentServicesValue?.length > 0) return;
+    // An edit copies the legacy details onto a single room's map entry; only
+    // the entries of rooms whose equipment section the schema renders stay.
+    const byRoom = getValues("equipmentServicesDetailsByRoom") ?? {};
+    const schemaOwned = Object.fromEntries(
+      Object.entries(byRoom).filter(([roomId]) =>
+        serviceRooms.some(
+          (room) =>
+            getServiceResourceId(room) === roomId &&
+            isSchemaDrivenEquipmentSection(
+              getServiceSectionConfig(room, "equipment"),
+            ),
+        ),
+      ),
+    );
+    if (Object.keys(schemaOwned).length !== Object.keys(byRoom).length) {
+      setValue("equipmentServicesDetailsByRoom", schemaOwned, {
+        shouldValidate: false,
+      });
+    }
+    setValue(
+      "equipmentServicesDetails",
+      Object.values(schemaOwned)
+        .map((v) => (typeof v === "string" ? v.trim() : ""))
+        .filter(Boolean)
+        .join("\n"),
+      { shouldValidate: false },
+    );
+  }, [
+    equipmentServicesValue,
+    showEquipment,
+    serviceRooms,
+    getValues,
+    setValue,
+  ]);
 
   const hireSecurityValue = watch("hireSecurity");
 
@@ -238,10 +309,18 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
             formContext={formContext}
             isLargeEvent={isLargeEvent}
             ruleMemory={memory}
+            serviceDecisions={decisions}
           />
           {showGenericSetup && (
             <div style={{ marginBottom: 32 }}>
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="setup"
+                    decision={decisions.setup}
+                    formContext={formContext}
+                  />
+                }
                 id="roomSetup"
                 label="Room Setup"
                 required={false}
@@ -286,6 +365,7 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
                   setShowEquipmentServices,
                   formContext,
                 }}
+                decision={decisions.equipment}
               />
               {watch("equipmentServices") !== undefined &&
                 watch("equipmentServices").length > 0 && (
@@ -330,6 +410,7 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
                   formContext,
                   setValue,
                 }}
+                decision={decisions.staff}
               />
             </div>
           )}
@@ -337,6 +418,13 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
           {showLegacyCatering && (
             <div style={{ marginBottom: 32 }}>
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="catering"
+                    decision={decisions.catering}
+                    formContext={formContext}
+                  />
+                }
                 id="catering"
                 label="Catering?"
                 description={
@@ -371,6 +459,13 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
           {showLegacyCleaning && (
             <div style={{ marginBottom: 32 }}>
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="cleaning"
+                    decision={decisions.cleaning}
+                    formContext={formContext}
+                  />
+                }
                 id="cleaningService"
                 label="Cleaning?"
                 description={
@@ -397,6 +492,13 @@ export default function ServicesInput({ calendarEventId, formContext }: Props) {
           {showLegacySecurity && (
             <div style={{ marginBottom: 32 }}>
               <BookingFormSwitch
+                decisionMark={
+                  <ServiceDecisionMark
+                    service="security"
+                    decision={decisions.security}
+                    formContext={formContext}
+                  />
+                }
                 id="hireSecurity"
                 label="Security?"
                 required={false}

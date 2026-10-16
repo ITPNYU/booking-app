@@ -10,10 +10,7 @@ import SelectRoomPage from "@/components/src/client/routes/booking/formPages/Sel
 const SelectRoom = () => {
   const { id } = useParams<{ id: string }>();
   return (
-    <SelectRoomPage
-      calendarEventId={id}
-      formContext={FormContextLevel.EDIT}
-    />
+    <SelectRoomPage calendarEventId={id} formContext={FormContextLevel.EDIT} />
   );
 };
 

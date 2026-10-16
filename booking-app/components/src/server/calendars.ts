@@ -52,12 +52,17 @@ export const patchCalendarEvent = async (
     ...body,
   };
   await traceExternalCall("GoogleCalendar", "events.patch", () =>
-    calendar.events.patch({
-      calendarId,
-      eventId,
-      requestBody,
-      sendUpdates: "all", // Send notifications to all attendees when calendar is updated
-    }),
+    calendar.events.patch(
+      {
+        calendarId,
+        eventId,
+        requestBody,
+        sendUpdates: "all", // Send notifications to all attendees when calendar is updated
+      },
+      // googleapis retries only GET/HEAD/PUT/OPTIONS/DELETE by default;
+      // without PATCH here one 429/5xx leaves the event title stale.
+      { retryConfig: { httpMethodsToRetry: ["PATCH"] } },
+    ),
   );
   invalidateBookingCalendarCache();
 };
@@ -73,11 +78,14 @@ export const inviteUserToCalendarEvent = async (
 
   for (const roomCalendarId of roomCalendarIds) {
     try {
-      const event = await traceExternalCall("GoogleCalendar", "events.get", () =>
-        calendar.events.get({
-          calendarId: roomCalendarId,
-          eventId: calendarEventId,
-        }),
+      const event = await traceExternalCall(
+        "GoogleCalendar",
+        "events.get",
+        () =>
+          calendar.events.get({
+            calendarId: roomCalendarId,
+            eventId: calendarEventId,
+          }),
       );
 
       if (event) {
@@ -171,11 +179,11 @@ export const bookingContentsToDescription = async (
   description += listItem("N-Number", getProperty(bookingContents, "nNumber"));
   description += listItem(
     "Secondary Contact",
-    getSecondaryContactName(bookingContents)
+    getSecondaryContactName(bookingContents),
   );
   description += listItem(
     "Secondary Contact Email",
-    getProperty(bookingContents, "secondaryEmail")
+    getProperty(bookingContents, "secondaryEmail"),
   );
   description += listItem(
     "Sponsor Name",
@@ -207,6 +215,10 @@ export const bookingContentsToDescription = async (
     "Attendee Affiliation",
     getProperty(bookingContents, "attendeeAffiliation"),
   );
+  const productionSchedule = getProperty(bookingContents, "productionSchedule");
+  if (productionSchedule.trim()) {
+    description += listItem("Production Schedule", productionSchedule);
+  }
   description += "</ul>";
 
   const resources = await resourcesForServicesDisplay(bookingContents, tenant);
@@ -310,21 +322,30 @@ export const updateCalendarEvent = async (
     return;
   }
 
-  const roomCalendarIds = await serverGetRoomCalendarIds(
-    String(bookingContents.roomId).split(",")[0].trim(),
-    tenant,
-  );
+  const firstRoomId = String(bookingContents.roomId).split(",")[0].trim();
+  const roomCalendarIds = await serverGetRoomCalendarIds(firstRoomId, tenant);
   console.log(`Room Calendar Ids: ${roomCalendarIds}`);
   console.log("bookingContents", bookingContents);
+  // Callers treat a resolved promise as "the event was updated", so failing
+  // to find or patch the event must reject instead of being logged only.
+  if (roomCalendarIds.length === 0) {
+    throw new Error(
+      `No calendar found for room ${firstRoomId}; event ${calendarEventId} was not updated.`,
+    );
+  }
   const calendar = await getCalendarClient();
+  const updateErrors: unknown[] = [];
 
   for (const roomCalendarId of roomCalendarIds) {
     try {
-      const event = await traceExternalCall("GoogleCalendar", "events.get", () =>
-        calendar.events.get({
-          calendarId: roomCalendarId,
-          eventId: calendarEventId,
-        }),
+      const event = await traceExternalCall(
+        "GoogleCalendar",
+        "events.get",
+        () =>
+          calendar.events.get({
+            calendarId: roomCalendarId,
+            eventId: calendarEventId,
+          }),
       );
 
       if (!event) {
@@ -367,6 +388,7 @@ export const updateCalendarEvent = async (
         `Updated event ${calendarEventId} in calendar ${roomCalendarId} with new values: ${JSON.stringify(newValues)}`,
       );
     } catch (error) {
+      updateErrors.push(error);
       console.error(
         "Error updating event %s in calendar %s:",
         calendarEventId,
@@ -374,6 +396,15 @@ export const updateCalendarEvent = async (
         error,
       );
     }
+  }
+
+  if (updateErrors.length > 0) {
+    const [firstError] = updateErrors;
+    throw new Error(
+      `Failed to update calendar event ${calendarEventId} in ${updateErrors.length} calendar(s): ${
+        firstError instanceof Error ? firstError.message : String(firstError)
+      }`,
+    );
   }
 };
 

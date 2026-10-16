@@ -12,6 +12,7 @@ const mockGetTenantEmailConfig = vi.fn();
 const mockSendHTMLEmail = vi.fn();
 const mockLogServerBookingChange = vi.fn();
 const mockCallXStateTransitionAPI = vi.fn();
+const mockFinalApprove = vi.fn();
 
 vi.mock("@/components/src/server/admin", () => ({
   serverBookingContents: (...args: any[]) => mockServerBookingContents(...args),
@@ -22,6 +23,7 @@ vi.mock("@/components/src/server/admin", () => ({
   serverSendBookingDetailEmail: (...args: any[]) =>
     mockServerSendBookingDetailEmail(...args),
   firstApproverEmails: (...args: any[]) => mockFirstApproverEmails(...args),
+  finalApprove: (...args: any[]) => mockFinalApprove(...args),
 }));
 
 vi.mock("@/components/src/server/calendars", () => ({
@@ -47,6 +49,21 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   }),
 }));
 
+vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
+  getCachedTenantSchema: vi.fn().mockResolvedValue({
+    form: {
+      productionSchedule: {
+        enabled: false,
+        requiredAboveHours: 4,
+      },
+    },
+  }),
+}));
+
+vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
+  serverGetTenantResources: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/components/src/server/db", () => ({
   callXStateTransitionAPI: (...args: any[]) => mockCallXStateTransitionAPI(...args),
 }));
@@ -56,7 +73,10 @@ vi.mock("@/components/src/utils/statusFromXState", () => ({
   getStatusFromXState: (...args: any[]) => mockGetStatusFromXState(...args),
 }));
 
-vi.mock("@/components/src/utils/tenantUtils", () => ({
+vi.mock("@/components/src/utils/tenantUtils", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/components/src/utils/tenantUtils")
+  >()),
   shouldUseXState: () => true,
 }));
 
@@ -257,7 +277,7 @@ describe("Edit resets only the service decisions of changed services", () => {
       ]);
     });
 
-    it("leaves the machine alone when no decision had to be cleared", async () => {
+    it("leaves the machine alone when no decision was cleared and no service was turned on or off", async () => {
       mockServerBookingContents.mockResolvedValue(savedBooking());
 
       const res = await submit({
@@ -268,6 +288,153 @@ describe("Edit resets only the service decisions of changed services", () => {
 
       expect(deletedServiceFlags()).toEqual([]);
       expect(editEvents()).toEqual([]);
+    });
+
+    it("tells the machine when a service was turned off, even with no decision to clear", async () => {
+      mockServerBookingContents.mockResolvedValue(savedBooking());
+
+      const res = await submit({
+        ...savedServiceRequests,
+        catering: "no",
+        cateringByRoom: { "202": "no" },
+        chartFieldForCateringByRoom: {},
+      });
+      expect(res.status).toBe(200);
+
+      expect(deletedServiceFlags()).toEqual([]);
+      expect(editEvents()).toEqual([
+        ["new-cal-456", "edit", "user@nyu.edu", "mc", undefined, undefined, ["catering"]],
+      ]);
+      // Staff is still requested, so the machine keeps it Requested.
+      expect(mockFinalApprove).not.toHaveBeenCalled();
+      expect(mockSendHTMLEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ targetEmail: "liaison@nyu.edu" }),
+      );
+    });
+
+    it("leaves the machine alone when the edit form only backfilled a legacy setup answer", async () => {
+      // Saved before per-room maps: the edit form fans roomSetup "yes" out to
+      // roomSetupByRoom, which reads as a setup request although nothing changed.
+      mockServerBookingContents.mockResolvedValue(
+        savedBooking({ roomSetup: "yes" }),
+      );
+
+      const res = await submit({
+        ...savedServiceRequests,
+        roomSetup: "yes",
+        roomSetupByRoom: { "202": "yes" },
+        title: "Renamed Meeting",
+      });
+      expect(res.status).toBe(200);
+
+      expect(editEvents()).toEqual([]);
+      expect(mockFinalApprove).not.toHaveBeenCalled();
+      expect(mockSendHTMLEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ targetEmail: "liaison@nyu.edu" }),
+      );
+    });
+
+    it("tells the machine when a legacy setup request was turned off", async () => {
+      mockServerBookingContents.mockResolvedValue(
+        savedBooking({ roomSetup: "yes", setupDetails: "10 chairs" }),
+      );
+
+      await submit({
+        ...savedServiceRequests,
+        roomSetup: "no",
+        setupDetails: "",
+        roomSetupByRoom: {},
+      });
+
+      expect(editEvents()[0][6]).toEqual(["setup"]);
+    });
+
+    it("tells the machine when a service was turned on", async () => {
+      mockServerBookingContents.mockResolvedValue(savedBooking());
+
+      await submit({
+        ...savedServiceRequests,
+        hireSecurity: "yes",
+        hireSecurityByRoom: { "202": "yes" },
+      });
+
+      expect(editEvents()[0][6]).toEqual(["security"]);
+    });
+
+    it("approves the booking instead of asking approvers when the machine auto-approves it", async () => {
+      mockServerBookingContents.mockResolvedValue(savedBooking());
+      mockCallXStateTransitionAPI.mockResolvedValue({
+        success: true,
+        newState: "Approved",
+      });
+
+      const res = await submit({
+        staffingServices: "",
+        catering: "no",
+        cateringByRoom: { "202": "no" },
+        chartFieldForCateringByRoom: {},
+        hireSecurity: "",
+      });
+      expect(res.status).toBe(200);
+
+      expect(editEvents()[0][6]).toEqual(["staff", "catering"]);
+      expect(mockFinalApprove).toHaveBeenCalledWith("new-cal-456", "System", "mc");
+      expect(mockSendHTMLEmail).not.toHaveBeenCalled();
+      expect(mockServerSendBookingDetailEmail).not.toHaveBeenCalled();
+    });
+
+    it("gives the machine the edited rooms and times but keeps the rest of its context", async () => {
+      mockServerBookingContents.mockResolvedValue(
+        savedBooking({
+          xstateData: {
+            snapshot: {
+              value: "Requested",
+              context: { isVip: true, origin: "vip", selectedRooms: [] },
+            },
+          },
+        }),
+      );
+
+      await submit({
+        ...savedServiceRequests,
+        catering: "no",
+        cateringByRoom: { "202": "no" },
+        chartFieldForCateringByRoom: {},
+      });
+
+      const updatedData = mockServerUpdateDataByCalendarEventId.mock.calls[0][2];
+      expect(updatedData["xstateData.snapshot.context.selectedRooms"]).toEqual([
+        { roomId: 202, calendarId: "cal-room-202" },
+      ]);
+      expect(
+        updatedData["xstateData.snapshot.context.bookingCalendarInfo"],
+      ).toEqual({
+        startStr: "2026-05-05T10:00:00.000Z",
+        endStr: "2026-05-05T11:00:00.000Z",
+      });
+      expect(
+        Object.keys(updatedData).filter((key) => key.startsWith("xstateData")),
+      ).toEqual([
+        "xstateData.snapshot.context.selectedRooms",
+        "xstateData.snapshot.context.bookingCalendarInfo",
+        "xstateData.snapshot.context.formData",
+      ]);
+    });
+
+    it("never writes a memo posted with the edit form", async () => {
+      // memo is written only through PUT /api/bookings/memo.
+      mockServerBookingContents.mockResolvedValue(savedBooking());
+
+      const res = await submit({
+        ...savedServiceRequests,
+        memo: "forged",
+        "memo.x": "forged",
+      });
+      expect(res.status).toBe(200);
+
+      const updatedData = mockServerUpdateDataByCalendarEventId.mock.calls[0][2];
+      expect(updatedData).not.toHaveProperty("memo");
+      expect(Object.keys(updatedData)).not.toContain("memo.x");
     });
   });
 });

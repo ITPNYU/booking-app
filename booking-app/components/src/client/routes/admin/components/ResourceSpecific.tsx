@@ -23,6 +23,7 @@ import { useTenantSchema } from "../../components/SchemaProvider";
 import { formatDate } from "../../../utils/date";
 import { TableNames } from "../../../../policy";
 import { isLegacyServicesArray } from "../../../../utils/resourceServicesUtils";
+import { compareResourceIds } from "../../../../utils/resourceOrder";
 
 type ResourceApproverRow = {
   id: string;
@@ -448,9 +449,7 @@ export const ResourceSpecific = () => {
   const sortedResources = useMemo(
     () =>
       [...resources].sort((a, b) =>
-        String(a.resourceId).localeCompare(String(b.resourceId), undefined, {
-          numeric: true,
-        }),
+        compareResourceIds(a.resourceId, b.resourceId),
       ),
     [resources],
   );

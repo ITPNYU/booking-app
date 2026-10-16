@@ -340,6 +340,43 @@ describe("handleStateTransitions — per-state handler side effects", () => {
       expect(emailCall.headerMessage).toContain("could not be fulfilled");
     });
 
+    it("keeps the admin's reason when the whole request is declined after a service was declined", async () => {
+      await callHandleStateTransitions({
+        previous: "Services Request",
+        next: "Declined",
+        nextContext: {
+          declineReason: "No staff available that week",
+          servicesRequested: { staff: true, catering: true },
+          servicesApproved: { catering: false },
+        },
+        reason: "No staff available that week",
+      });
+
+      const emailCall = mockServerSendBookingDetailEmail.mock.calls[0][0];
+      expect(emailCall.headerMessage).toContain("No staff available that week");
+      expect(emailCall.headerMessage).not.toContain("could not be fulfilled");
+    });
+
+    it("lists declined services over a decline reason left in context by an earlier decline", async () => {
+      // The reason from a decline before the last edit persists in the
+      // snapshot; a later service decline sends no reason of its own.
+      await callHandleStateTransitions({
+        previous: "Services Request",
+        next: "Declined",
+        nextContext: {
+          declineReason: "Stale reason from an earlier decline",
+          servicesRequested: { catering: true },
+          servicesApproved: { catering: false },
+        },
+      });
+
+      const emailCall = mockServerSendBookingDetailEmail.mock.calls[0][0];
+      expect(emailCall.headerMessage).toContain(
+        "The following service(s) could not be fulfilled: Catering",
+      );
+      expect(emailCall.headerMessage).not.toContain("Stale reason");
+    });
+
     it("skips decline email when booking document has no email", async () => {
       mockServerGetDataByCalendarEventId.mockResolvedValue(
         buildBookingDoc({ email: undefined }),

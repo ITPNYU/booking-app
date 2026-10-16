@@ -7,8 +7,8 @@ const __dirname = path.dirname(__filename);
 const resolveStub = (relativePath) => path.join(__dirname, relativePath);
 
 // E2E runs swap the Firebase client SDK for in-memory stubs. Declared once
-// here and applied to BOTH bundlers: Turbopack (`next dev --turbo`) via
-// `turbopack.resolveAlias`, and webpack (`next build`, plain `next dev`) via
+// here and applied to BOTH bundlers: Turbopack (`next dev`) via
+// `turbopack.resolveAlias`, and webpack (`next build --webpack`) via
 // the `webpack` hook below — Turbopack does not run the webpack hook.
 const E2E_STUB_ALIASES = {
   "firebase/app": "./lib/firebase/stubs/firebaseAppStub.ts",
@@ -29,9 +29,6 @@ const isTestEnv =
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   ...(process.env.E2E_TESTING === "true"
     ? { turbopack: { resolveAlias: E2E_STUB_ALIASES } }
     : {}),

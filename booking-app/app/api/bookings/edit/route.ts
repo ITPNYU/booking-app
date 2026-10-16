@@ -2,6 +2,7 @@ import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import { TableNames } from "@/components/src/policy";
 import {
+  finalApprove,
   firstApproverEmails,
   serverBookingContents,
   serverDeleteFieldsByCalendarEventId,
@@ -25,20 +26,52 @@ import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServices
 import {
   getChangedServiceKeys,
   getServiceDecisions,
+  type MediaCommonsServiceKey,
   SERVICE_APPROVAL_FIELDS,
 } from "@/components/src/utils/serviceDecisions";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
+import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { callXStateTransitionAPI } from "@/components/src/server/db";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
-import { shouldUseXState } from "@/components/src/utils/tenantUtils";
+import {
+  getMediaCommonsServices,
+  isMediaCommons,
+  shouldUseXState,
+} from "@/components/src/utils/tenantUtils";
 import { logServerBookingChange } from "@/lib/firebase/server/adminDb";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 import {
   buildBookingContents,
   extractTenantFromRequest,
   getTenantRooms,
 } from "../shared";
+
+/**
+ * Media Commons services the edit turned on or off: their request fields
+ * changed and they are requested on one side only. Only `changedServices`
+ * are checked, because the saved booking and the edit form can spell the
+ * same answer differently (the form fans a legacy flat setup answer out to a
+ * per-room map), which getChangedServiceKeys already reconciles.
+ */
+function getToggledServices(
+  changedServices: MediaCommonsServiceKey[],
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+  resources: Awaited<ReturnType<typeof serverGetTenantResources>>,
+): MediaCommonsServiceKey[] {
+  const requestedBefore = getMediaCommonsServices(before, resources);
+  const requestedAfter = getMediaCommonsServices(after, resources);
+  return changedServices.filter(
+    service => requestedBefore[service] !== requestedAfter[service],
+  );
+}
 
 /**
  * Send email notifications for edit
@@ -169,7 +202,10 @@ async function sendEditNotificationEmails(
  * - User can only edit their own non-approved bookings
  * - For DECLINED bookings: Triggers XState "edit" transition (DECLINED → REQUESTED)
  * - For REQUESTED bookings: XState is only told about the edit when a service
- *   decision had to be cleared (REQUESTED → REQUESTED, context reconciled)
+ *   decision had to be cleared or a service was turned on or off
+ *   (REQUESTED → REQUESTED, context reconciled, auto-approval re-evaluated)
+ * - If the machine auto-approves the edited booking, it is approved instead of
+ *   being sent to approvers
  * - Service decisions are reset per service: only the services whose requests
  *   changed lose their decision (ADR-0001)
  * - Clears declinedAt timestamp when editing declined bookings
@@ -183,10 +219,12 @@ export async function PUT(request: NextRequest) {
     selectedRooms,
     allRooms,
     bookingCalendarInfo,
-    data,
+    data: rawData,
     calendarEventId,
     modifiedBy,
   } = await request.json();
+  // memo and the cart number are written only through their dedicated routes.
+  const data = omitStaffOnlyBookingFieldWrites(rawData);
 
   const tenant = extractTenantFromRequest(request);
 
@@ -211,6 +249,27 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(
       { error: "missing bookingCalendarId" },
       { status: 500 },
+    );
+  }
+
+  const tenantSchema = await getCachedTenantSchema(tenant ?? DEFAULT_TENANT);
+  const productionScheduleConfig = tenantSchema?.form?.productionSchedule;
+  if (
+    isProductionScheduleMissingWhenRequired({
+      enabled: productionScheduleConfig?.enabled,
+      requiredAboveHours: productionScheduleConfig?.requiredAboveHours,
+      start: bookingCalendarInfo?.start ?? bookingCalendarInfo?.startStr,
+      end: bookingCalendarInfo?.end ?? bookingCalendarInfo?.endStr,
+      productionSchedule: data?.productionSchedule,
+    })
+  ) {
+    return NextResponse.json(
+      {
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
+      },
+      { status: 400 },
     );
   }
 
@@ -241,7 +300,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    let wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
+    const wasDeclined = currentStatus === BookingStatusLabel.DECLINED;
     if (usesXState) {
       console.log(
         `🔍 EDIT: Current booking status [${tenant?.toUpperCase()}]:`,
@@ -303,16 +362,17 @@ export async function PUT(request: NextRequest) {
       throw Error(`calendarId not found for room ${room.roomId}`);
     }
 
+    const tenantResources = await serverGetTenantResources(tenant);
     const annexCalendarIds = resolveAnnexCalendarIds(
       data?.annexByRoom,
-      await serverGetTenantResources(tenant),
+      tenantResources,
     );
     const otherRoomEmails = [
       ...new Set([
         ...otherRooms.map((r: { calendarId: string }) => r.calendarId),
         ...annexCalendarIds,
       ]),
-    ].filter((email) => email && email !== calendarId);
+    ].filter(email => email && email !== calendarId);
 
     const truncatedTitle =
       data.title.length > 25 ? `${data.title.substring(0, 25)}...` : data.title;
@@ -365,14 +425,50 @@ export async function PUT(request: NextRequest) {
     const changedServices = getChangedServiceKeys(existingContents, data);
     const previousDecisions = getServiceDecisions(existingContents);
     const clearedDecisionFields = changedServices
-      .filter((service) => typeof previousDecisions[service] === "boolean")
-      .map((service) => SERVICE_APPROVAL_FIELDS[service]);
-    console.log(`🧮 EDIT: Service request changes [${tenant?.toUpperCase()}]:`, {
-      calendarEventId,
-      changedServices,
-      previousDecisions,
-      clearedDecisionFields,
-    });
+      .filter(service => typeof previousDecisions[service] === "boolean")
+      .map(service => SERVICE_APPROVAL_FIELDS[service]);
+    // Services turned on or off. The machine context lists the requested
+    // services, and the bookings table and Services page read it from there.
+    const toggledServices = isMediaCommons(tenant)
+      ? getToggledServices(
+          changedServices,
+          existingContents,
+          data,
+          tenantResources,
+        )
+      : [];
+    console.log(
+      `🧮 EDIT: Service request changes [${tenant?.toUpperCase()}]:`,
+      {
+        calendarEventId,
+        changedServices,
+        toggledServices,
+        previousDecisions,
+        clearedDecisionFields,
+      },
+    );
+
+    // Tell the machine about the edit when its persisted context no longer
+    // matches the booking. A declined booking moves DECLINED → REQUESTED. A
+    // requested booking stays where it is unless a decision was cleared or a
+    // service was turned on or off. Re-entering Requested re-runs the
+    // auto-approval evaluation, so a booking whose services were all turned
+    // off can now auto-approve; ordinary REQUESTED edits should not trigger it.
+    const needsMachineEdit =
+      usesXState &&
+      (wasDeclined ||
+        clearedDecisionFields.length > 0 ||
+        toggledServices.length > 0);
+
+    // That evaluation reads rooms and times from the persisted context, which
+    // still holds the original request's. The rest of the context (isVip,
+    // origin) is kept as created.
+    if (needsMachineEdit && existingContents.xstateData?.snapshot?.context) {
+      updatedData["xstateData.snapshot.context.selectedRooms"] = selectedRooms;
+      updatedData["xstateData.snapshot.context.bookingCalendarInfo"] =
+        bookingCalendarInfo;
+      updatedData["xstateData.snapshot.context.formData"] = formData;
+    }
 
     // If booking was declined, clear the declinedAt timestamp to ensure status shows as REQUESTED
     if (existingContents.declinedAt) {
@@ -411,14 +507,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Tell the machine about the edit on the NEW calendarEventId. A declined
-    // booking moves DECLINED → REQUESTED. A requested booking stays where it
-    // is, so the machine only hears about the edit when a decision was
-    // cleared and its persisted context must be reconciled with the flags;
-    // re-entering Requested re-runs the auto-approval evaluation, which
-    // ordinary REQUESTED edits should not trigger.
-    const needsMachineEdit =
-      usesXState && (wasDeclined || clearedDecisionFields.length > 0);
+    // Send the edit on the NEW calendarEventId. Restoring the actor rebuilds
+    // servicesRequested and servicesApproved from the booking just written.
+    let autoApproved = false;
     if (needsMachineEdit) {
       console.log(
         `🔄 EDIT: Triggering XState edit transition [${tenant?.toUpperCase()}]:`,
@@ -442,6 +533,7 @@ export async function PUT(request: NextRequest) {
       );
 
       if (xstateResult.success) {
+        autoApproved = xstateResult.newState === "Approved";
         console.log(
           `✅ EDIT: XState transition successful [${tenant?.toUpperCase()}]:`,
           {
@@ -475,17 +567,25 @@ export async function PUT(request: NextRequest) {
       tenant,
     );
 
-    // Send email notifications
-    console.log("📧 EDIT: Sending email notifications");
-    await sendEditNotificationEmails(
-      newCalendarEventId,
-      data,
-      existingContents,
-      selectedRoomIds,
-      bookingCalendarInfo,
-      email,
-      tenant,
-    );
+    if (autoApproved) {
+      // Approve it like the create flow does instead of asking approvers.
+      console.log(
+        `🎉 EDIT: Edited booking was auto-approved [${tenant?.toUpperCase()}]:`,
+        { newCalendarEventId },
+      );
+      await finalApprove(newCalendarEventId, "System", tenant);
+    } else {
+      console.log("📧 EDIT: Sending email notifications");
+      await sendEditNotificationEmails(
+        newCalendarEventId,
+        data,
+        existingContents,
+        selectedRoomIds,
+        bookingCalendarInfo,
+        email,
+        tenant,
+      );
+    }
 
     // Verify the final status after edit
     const { serverGetDataByCalendarEventId } =

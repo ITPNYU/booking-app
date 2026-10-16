@@ -472,6 +472,121 @@ describe("components/src/server/admin", () => {
     ]);
   });
 
+  it("leaves unlabeled PRE-APPROVED history notes blank in email contents", async () => {
+    seedCollection("tenant-z-bookings", [
+      {
+        id: "booking-history",
+        data: {
+          calendarEventId: "cal-history",
+          requestNumber: 79,
+          title: "History Workshop",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-01T05:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-01T07:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
+          status: BookingStatusLabel.PRE_APPROVED,
+        },
+      },
+    ]);
+    seedCollection("tenant-z-bookingLogs", [
+      {
+        id: "log-requested",
+        data: {
+          calendarEventId: "cal-history",
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: "requester@nyu.edu",
+          changedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
+          requestNumber: 79,
+        },
+      },
+      {
+        id: "log-liaison",
+        data: {
+          calendarEventId: "cal-history",
+          status: BookingStatusLabel.PRE_APPROVED,
+          changedBy: "liaison@nyu.edu",
+          changedAt: makeTimestamp("2024-02-26T10:00:00.000Z"),
+          requestNumber: 79,
+        },
+      },
+      {
+        id: "log-admin",
+        data: {
+          calendarEventId: "cal-history",
+          status: BookingStatusLabel.PRE_APPROVED,
+          changedBy: "admin@nyu.edu",
+          changedAt: makeTimestamp("2024-02-27T10:00:00.000Z"),
+          requestNumber: 79,
+        },
+      },
+    ]);
+
+    const { serverBookingContents } =
+      await import("@/components/src/server/admin");
+
+    const result = await serverBookingContents("cal-history", "tenant-z");
+
+    expect(result.history.map((h: any) => h.note)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("lists same-minute history logs in millisecond order", async () => {
+    seedCollection("tenant-z-bookings", [
+      {
+        id: "booking-ms",
+        data: {
+          calendarEventId: "cal-ms",
+          requestNumber: 80,
+          title: "Millisecond Workshop",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-01T05:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-01T07:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
+          status: BookingStatusLabel.APPROVED,
+        },
+      },
+    ]);
+    seedCollection("tenant-z-bookingLogs", [
+      {
+        id: "log-approved-later",
+        data: {
+          calendarEventId: "cal-ms",
+          status: BookingStatusLabel.APPROVED,
+          changedBy: "System",
+          changedAt: makeTimestamp("2024-02-25T10:00:00.800Z"),
+          requestNumber: 80,
+        },
+      },
+      {
+        id: "log-requested-earlier",
+        data: {
+          calendarEventId: "cal-ms",
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: "requester@nyu.edu",
+          changedAt: makeTimestamp("2024-02-25T10:00:00.100Z"),
+          requestNumber: 80,
+        },
+      },
+    ]);
+
+    const { serverBookingContents } =
+      await import("@/components/src/server/admin");
+
+    const result = await serverBookingContents("cal-ms", "tenant-z");
+
+    expect(result.history.map((h: any) => h.status)).toEqual([
+      BookingStatusLabel.REQUESTED,
+      BookingStatusLabel.APPROVED,
+    ]);
+    expect(result.history.map((h: any) => h.date)).toEqual([
+      "02/25/24 5:00:00 AM",
+      "02/25/24 5:00:00 AM",
+    ]);
+  });
+
   it("performs first approval flow and notifies final approver", async () => {
     seedCollection("tenant-y-bookings", [
       {
@@ -499,6 +614,14 @@ describe("components/src/server/admin", () => {
     ]);
 
     seedCollection("tenant-y-usersApprovers", [
+      {
+        id: "approver-first",
+        data: {
+          email: "approver@nyu.edu",
+          department: "ITP",
+          level: ApproverLevel.FIRST,
+        },
+      },
       {
         id: "approver-final",
         data: {
@@ -529,6 +652,7 @@ describe("components/src/server/admin", () => {
       bookingId: "booking-2",
       status: BookingStatusLabel.PRE_APPROVED,
       changedBy: "approver@nyu.edu",
+      note: "Departmental Liaison Approved",
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
@@ -546,6 +670,210 @@ describe("components/src/server/admin", () => {
     ];
     const body = JSON.parse(fetchOptions.body);
     expect(body.targetEmail).toBe("final@nyu.edu");
+  });
+
+  it("labels first approval by an Admin as admin policy", async () => {
+    seedCollection("tenant-y-bookings", [
+      {
+        id: "booking-admin-first",
+        data: {
+          calendarEventId: "cal-admin-first",
+          requestNumber: 89,
+          title: "Admin First Approve",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+          firstApprovedAt: null,
+          finalApprovedAt: null,
+          declinedAt: null,
+          canceledAt: null,
+          checkedInAt: null,
+          checkedOutAt: null,
+          noShowedAt: null,
+          walkedInAt: null,
+          role: "Faculty",
+          status: BookingStatusLabel.REQUESTED,
+        },
+      },
+    ]);
+    seedCollection("tenant-y-usersRights", [
+      {
+        id: "admin-rights",
+        data: {
+          email: "admin@nyu.edu",
+          isAdmin: true,
+        },
+      },
+    ]);
+    seedCollection("tenant-y-usersApprovers", [
+      {
+        id: "approver-final",
+        data: {
+          email: "final@nyu.edu",
+          department: "ITP",
+          level: ApproverLevel.FINAL,
+        },
+      },
+    ]);
+
+    mockFetch.mockResolvedValue({ ok: true } as any);
+
+    const { serverFirstApproveOnly } =
+      await import("@/components/src/server/admin");
+
+    await serverFirstApproveOnly("cal-admin-first", "admin@nyu.edu", "tenant-y");
+
+    const logs = readCollection("tenant-y-bookingLogs");
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({
+      bookingId: "booking-admin-first",
+      status: BookingStatusLabel.PRE_APPROVED,
+      changedBy: "admin@nyu.edu",
+      note: "Admin Policy Approved",
+    });
+  });
+
+  it("labels firstApprove by an Admin as admin policy", async () => {
+    seedCollection("tenant-y-bookings", [
+      {
+        id: "booking-admin-first-2",
+        data: {
+          calendarEventId: "cal-admin-first-2",
+          requestNumber: 90,
+          title: "Admin First Approve Path",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+          firstApprovedAt: null,
+          finalApprovedAt: null,
+          declinedAt: null,
+          canceledAt: null,
+          checkedInAt: null,
+          checkedOutAt: null,
+          noShowedAt: null,
+          walkedInAt: null,
+          role: "Faculty",
+          status: BookingStatusLabel.REQUESTED,
+        },
+      },
+    ]);
+    seedCollection("tenant-y-usersRights", [
+      {
+        id: "admin-rights",
+        data: {
+          email: "admin@nyu.edu",
+          isAdmin: true,
+        },
+      },
+    ]);
+    seedCollection("tenant-y-usersApprovers", [
+      {
+        id: "approver-final",
+        data: {
+          email: "final@nyu.edu",
+          department: "ITP",
+          level: ApproverLevel.FINAL,
+        },
+      },
+    ]);
+
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) } as any);
+
+    const { serverApproveBooking } =
+      await import("@/components/src/server/admin");
+
+    await serverApproveBooking("cal-admin-first-2", "admin@nyu.edu", "tenant-y");
+
+    const logs = readCollection("tenant-y-bookingLogs");
+    expect(logs).toHaveLength(1);
+    expect(logs[0]).toMatchObject({
+      bookingId: "booking-admin-first-2",
+      status: BookingStatusLabel.PRE_APPROVED,
+      changedBy: "admin@nyu.edu",
+      note: "Admin Policy Approved",
+    });
+  });
+
+  it("still notifies the final approver if first-approval role lookup fails", async () => {
+    seedCollection("tenant-y-bookings", [
+      {
+        id: "booking-role-fail",
+        data: {
+          calendarEventId: "cal-role-fail",
+          requestNumber: 91,
+          title: "Role Lookup Fail",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+          firstApprovedAt: null,
+          finalApprovedAt: null,
+          declinedAt: null,
+          canceledAt: null,
+          checkedInAt: null,
+          checkedOutAt: null,
+          noShowedAt: null,
+          walkedInAt: null,
+          role: "Faculty",
+          status: BookingStatusLabel.REQUESTED,
+        },
+      },
+    ]);
+    seedCollection("tenant-y-usersApprovers", [
+      {
+        id: "approver-final",
+        data: {
+          email: "final@nyu.edu",
+          department: "ITP",
+          level: ApproverLevel.FINAL,
+        },
+      },
+    ]);
+
+    mockFetch.mockResolvedValue({ ok: true } as any);
+
+    const firebaseAdmin = (await import("firebase-admin")).default;
+    const firestoreInstance = firebaseAdmin.firestore() as {
+      collection: (name: string) => unknown;
+    };
+    const originalCollection = firestoreInstance.collection;
+    firestoreInstance.collection = (name: string) => {
+      if (name === "usersSuperAdmin") {
+        throw new Error("transient firestore error");
+      }
+      return originalCollection(name);
+    };
+
+    try {
+      const { serverFirstApproveOnly } =
+        await import("@/components/src/server/admin");
+
+      await serverFirstApproveOnly(
+        "cal-role-fail",
+        "approver@nyu.edu",
+        "tenant-y",
+      );
+
+      const logs = readCollection("tenant-y-bookingLogs");
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toMatchObject({
+        bookingId: "booking-role-fail",
+        status: BookingStatusLabel.PRE_APPROVED,
+        changedBy: "approver@nyu.edu",
+      });
+      expect(logs[0].note == null).toBe(true);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "https://booking.test/api/sendEmail",
+        expect.objectContaining({
+          method: "POST",
+        }),
+      );
+    } finally {
+      firestoreInstance.collection = originalCollection;
+    }
   });
 
   it("skips CC email when getApprovalCcEmail returns empty string", async () => {
@@ -592,6 +920,213 @@ describe("components/src/server/admin", () => {
       return body.targetEmail === "cc@nyu.edu";
     });
     expect(ccEmailCall).toBeUndefined();
+  });
+
+  describe("serverApproveEvent calendar title (#1508)", () => {
+    const seedApprovedBooking = (secondaryEmail = "") =>
+      seedCollection("tenant-y-bookings", [
+        {
+          id: "booking-approved",
+          data: {
+            calendarEventId: "cal-approved",
+            requestNumber: 7073,
+            title: "Approved Title Test",
+            email: "requester@nyu.edu",
+            secondaryEmail,
+            roomId: "202",
+            startDate: makeTimestamp("2024-03-04T10:00:00.000Z"),
+            endDate: makeTimestamp("2024-03-04T12:00:00.000Z"),
+            requestedAt: makeTimestamp("2024-03-01T08:00:00.000Z"),
+            role: "Faculty",
+            status: BookingStatusLabel.APPROVED,
+          },
+        },
+      ]);
+
+    const ok = { ok: true, status: 200, json: async () => ({}) };
+    const failed = {
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+      json: async () => ({}),
+      text: async () => "",
+    };
+    const callsTo = (path: string) =>
+      mockFetch.mock.calls
+        .filter(([url]) => url === `https://booking.test${path}`)
+        .map(([, init]) => JSON.parse((init as RequestInit).body as string));
+
+    it("retitles the event even when the secondary contact invite fails", async () => {
+      seedApprovedBooking("secondary@nyu.edu");
+      mockFetch.mockImplementation(async (url: string, init: RequestInit) =>
+        url.endsWith("/api/inviteUser") &&
+        JSON.parse(init.body as string).guestEmail === "secondary@nyu.edu"
+          ? failed
+          : ok,
+      );
+
+      const { serverApproveEvent } =
+        await import("@/components/src/server/admin");
+
+      await expect(
+        serverApproveEvent("cal-approved", "tenant-y"),
+      ).rejects.toThrow("Failed to invite secondary contact");
+      expect(callsTo("/api/calendarEvents")).toEqual([
+        {
+          calendarEventId: "cal-approved",
+          newValues: { statusPrefix: BookingStatusLabel.APPROVED },
+        },
+      ]);
+    });
+
+    it("still invites the requester, then rejects, when the title update fails", async () => {
+      seedApprovedBooking();
+      mockFetch.mockImplementation(async (url: string) =>
+        url.endsWith("/api/calendarEvents") ? failed : ok,
+      );
+
+      const { serverApproveEvent, ApprovalFollowUpError } =
+        await import("@/components/src/server/admin");
+
+      const error = await serverApproveEvent("cal-approved", "tenant-y").catch(
+        (e) => e,
+      );
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.message).toBe(
+        "Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
+      );
+      expect(callsTo("/api/inviteUser")).toEqual([
+        expect.objectContaining({
+          guestEmail: "requester@nyu.edu",
+          calendarEventId: "cal-approved",
+        }),
+      ]);
+    });
+
+    it("reports both the stale title and the invite failure when both fail", async () => {
+      seedApprovedBooking("secondary@nyu.edu");
+      mockFetch.mockImplementation(async (url: string, init: RequestInit) =>
+        url.endsWith("/api/calendarEvents") ||
+        (url.endsWith("/api/inviteUser") &&
+          JSON.parse(init.body as string).guestEmail === "secondary@nyu.edu")
+          ? failed
+          : ok,
+      );
+
+      const { serverApproveEvent, ApprovalFollowUpError } =
+        await import("@/components/src/server/admin");
+
+      const error = await serverApproveEvent("cal-approved", "tenant-y").catch(
+        (e) => e,
+      );
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.message).toContain(
+        "Google Calendar event title was not updated to [APPROVED]",
+      );
+      expect(error.message).toContain("Failed to invite secondary contact");
+    });
+
+    it("reports a fallback final approval whose invite fails as approved", async () => {
+      seedApprovedBooking("secondary@nyu.edu");
+      const store = firestoreStore["tenant-y-bookings"];
+      store.set("booking-approved", {
+        ...store.get("booking-approved"),
+        firstApprovedAt: makeTimestamp("2024-03-02T08:00:00.000Z"),
+      });
+      mockFetch.mockImplementation(async (url: string, init: RequestInit) =>
+        url.endsWith("/api/inviteUser") &&
+        JSON.parse(init.body as string).guestEmail === "secondary@nyu.edu"
+          ? failed
+          : ok,
+      );
+
+      const { serverApproveBooking, ApprovalFollowUpError } =
+        await import("@/components/src/server/admin");
+
+      const error = await serverApproveBooking(
+        "cal-approved",
+        "admin@nyu.edu",
+        "tenant-y",
+      ).catch((e) => e);
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.message).toContain("Failed to invite secondary contact");
+      expect(store.get("booking-approved")?.finalApprovedBy).toBe(
+        "admin@nyu.edu",
+      );
+    });
+
+    it("reports both the stale title and a failed requester invite", async () => {
+      seedApprovedBooking();
+      mockFetch.mockImplementation(async (url: string) =>
+        url.endsWith("/api/calendarEvents") || url.endsWith("/api/inviteUser")
+          ? failed
+          : ok,
+      );
+
+      const { serverApproveEvent, ApprovalFollowUpError } =
+        await import("@/components/src/server/admin");
+
+      const error = await serverApproveEvent("cal-approved", "tenant-y").catch(
+        (e) => e,
+      );
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.message).toBe(
+        "Google Calendar event title was not updated to [APPROVED] (calendar update returned 500); Failed to invite requester (status 500 Internal Server Error)",
+      );
+    });
+
+    it("reports a fallback final approval whose requester invite fails as approved", async () => {
+      seedApprovedBooking();
+      const store = firestoreStore["tenant-y-bookings"];
+      store.set("booking-approved", {
+        ...store.get("booking-approved"),
+        firstApprovedAt: makeTimestamp("2024-03-02T08:00:00.000Z"),
+      });
+      mockFetch.mockImplementation(async (url: string, init: RequestInit) =>
+        url.endsWith("/api/inviteUser") &&
+        JSON.parse(init.body as string).guestEmail === "requester@nyu.edu"
+          ? failed
+          : ok,
+      );
+
+      const { serverApproveBooking, ApprovalFollowUpError } =
+        await import("@/components/src/server/admin");
+
+      const error = await serverApproveBooking(
+        "cal-approved",
+        "admin@nyu.edu",
+        "tenant-y",
+      ).catch((e) => e);
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.message).toBe(
+        "Failed to invite requester (status 500 Internal Server Error)",
+      );
+    });
+
+    it("reports a fallback final approval whose retitle fails as approved", async () => {
+      seedApprovedBooking();
+      const store = firestoreStore["tenant-y-bookings"];
+      store.set("booking-approved", {
+        ...store.get("booking-approved"),
+        firstApprovedAt: makeTimestamp("2024-03-02T08:00:00.000Z"),
+      });
+      mockFetch.mockImplementation(async (url: string) =>
+        url.endsWith("/api/calendarEvents") ? failed : ok,
+      );
+
+      const { serverApproveBooking, ApprovalFollowUpError } =
+        await import("@/components/src/server/admin");
+
+      const error = await serverApproveBooking(
+        "cal-approved",
+        "admin@nyu.edu",
+        "tenant-y",
+      ).catch((e) => e);
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.message).toContain(
+        "Google Calendar event title was not updated to [APPROVED]",
+      );
+    });
   });
 
   it("returns admin records with limited fields", async () => {

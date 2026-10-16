@@ -77,16 +77,20 @@ describe("server/calendars", () => {
       summary: "Updated",
     });
 
-    expect(patchMock).toHaveBeenCalledWith({
-      calendarId: "cal-1",
-      eventId: "evt-1",
-      requestBody: {
-        start: existingEvent.start,
-        end: existingEvent.end,
-        summary: "Updated",
+    expect(patchMock).toHaveBeenCalledWith(
+      {
+        calendarId: "cal-1",
+        eventId: "evt-1",
+        requestBody: {
+          start: existingEvent.start,
+          end: existingEvent.end,
+          summary: "Updated",
+        },
+        sendUpdates: "all",
       },
-      sendUpdates: "all",
-    });
+      // googleapis does not retry PATCH on 429/5xx unless asked to.
+      { retryConfig: { httpMethodsToRetry: ["PATCH"] } },
+    );
   });
 
   it("inviteUserToCalendarEvent appends guest to attendees", async () => {
@@ -115,17 +119,20 @@ describe("server/calendars", () => {
 
     await inviteUserToCalendarEvent("evt-1", "guest@nyu.edu", 123);
 
-    expect(patchMock).toHaveBeenCalledWith({
-      calendarId: "room-cal-1",
-      eventId: "evt-1",
-      requestBody: expect.objectContaining({
-        attendees: expect.arrayContaining([
-          { email: "existing@nyu.edu" },
-          { email: "guest@nyu.edu" },
-        ]),
-      }),
-      sendUpdates: "all",
-    });
+    expect(patchMock).toHaveBeenCalledWith(
+      {
+        calendarId: "room-cal-1",
+        eventId: "evt-1",
+        requestBody: expect.objectContaining({
+          attendees: expect.arrayContaining([
+            { email: "existing@nyu.edu" },
+            { email: "guest@nyu.edu" },
+          ]),
+        }),
+        sendUpdates: "all",
+      },
+      expect.anything(),
+    );
   });
 
   it("insertEvent logs the Google error body and rethrows on failure", async () => {
@@ -290,15 +297,66 @@ describe("server/calendars", () => {
       "tenant-a",
     );
 
-    expect(calendar.events.patch).toHaveBeenCalledWith({
-      calendarId: "room-cal-1",
-      eventId: "evt-1",
-      requestBody: expect.objectContaining({
-        summary: "[APPROVED] Demo Event",
-        description: expect.stringContaining("Request #"),
-      }),
-      sendUpdates: "all",
-    });
+    expect(calendar.events.patch).toHaveBeenCalledWith(
+      {
+        calendarId: "room-cal-1",
+        eventId: "evt-1",
+        requestBody: expect.objectContaining({
+          summary: "[APPROVED] Demo Event",
+          description: expect.stringContaining("Request #"),
+        }),
+        sendUpdates: "all",
+      },
+      expect.anything(),
+    );
+  });
+
+  it("reports Google Calendar title-update failures to the caller", async () => {
+    const getMock = vi.fn().mockRejectedValue(new Error("Event unavailable"));
+    mockGetCalendarClient.mockResolvedValue({ events: { get: getMock } });
+    mockServerGetRoomCalendarIds.mockResolvedValue(["room-cal-1"]);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const { updateCalendarEvent } = await import(
+      "@/components/src/server/calendars"
+    );
+
+    await expect(
+      updateCalendarEvent(
+        "evt-1",
+        { statusPrefix: "APPROVED" },
+        { roomId: "101" } as any,
+        "tenant-a",
+      ),
+    ).rejects.toThrow(
+      "Failed to update calendar event evt-1 in 1 calendar(s): Event unavailable",
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("rejects instead of silently skipping when no room calendar matches", async () => {
+    const getMock = vi.fn();
+    mockGetCalendarClient.mockResolvedValue({ events: { get: getMock } });
+    mockServerGetRoomCalendarIds.mockResolvedValue([]);
+
+    const { updateCalendarEvent } = await import(
+      "@/components/src/server/calendars"
+    );
+
+    await expect(
+      updateCalendarEvent(
+        "evt-1",
+        { statusPrefix: "APPROVED" },
+        { roomId: "999, 101" } as any,
+        "tenant-a",
+      ),
+    ).rejects.toThrow(
+      "No calendar found for room 999; event evt-1 was not updated.",
+    );
+    expect(getMock).not.toHaveBeenCalled();
   });
 
   it("deleteEvent sends cancellation notifications to all attendees", async () => {

@@ -5,6 +5,7 @@ import {
 } from "@/components/src/server/calendars";
 import { NextRequest, NextResponse } from "next/server";
 
+import { getTenantRooms } from "@/app/api/bookings/shared";
 import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { serverBookingContents } from "@/components/src/server/admin";
@@ -14,6 +15,13 @@ import {
   getCachedRawCalendarEvents,
   invalidateCalendarEventsCache,
 } from "@/lib/calendarEventsCache";
+import {
+  BookingMatchIndex,
+  buildBookingMatchIndex,
+  findBookingForCalendarEvent,
+  roomIdsByCalendarId,
+} from "@/lib/utils/matchCalendarEventToBooking";
+import { calendar_v3 } from "googleapis/build/src/apis/calendar";
 
 // Default range when the caller does not pass start/end. The client always
 // sends the visible window; this is only a fallback for ad-hoc callers.
@@ -24,39 +32,51 @@ const DEFAULT_RANGE_MONTHS = 3;
 // the multi-month fetches this endpoint was saturating on.
 const MAX_RANGE_MONTHS = 6;
 
-const getCalendarEvents = async (
-  calendarId: string,
-  tenant: string | undefined,
-  timeMin: string,
-  timeMax: string,
-  fresh: boolean,
-) => {
-  // Raw Google events are cached per (calendarId, range); bookings come from
-  // their own cache. Both are fetched in parallel.
-  const [events, bookings] = await Promise.all([
-    getCachedRawCalendarEvents(calendarId, timeMin, timeMax, { fresh }),
-    getCachedBookings(tenant || DEFAULT_TENANT).catch(error => {
-      console.error("Error fetching tenant bookings:", error);
-      return [] as Booking[];
-    }),
-  ]);
+// Matching Google events to Firestore bookings only decorates the response.
+// The grid's job is to show which slots are taken, so neither loader may
+// reject: a failure here degrades to unmatched events instead of an empty
+// calendar (see #1638, where one malformed legacy booking blanked them all).
+const loadBookingMatchIndex = async (
+  tenant?: string,
+): Promise<BookingMatchIndex<Booking>> => {
+  try {
+    const bookings = await getCachedBookings(tenant || DEFAULT_TENANT);
+    return buildBookingMatchIndex(bookings);
+  } catch (error) {
+    console.error("Error building booking match index:", error);
+    return buildBookingMatchIndex([]);
+  }
+};
 
-  // Create a map of calendarEventId to booking for quick lookup
-  const bookingMap = new Map<string, Booking>();
-  bookings.forEach(booking => {
-    if (booking.calendarEventId) {
-      bookingMap.set(booking.calendarEventId, booking);
-    }
-  });
+const loadRoomIdsByCalendarId = async (
+  tenant?: string,
+): Promise<Map<string, string[]>> => {
+  try {
+    return roomIdsByCalendarId(await getTenantRooms(tenant));
+  } catch (error) {
+    console.error("Error loading tenant rooms for calendar events:", error);
+    return new Map();
+  }
+};
 
-  return events.map(e => {
-    const booking = bookingMap.get(e.id || "");
+const mapEventsToResponse = (
+  events: calendar_v3.Schema$Event[],
+  index: BookingMatchIndex<Booking>,
+  roomIdsForCalendar: string[],
+) =>
+  events.map((e) => {
+    const booking = findBookingForCalendarEvent(
+      e,
+      index,
+      roomIdsForCalendar,
+    );
     return {
       title: e.summary,
       start: e.start?.dateTime || e.start?.date,
       end: e.end?.dateTime || e.end?.date,
-      calendarEventId: e.id,
-      // Add booking information if available
+      // Prefer the Firestore booking id so guest copies on other room
+      // calendars still identify as the same reservation.
+      calendarEventId: booking?.calendarEventId || e.id,
       booking: booking
         ? {
             status: getBookingStatus(booking),
@@ -67,6 +87,27 @@ const getCalendarEvents = async (
         : undefined,
     };
   });
+
+const getCalendarEvents = async (
+  calendarId: string,
+  timeMin: string,
+  timeMax: string,
+  fresh: boolean,
+  indexPromise: Promise<BookingMatchIndex<Booking>>,
+  roomsPromise: Promise<Map<string, string[]>>,
+) => {
+  // Raw Google events are cached per (calendarId, range); the booking match
+  // index and room map are shared across calendars in a batch request.
+  const [events, index, roomsByCalendarId] = await Promise.all([
+    getCachedRawCalendarEvents(calendarId, timeMin, timeMax, { fresh }),
+    indexPromise,
+    roomsPromise,
+  ]);
+  return mapEventsToResponse(
+    events,
+    index,
+    roomsByCalendarId.get(calendarId) ?? [],
+  );
 };
 
 export async function POST(request: NextRequest) {
@@ -167,17 +208,33 @@ export async function GET(req: NextRequest) {
   if (calendarIds) {
     const ids = calendarIds.split(",").filter(Boolean);
     if (ids.length === 0) {
-      return NextResponse.json({ error: "Invalid calendarIds" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid calendarIds" },
+        { status: 400 },
+      );
     }
 
     try {
+      const indexPromise = loadBookingMatchIndex(tenant);
+      const roomsPromise = loadRoomIdsByCalendarId(tenant);
       const results = await Promise.all(
-        ids.map(async (id) => {
+        ids.map(async id => {
           try {
-            const events = await getCalendarEvents(id, tenant, timeMin, timeMax, fresh);
+            const events = await getCalendarEvents(
+              id,
+              timeMin,
+              timeMax,
+              fresh,
+              indexPromise,
+              roomsPromise,
+            );
             return { calendarId: id, events };
           } catch (error) {
-            console.error("Error fetching calendar events for calendarId:", id, error);
+            console.error(
+              "Error fetching calendar events for calendarId:",
+              id,
+              error,
+            );
             return { calendarId: id, events: [] };
           }
         }),
@@ -209,7 +266,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const events = await getCalendarEvents(calendarId, tenant, timeMin, timeMax, fresh);
+    const events = await getCalendarEvents(
+      calendarId,
+      timeMin,
+      timeMax,
+      fresh,
+      loadBookingMatchIndex(tenant),
+      loadRoomIdsByCalendarId(tenant),
+    );
 
     const res = NextResponse.json(events);
     res.headers.set(

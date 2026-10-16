@@ -1,6 +1,5 @@
-let cachedOAuth2Client: Awaited<
-  ReturnType<typeof createOAuth2Client>
-> | null = null;
+let cachedOAuth2Client: Awaited<ReturnType<typeof createOAuth2Client>> | null =
+  null;
 let googleapisModule: typeof import("googleapis") | null = null;
 
 const loadGoogleApis = async () => {

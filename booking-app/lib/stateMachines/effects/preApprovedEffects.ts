@@ -1,7 +1,10 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { BookingStatusLabel } from "@/components/src/types";
 import * as admin from "firebase-admin";
-import type { PersistedXStateData, PreApprovalUpdateData } from "../xstateTypes";
+import type {
+  PersistedXStateData,
+  PreApprovalUpdateData,
+} from "../xstateTypes";
 import type { HandlerContext, StateHandler } from "./types";
 
 /**

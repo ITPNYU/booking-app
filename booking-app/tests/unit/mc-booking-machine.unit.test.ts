@@ -425,6 +425,34 @@ describe("mcBookingMachine", () => {
     await waitForCondition(actor, (snapshot) => snapshot.matches("Closed"));
   });
 
+  it("closes out only the services the rooms flag autoCloseout and waits for the rest", async () => {
+    const actor = createTestActor({
+      isWalkIn: true,
+      servicesRequested: { staff: true, equipment: true },
+      servicesApproved: { staff: true, equipment: true },
+      servicesAutoCloseout: { staff: true },
+    });
+
+    expect(actor.getSnapshot().matches("Approved")).toBe(true);
+    actor.send({ type: "cancel" });
+
+    const closeout = await waitForCondition(actor, (snapshot) =>
+      snapshot.matches("Service Closeout")
+    );
+    expect((closeout.value as any)["Service Closeout"]).toMatchObject({
+      "Staff Closeout": "Staff Closedout",
+      "Equipment Closeout": "Equipment Closeout Pending",
+    });
+    expect(closeout.context.pendingSideEffects).toEqual([
+      "cancelProcessing",
+      "autoCloseout:staff",
+    ]);
+    expect(closeout.can({ type: "closeoutStaff" })).toBe(false);
+
+    actor.send({ type: "closeoutEquipment" });
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Closed"));
+  });
+
   it("handles check-in and check-out flow to completion", async () => {
     const actor = createTestActor({ isWalkIn: true });
     expect(actor.getSnapshot().matches("Approved")).toBe(true);
@@ -528,6 +556,24 @@ describe("mcBookingMachine", () => {
     actor.send({ type: "declineEquipment" });
 
     await waitForCondition(actor, (snapshot) => snapshot.matches("Declined"));
+  });
+
+  it("declines the whole request while services are still pending review", () => {
+    const actor = createTestActor({
+      selectedRooms: [{ roomId: 202 }], // No autoApproval = disabled
+      servicesRequested: { staff: true, equipment: true },
+    });
+
+    actor.send({ type: "approve" });
+    actor.send({ type: "approve" });
+    expect(actor.getSnapshot().matches("Services Request")).toBe(true);
+    actor.send({ type: "approveStaff" });
+
+    actor.send({ type: "decline", reason: "No staff available" });
+
+    const snapshot = actor.getSnapshot();
+    expect(snapshot.matches("Declined")).toBe(true);
+    expect(snapshot.context.declineReason).toBe("No staff available");
   });
 
   /** A booking declined with staff approved and catering declined. */
