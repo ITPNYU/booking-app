@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     const key = subject.trim().toLowerCase();
     if (!key || checkedBanSubjects.has(key)) continue;
     checkedBanSubjects.add(key);
-    if (await requesterIsBanned(subject)) {
+    if (await requesterIsBanned(subject, tenant)) {
       return NextResponse.json(
         { error: BANNED_FROM_BOOKING_MESSAGE },
         { status: 403 },

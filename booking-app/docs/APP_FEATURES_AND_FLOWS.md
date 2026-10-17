@@ -548,7 +548,7 @@ Add or remove departments. Assign tier levels (Primary, Secondary, Tertiary) for
 View users with warning flags for late cancellations or no-shows. See detailed incident history. Clear warnings when appropriate.
 
 #### Ban
-Manage permanently banned users. Banned users cannot create any bookings.
+Manage banned users for this tenant. A ban blocks new bookings in this tenant only. The same person can still book in another tenant.
 
 #### Booking Types
 Configure the options available in the booking type dropdown.
@@ -731,10 +731,11 @@ Each violation is logged with a timestamp. Admins can:
 
 ### Full Ban
 
-- Banned users are completely blocked from creating bookings
+- A ban applies only in the tenant where it was added, the same way pre-ban logs do
+- Banned users are blocked from creating bookings in that tenant
 - The booking form shows a red alert: "You are banned from making bookings"
 - The submit button is disabled
-- Admins manage bans through the Settings panel
+- Admins manage bans through the Settings panel for the tenant they are in
 
 ---
 
