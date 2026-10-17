@@ -58,6 +58,8 @@ vi.mock("@/components/src/server/admin", () => ({
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   logServerBookingChange: vi.fn(),
+  // The edit route's ban check (lib/bookingBan) reads usersBanned: no bans.
+  serverFetchAllDataFromCollection: async () => [],
   serverGetDataByCalendarEventId: async (
     _table: string,
     calendarEventId: string,
