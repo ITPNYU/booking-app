@@ -5,6 +5,7 @@ import {
   serverUpdateDataByCalendarEventId,
 } from "@/components/src/server/admin";
 import { updateCalendarEvent } from "@/components/src/server/calendars";
+import { sendDeclineCcEmails } from "@/components/src/server/declineCcEmails";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
@@ -19,7 +20,8 @@ import { NextRequest, NextResponse } from "next/server";
 /**
  * Traditional decline fallback used when the XState transition API fails
  * (or for non-XState tenants). Mirrors the old server/db.ts decline side effects:
- * Firestore stamp, history log, guest email, calendar [DECLINED] prefix.
+ * Firestore stamp, history log, guest email (plus a copy to each of the
+ * tenant's decline CC addresses), calendar [DECLINED] prefix.
  */
 export async function POST(req: NextRequest) {
   let requestBody: {
@@ -102,6 +104,15 @@ export async function POST(req: NextRequest) {
         targetEmail: guestEmail,
         headerMessage,
         status: BookingStatusLabel.DECLINED,
+        tenant,
+      });
+
+      // Same email to each ccEmails.declined address. Never throws, so a
+      // failed copy cannot skip the calendar update below.
+      await sendDeclineCcEmails({
+        calendarEventId,
+        guestEmail,
+        headerMessage,
         tenant,
       });
     }
