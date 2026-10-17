@@ -3,6 +3,7 @@ import { useParams, useRouter } from "next/navigation";
 import { DEFAULT_TENANT } from "../../../../constants/tenants";
 import {
   BookingOrigin,
+  BookingStatusLabel,
   FormContextLevel,
   Inputs,
 } from "../../../../types";
@@ -17,6 +18,29 @@ import { DatabaseContext } from "../../components/Provider";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "./useCalculateOverlap";
+
+function readSavedIdentity(body: unknown): {
+  requestNumber?: number;
+  status?: string;
+} {
+  if (!body || typeof body !== "object") return {};
+  const record = body as { requestNumber?: unknown; status?: unknown };
+  const parsedNumber =
+    typeof record.requestNumber === "number"
+      ? record.requestNumber
+      : typeof record.requestNumber === "string" && record.requestNumber.trim()
+        ? Number(record.requestNumber)
+        : undefined;
+  const requestNumber =
+    parsedNumber != null && Number.isFinite(parsedNumber)
+      ? parsedNumber
+      : undefined;
+  const status =
+    typeof record.status === "string" && record.status.trim()
+      ? record.status
+      : undefined;
+  return { requestNumber, status };
+}
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
@@ -45,6 +69,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     setServiceDecisions,
     setHasShownMocapModal,
     setSubmitting,
+    setSubmittedBooking,
     error,
     setError,
     isBanned,
@@ -286,6 +311,43 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         },
       );
 
+      const clearSubmittedForm = () => {
+        setBookingCalendarInfo(undefined);
+        setSelectedRooms([]);
+        setAnnexByRoom({});
+        setFormData(undefined);
+        setIsDetailsValid(false);
+        resetServiceRuleMemory();
+        setCheckedAgreements({});
+        setServiceDecisions({});
+        setHasShownMocapModal(false);
+      };
+
+      const rememberSubmission = (identity: {
+        requestNumber?: number;
+        status?: string;
+      }) => {
+        const roomId = selectedRooms
+          .map((room) => String(room.roomId).trim())
+          .filter((id) => id.length > 0)
+          .join(", ");
+        const origin = isVIP
+          ? BookingOrigin.VIP
+          : isWalkIn
+            ? BookingOrigin.WALK_IN
+            : (transformedData.origin ?? BookingOrigin.USER);
+        setSubmittedBooking({
+          ...transformedData,
+          email,
+          roomId,
+          startDate: new Date(bookingCalendarInfo.start).toISOString(),
+          endDate: new Date(bookingCalendarInfo.end).toISOString(),
+          origin,
+          requestNumber: identity.requestNumber,
+          status: identity.status,
+        });
+      };
+
       fetch(requestParams.endpoint, {
         method: requestParams.method,
         headers: {
@@ -317,11 +379,15 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               "Sorry, an error occurred while submitting this request";
             let maintenanceMode = res.status === 503;
             let maintenanceMessage = "";
+            let createdRequestNumber: number | undefined;
+            let createdStatus: string | undefined;
             try {
               const errorData = (await res.json()) as {
                 error?: string;
                 message?: string;
                 maintenanceMode?: boolean;
+                calendarEventId?: string;
+                requestNumber?: unknown;
               };
               const serverMessage = errorData.error ?? errorData.message;
               if (serverMessage) {
@@ -330,6 +396,11 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               }
               maintenanceMode =
                 maintenanceMode || errorData.maintenanceMode === true;
+              const identity = readSavedIdentity(errorData);
+              if (errorData.calendarEventId && identity.requestNumber != null) {
+                createdRequestNumber = identity.requestNumber;
+                createdStatus = identity.status;
+              }
             } catch (e) {
               // If response is not JSON, use default message
             }
@@ -337,24 +408,59 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               showMaintenanceMode(maintenanceMessage);
               return;
             }
+            // The booking already exists. Keep the confirmation summary and
+            // release the form so the requester does not submit it again.
+            if (createdRequestNumber != null) {
+              try {
+                rememberSubmission({
+                  requestNumber: createdRequestNumber,
+                  status: createdStatus,
+                });
+              } catch (summaryError) {
+                console.error(
+                  "Failed to build confirmation summary:",
+                  summaryError,
+                );
+              }
+              setError(new Error(errorMessage));
+              clearSubmittedForm();
+              reloadFutureBookings();
+              setSubmitting("success");
+              return;
+            }
             setError(new Error(errorMessage));
             setSubmitting("error");
             return;
           }
 
+          let saved: unknown = {};
+          try {
+            saved = await res.json();
+          } catch {
+            saved = {};
+          }
+          try {
+            rememberSubmission(readSavedIdentity(saved));
+          } catch (summaryError) {
+            console.error(
+              "Failed to build confirmation summary:",
+              summaryError,
+            );
+          }
+          // Replace any error from an earlier attempt in this flow. The
+          // warning on the confirmation page is only for this response.
+          const warning = (saved as { warning?: unknown })?.warning;
+          setError(
+            typeof warning === "string" && warning.trim()
+              ? new Error(warning)
+              : null,
+          );
+          setSubmitting("success");
+
           // clear stored booking data after submit confirmation
-          setBookingCalendarInfo(undefined);
-          setSelectedRooms([]);
-          setAnnexByRoom({});
-          setFormData(undefined);
-          setIsDetailsValid(false);
-          resetServiceRuleMemory();
-          setCheckedAgreements({});
-          setServiceDecisions({});
-          setHasShownMocapModal(false);
+          clearSubmittedForm();
 
           reloadFutureBookings();
-          setSubmitting("success");
         })
         .catch((error) => {
           console.error("Error submitting booking:", error);
@@ -376,6 +482,9 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       showMaintenanceMode,
       department,
       role,
+      setSubmittedBooking,
+      isVIP,
+      isWalkIn,
     ],
   );
 
