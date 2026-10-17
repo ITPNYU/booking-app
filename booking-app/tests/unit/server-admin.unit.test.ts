@@ -1227,7 +1227,7 @@ describe("components/src/server/admin", () => {
     expect(emailsTo("cc@nyu.edu")).toHaveLength(1);
   });
 
-  it("finalApprove throws and sends nothing when the booking read fails", async () => {
+  it("finalApprove reports a follow-up failure and sends nothing when the booking read fails", async () => {
     seedCollection("tenant-y-bookings", [
       {
         id: "booking-read-fail",
@@ -1255,10 +1255,15 @@ describe("components/src/server/admin", () => {
     };
 
     try {
-      const { finalApprove } = await import("@/components/src/server/admin");
-      await expect(
-        finalApprove("cal-read-fail", "System", "tenant-y"),
-      ).rejects.toThrow("transient firestore error");
+      const { finalApprove, ApprovalFollowUpError } =
+        await import("@/components/src/server/admin");
+      const error = await finalApprove(
+        "cal-read-fail",
+        "System",
+        "tenant-y",
+      ).catch((caught) => caught);
+      expect(error).toBeInstanceOf(ApprovalFollowUpError);
+      expect(error.message).toBe("transient firestore error");
     } finally {
       firestoreInstance.collection = originalCollection;
     }

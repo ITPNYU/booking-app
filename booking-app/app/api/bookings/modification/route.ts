@@ -562,8 +562,9 @@ export async function PUT(request: NextRequest) {
           "Approved via booking modification",
         );
       } catch (error) {
-        // The new event and booking doc already exist, so a failed follow-up
-        // step (title, invite, history) must not report the modification as
+        // The new event and booking doc already exist. finalApprove reports
+        // a failed approval write the same way as a later title, invite, or
+        // history failure. Either one must not report the modification as
         // failed: a client retry could create a duplicate booking.
         if (!(error instanceof ApprovalFollowUpError)) throw error;
         console.error("🚨 MODIFICATION FOLLOW-UP FAILED:", error);

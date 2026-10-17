@@ -852,15 +852,17 @@ export const finalApprove = async (
   note?: string,
   progress?: ApprovalProgress,
 ) => {
-  const approved = await serverFinalApprove(id, email, tenant);
-  if (!approved) {
-    console.error("Booking document not found for calendar event id:", id);
-    return false;
-  }
-
-  // The booking is approved from here on; report any later failure as a
-  // follow-up failure so callers do not offer approval again.
+  // Modification and edit call this after the new calendar event and booking
+  // doc already exist. A transient failure of the approval write has to be a
+  // follow-up error, same as a later email or title failure: a hard error
+  // makes the client retry and create a duplicate booking.
   try {
+    const approved = await serverFinalApprove(id, email, tenant);
+    if (!approved) {
+      console.error("Booking document not found for calendar event id:", id);
+      return false;
+    }
+
     const doc = await serverGetDataByCalendarEventIdStrict<{
       id: string;
       requestNumber: number;

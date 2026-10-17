@@ -2,6 +2,7 @@ import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import { TableNames } from "@/components/src/policy";
 import {
+  ApprovalFollowUpError,
   finalApprove,
   firstApproverEmails,
   serverBookingContents,
@@ -567,13 +568,23 @@ export async function PUT(request: NextRequest) {
       tenant,
     );
 
+    let followUpWarning: string | undefined;
     if (autoApproved) {
       // Approve it like the create flow does instead of asking approvers.
       console.log(
         `🎉 EDIT: Edited booking was auto-approved [${tenant?.toUpperCase()}]:`,
         { newCalendarEventId },
       );
-      await finalApprove(newCalendarEventId, "System", tenant);
+      try {
+        await finalApprove(newCalendarEventId, "System", tenant);
+      } catch (error) {
+        // The new event and booking doc already exist, so a failed approval
+        // write or later follow-up must not report the edit as failed: a
+        // client retry could create a duplicate booking.
+        if (!(error instanceof ApprovalFollowUpError)) throw error;
+        console.error("🚨 EDIT FOLLOW-UP FAILED:", error);
+        followUpWarning = error.message;
+      }
     } else {
       console.log("📧 EDIT: Sending email notifications");
       await sendEditNotificationEmails(
@@ -613,6 +624,7 @@ export async function PUT(request: NextRequest) {
       calendarEventId: newCalendarEventId,
       requestNumber: existingContents.requestNumber,
       status: finalStatus, // Include status in response for debugging
+      ...(followUpWarning ? { warning: followUpWarning } : {}),
     });
   } catch (error) {
     console.error("❌ EDIT FAILED:", error);
