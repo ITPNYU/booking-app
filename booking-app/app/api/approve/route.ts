@@ -13,6 +13,7 @@ import {
   serverApproveBooking,
 } from "@/components/src/server/admin";
 import { BookingStatusLabel, PagePermission } from "@/components/src/types";
+import { parseBookingResourceIds } from "@/components/src/utils/approversResources";
 import { ADMIN_POLICY_APPROVED_NOTE } from "@/components/src/utils/bookingHistoryNotes";
 import {
   getMediaCommonsServices,
@@ -24,7 +25,7 @@ import {
   logServerBookingChange,
   serverGetDataByCalendarEventId,
   serverGetFinalApproverEmail,
-  serverListResourceApproversByEmail,
+  serverResolveResourceApproverEmails,
 } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { NextRequest, NextResponse } from "next/server";
@@ -61,12 +62,6 @@ async function hasUnprocessedServices(
   }
   return false;
 }
-
-const parseBookingResourceIds = (roomId: unknown): string[] =>
-  String(roomId ?? "")
-    .split(",")
-    .map(resourceId => resourceId.trim())
-    .filter(Boolean);
 
 // serverApproveBooking rethrows failures as plain { status, message } objects.
 const getErrorMessage = (error: unknown): string => {
@@ -124,17 +119,16 @@ async function authorizeApproval(
     return true;
   }
 
+  // Any booked room's resource approver may give the booking's one final
+  // approval; the resolver adds the tenant final approver for unassigned rooms.
   const resourceIds = parseBookingResourceIds(booking.roomId);
   if (resourceIds.length === 0) return false;
 
-  const assignments = await serverListResourceApproversByEmail(
-    normalizedEmail,
+  const approvers = await serverResolveResourceApproverEmails(
+    resourceIds,
     tenant,
   );
-  const assignedResourceIds = new Set(
-    assignments.map(assignment => assignment.resourceId),
-  );
-  return resourceIds.every(resourceId => assignedResourceIds.has(resourceId));
+  return approvers.includes(normalizedEmail);
 }
 
 /**
