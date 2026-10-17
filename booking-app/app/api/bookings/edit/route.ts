@@ -251,7 +251,7 @@ export async function PUT(request: NextRequest) {
 
   // Both fields are client-supplied. A ban on either address blocks the
   // resubmit, which deletes the old event and creates a new REQUESTED one.
-  if (await anyRequesterIsBanned([email, modifiedBy])) {
+  if (await anyRequesterIsBanned([email, modifiedBy], tenant)) {
     return NextResponse.json(
       { error: BANNED_FROM_BOOKING_MESSAGE },
       { status: 403 },
