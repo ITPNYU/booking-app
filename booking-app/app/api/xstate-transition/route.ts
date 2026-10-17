@@ -1,5 +1,8 @@
 import { DEFAULT_TENANT, TENANTS } from "@/components/src/constants/tenants";
-import { requireSession } from "@/lib/api/requireSession";
+import { TableNames } from "@/components/src/policy";
+import { authorizeBookingDecision } from "@/lib/api/bookingDecisionAuthz";
+import { requireSession, type SessionContext } from "@/lib/api/requireSession";
+import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -33,6 +36,9 @@ const toChangedServices = (
  * netId is the authoritative user id from the caller's session — needed because
  * some queued side effects (pre-ban logging inside /api/cancel-processing) key
  * off it. Reconstructing from email.split("@")[0] is wrong for aliases.
+ *
+ * "decline" needs a session whose user may decline the booking
+ * (authorizeBookingDecision), the same approvers who may approve it.
  */
 export async function POST(req: NextRequest) {
   const { calendarEventId, eventType, email, netId, reason, changedServices } =
@@ -104,8 +110,9 @@ export async function POST(req: NextRequest) {
 
   let actorEmail = email;
   let actorNetId = netId;
-  if (eventType === "noShow") {
-    const session = await requireSession();
+  let session: SessionContext | null = null;
+  if (eventType === "noShow" || eventType === "decline") {
+    session = await requireSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -123,6 +130,31 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    if (eventType === "decline" && session) {
+      const booking = await serverGetDataByCalendarEventId<
+        Record<string, unknown>
+      >(TableNames.BOOKING, calendarEventId, tenant);
+      if (!booking) {
+        return NextResponse.json(
+          { error: "Booking not found" },
+          { status: 404 },
+        );
+      }
+      if (
+        !(await authorizeBookingDecision(
+          session.email,
+          tenant,
+          booking,
+          "decline",
+        ))
+      ) {
+        return NextResponse.json(
+          { error: "You are not authorized to decline this booking" },
+          { status: 403 },
+        );
+      }
+    }
+
     console.log(`🎬 XSTATE TRANSITION REQUEST [${tenant?.toUpperCase()}]:`, {
       calendarEventId,
       eventType,

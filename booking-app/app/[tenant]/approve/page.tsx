@@ -7,6 +7,7 @@ import {
   ApprovedWithWarningError,
   NotAnApproverError,
   clientApproveBooking,
+  decline,
 } from "@/components/src/client/bookingActionClient";
 import { CenterLoading } from "@/components/src/client/routes/components/Loading";
 import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
@@ -16,10 +17,11 @@ import { Booking, BookingStatusLabel } from "@/components/src/types";
 import { canAccessAdmin } from "@/components/src/utils/permissions";
 import { clientGetDataByCalendarEventId } from "@/lib/firebase/firebase";
 import { timestampToDate } from "@/lib/utils/timestampWire";
-import { Alert, Button } from "@mui/material";
+import { Alert, Button, TextField } from "@mui/material";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
-// Statuses the admin page offers an approve action for.
+// Statuses the admin page offers an approve action for. Decline is offered
+// for the same ones, since this page is for the approval decision.
 const APPROVABLE_STATUSES = new Set<string>([
   BookingStatusLabel.REQUESTED,
   BookingStatusLabel.PRE_APPROVED,
@@ -27,7 +29,7 @@ const APPROVABLE_STATUSES = new Set<string>([
 ]);
 
 const NOT_AN_APPROVER_MESSAGE =
-  "You are not an approver for this booking, so you can't approve it. If you think you should be, contact the admins.";
+  "You are not an approver for this booking, so you can't approve or decline it. If you think you should be, contact the admins.";
 
 const formatBookingTime = (booking: Booking) => {
   const start = timestampToDate(booking.startDate);
@@ -47,6 +49,9 @@ const ApprovePageContent: React.FC = () => {
   );
   const [loading, setLoading] = useState(false);
   const [approved, setApproved] = useState(false);
+  const [declining, setDeclining] = useState(false);
+  const [declined, setDeclined] = useState(false);
+  const [reason, setReason] = useState("");
   const [notApprover, setNotApprover] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -108,6 +113,30 @@ const ApprovePageContent: React.FC = () => {
     }
   };
 
+  const handleDecline = async () => {
+    if (paramCalendarEventId && reason.trim()) {
+      setDeclining(true);
+      setError(null);
+      setWarning(null);
+      try {
+        await decline(paramCalendarEventId, userEmail, reason.trim(), tenant);
+        setDeclined(true);
+      } catch (err) {
+        if (err instanceof NotAnApproverError) {
+          setNotApprover(true);
+        } else {
+          setError(
+            err instanceof Error && err.message
+              ? err.message
+              : "Failed to decline booking.",
+          );
+        }
+      } finally {
+        setDeclining(false);
+      }
+    }
+  };
+
   if (!paramCalendarEventId) {
     return (
       <div style={{ padding: 24 }}>
@@ -131,6 +160,8 @@ const ApprovePageContent: React.FC = () => {
   }
 
   const status = getBookingStatus(booking, tenant);
+  const busy = loading || declining;
+  const done = approved || declined || notApprover;
 
   return (
     <div style={{ padding: 24 }}>
@@ -149,7 +180,7 @@ const ApprovePageContent: React.FC = () => {
         <div>
           <Button
             onClick={() => handleApprove()}
-            disabled={loading || approved || notApprover}
+            disabled={busy || done}
             variant="contained"
           >
             {loading
@@ -158,6 +189,31 @@ const ApprovePageContent: React.FC = () => {
                 ? "Approved"
                 : "Approve Booking"}
           </Button>
+          <div style={{ marginTop: 24 }}>
+            <TextField
+              label="Reason for declining"
+              variant="outlined"
+              fullWidth
+              multiline
+              rows={3}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              disabled={busy || done}
+              style={{ marginBottom: 16 }}
+            />
+            <Button
+              onClick={() => handleDecline()}
+              disabled={busy || done || !reason.trim()}
+              variant="outlined"
+              color="error"
+            >
+              {declining
+                ? "Declining..."
+                : declined
+                  ? "Declined"
+                  : "Decline Booking"}
+            </Button>
+          </div>
           {warning && (
             <Alert severity="warning" sx={{ mt: 2 }}>
               {warning}
@@ -171,7 +227,9 @@ const ApprovePageContent: React.FC = () => {
           {error && <p style={{ color: "red" }}>{error}</p>}
         </div>
       ) : (
-        <p>This booking is {status}, so there is nothing to approve.</p>
+        <p>
+          This booking is {status}, so there is nothing to approve or decline.
+        </p>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockClientApproveBooking = vi.fn();
+const mockDecline = vi.fn();
 const mockClientGetDataByCalendarEventId = vi.fn();
 const mockReplace = vi.fn();
 
@@ -21,6 +22,7 @@ vi.mock("@/components/src/client/bookingActionClient", () => {
     NotAnApproverError,
     clientApproveBooking: (...args: unknown[]) =>
       mockClientApproveBooking(...args),
+    decline: (...args: unknown[]) => mockDecline(...args),
   };
 });
 
@@ -80,6 +82,7 @@ const clickApprove = async () =>
 describe("approve page", () => {
   beforeEach(() => {
     mockClientApproveBooking.mockReset();
+    mockDecline.mockReset();
     mockClientGetDataByCalendarEventId.mockReset();
     mockClientGetDataByCalendarEventId.mockResolvedValue(booking);
     mockReplace.mockReset();
@@ -148,10 +151,93 @@ describe("approve page", () => {
     await clickApprove();
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "You are not an approver for this booking, so you can't approve it.",
+      "You are not an approver for this booking, so you can't approve or decline it.",
     );
     expect(
       screen.getByRole("button", { name: "Approve Booking" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Decline Booking" }),
+    ).toBeDisabled();
+  });
+
+  it("lets a non-admin approver decline the booking with a reason", async () => {
+    mockDecline.mockResolvedValue(undefined);
+
+    renderPage();
+    const declineButton = await screen.findByRole("button", {
+      name: "Decline Booking",
+    });
+    expect(declineButton).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Reason for declining"), {
+      target: { value: "  Room is closed that week  " },
+    });
+    expect(declineButton).toBeEnabled();
+    fireEvent.click(declineButton);
+
+    expect(
+      await screen.findByRole("button", { name: "Declined" }),
+    ).toBeDisabled();
+    expect(mockDecline).toHaveBeenCalledWith(
+      "evt-7073",
+      "approver@nyu.edu",
+      "Room is closed that week",
+      "itp",
+    );
+    expect(
+      screen.getByRole("button", { name: "Approve Booking" }),
+    ).toBeDisabled();
+    expect(mockClientApproveBooking).not.toHaveBeenCalled();
+  });
+
+  it("tells a viewer who is not an approver when they try to decline", async () => {
+    mockDecline.mockRejectedValue(
+      new NotAnApproverError("You are not authorized to decline this booking"),
+    );
+
+    renderPage();
+    fireEvent.change(await screen.findByLabelText("Reason for declining"), {
+      target: { value: "Conflicts with a class" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Decline Booking" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "You are not an approver for this booking, so you can't approve or decline it.",
+    );
+    expect(
+      screen.getByRole("button", { name: "Decline Booking" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Approve Booking" }),
+    ).toBeDisabled();
+  });
+
+  it("shows the server's message and allows a retry when declining failed", async () => {
+    mockDecline.mockRejectedValue(new Error("Booking not found"));
+
+    renderPage();
+    fireEvent.change(await screen.findByLabelText("Reason for declining"), {
+      target: { value: "Conflicts with a class" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Decline Booking" }));
+
+    expect(await screen.findByText("Booking not found")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Decline Booking" }),
+    ).toBeEnabled();
+  });
+
+  it("does not offer decline once the booking is approved", async () => {
+    mockClientApproveBooking.mockResolvedValue(undefined);
+
+    renderPage();
+    await clickApprove();
+
+    await screen.findByRole("button", { name: "Approved" });
+    expect(screen.getByLabelText("Reason for declining")).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Decline Booking" }),
     ).toBeDisabled();
   });
 
@@ -167,7 +253,7 @@ describe("approve page", () => {
 
       expect(
         await screen.findByText(
-          `This booking is ${status}, so there is nothing to approve.`,
+          `This booking is ${status}, so there is nothing to approve or decline.`,
         ),
       ).toBeInTheDocument();
       expect(screen.queryByRole("button")).toBeNull();
