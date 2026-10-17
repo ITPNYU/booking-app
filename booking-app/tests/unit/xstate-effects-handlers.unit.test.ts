@@ -433,7 +433,9 @@ describe("handleStateTransitions — per-state handler side effects", () => {
           testDeclineCcEmail,
         ]);
         const [guestCall, ccCall] =
-          mockServerSendBookingDetailEmail.mock.calls.map(([options]) => options);
+          mockServerSendBookingDetailEmail.mock.calls.map(
+            ([options]) => options,
+          );
         expect(ccCall).toEqual({
           calendarEventId: testCalendarEventId,
           targetEmail: testDeclineCcEmail,
@@ -482,7 +484,9 @@ describe("handleStateTransitions — per-state handler side effects", () => {
       });
 
       it("sends only the requester's email when no CC address is configured", async () => {
-        mockServerGetDocumentById.mockResolvedValue(buildSchemaWithDeclineCc(""));
+        mockServerGetDocumentById.mockResolvedValue(
+          buildSchemaWithDeclineCc(""),
+        );
 
         await callHandleStateTransitions({
           previous: "Requested",
@@ -510,6 +514,79 @@ describe("handleStateTransitions — per-state handler side effects", () => {
         expect(firestoreUpdates.declinedAt).toBeDefined();
         expect(findCalendarPutCall()).toBeDefined();
       });
+
+      it("sends one copy to each address in a CC list", async () => {
+        mockServerGetDocumentById.mockResolvedValue(
+          buildSchemaWithDeclineCc(
+            "mediacommons.operations@nyu.edu; jhanele@nyu.edu, MediaCommons.Operations@nyu.edu",
+          ),
+        );
+
+        await callHandleStateTransitions({
+          previous: "Pre-approved",
+          next: "Declined",
+          reason: "Room unavailable",
+        });
+
+        expect(sentEmailTargets()).toEqual([
+          testGuestEmail,
+          "mediacommons.operations@nyu.edu",
+          "jhanele@nyu.edu",
+        ]);
+        const [guestCall, ...ccCalls] =
+          mockServerSendBookingDetailEmail.mock.calls.map(
+            ([options]) => options,
+          );
+        ccCalls.forEach((ccCall) => {
+          expect(ccCall).toMatchObject({
+            headerMessage: guestCall.headerMessage,
+            status: "DECLINED",
+            replyTo: testGuestEmail,
+            tenant: testTenant,
+          });
+        });
+      });
+
+      it("skips the requester inside a CC list", async () => {
+        mockServerGetDocumentById.mockResolvedValue(
+          buildSchemaWithDeclineCc(
+            `ops@nyu.edu, ${testGuestEmail.toUpperCase()}`,
+          ),
+        );
+
+        await callHandleStateTransitions({
+          previous: "Requested",
+          next: "Declined",
+        });
+
+        expect(sentEmailTargets()).toEqual([testGuestEmail, "ops@nyu.edu"]);
+      });
+
+      it("keeps sending to the other CC addresses and updates the calendar when one fails", async () => {
+        mockServerGetDocumentById.mockResolvedValue(
+          buildSchemaWithDeclineCc("first@nyu.edu, second@nyu.edu"),
+        );
+        mockServerSendBookingDetailEmail.mockImplementation(
+          async ({ targetEmail }) => {
+            if (targetEmail === "first@nyu.edu") {
+              throw new Error("gmail down");
+            }
+            return { ok: true };
+          },
+        );
+
+        await callHandleStateTransitions({
+          previous: "Requested",
+          next: "Declined",
+        });
+
+        expect(sentEmailTargets()).toEqual([
+          testGuestEmail,
+          "first@nyu.edu",
+          "second@nyu.edu",
+        ]);
+        expect(findCalendarPutCall()).toBeDefined();
+      });
     });
   });
 
@@ -531,9 +608,8 @@ describe("handleStateTransitions — per-state handler side effects", () => {
     });
 
     it("sends nothing when one service is declined but the booking stays in Services Request", async () => {
-      const { handleStateTransitions } = await import(
-        "@/lib/stateMachines/xstateEffects"
-      );
+      const { handleStateTransitions } =
+        await import("@/lib/stateMachines/xstateEffects");
       await handleStateTransitions(
         {
           value: {
