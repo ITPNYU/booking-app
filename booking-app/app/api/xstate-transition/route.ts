@@ -1,5 +1,7 @@
 import { DEFAULT_TENANT, TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
+import { PagePermission } from "@/components/src/types";
+import { resolveCallerRole } from "@/lib/api/authz";
 import { authorizeBookingDecision } from "@/lib/api/bookingDecisionAuthz";
 import { requireSession, type SessionContext } from "@/lib/api/requireSession";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
@@ -14,6 +16,10 @@ import {
   MEDIA_COMMONS_SERVICE_KEYS,
   type MediaCommonsServiceKey,
 } from "@/components/src/utils/serviceDecisions";
+
+/** Media Commons service events, e.g. approveSetup, declineStaff, closeoutCatering. */
+const isServiceEvent = (eventType: string) =>
+  /^(approve|decline|closeout)[A-Z]/.test(eventType);
 
 /** Keep only known service keys from an "edit" event's changed-services list. */
 const toChangedServices = (
@@ -37,8 +43,10 @@ const toChangedServices = (
  * some queued side effects (pre-ban logging inside /api/cancel-processing) key
  * off it. Reconstructing from email.split("@")[0] is wrong for aliases.
  *
- * "decline" needs a session whose user may decline the booking
- * (authorizeBookingDecision), the same approvers who may approve it.
+ * "approve" and "decline" need a session whose user may approve or decline
+ * the booking (authorizeBookingDecision), the same rule as /api/approve.
+ * Service events need an admin session: service approvers act through
+ * /api/services, which runs the machine itself.
  */
 export async function POST(req: NextRequest) {
   const { calendarEventId, eventType, email, netId, reason, changedServices } =
@@ -111,7 +119,12 @@ export async function POST(req: NextRequest) {
   let actorEmail = email;
   let actorNetId = netId;
   let session: SessionContext | null = null;
-  if (eventType === "noShow" || eventType === "decline") {
+  const isBookingDecision = eventType === "approve" || eventType === "decline";
+  if (
+    eventType === "noShow" ||
+    isBookingDecision ||
+    isServiceEvent(eventType)
+  ) {
     session = await requireSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -130,7 +143,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    if (eventType === "decline" && session) {
+    if (isBookingDecision && session) {
       const booking = await serverGetDataByCalendarEventId<
         Record<string, unknown>
       >(TableNames.BOOKING, calendarEventId, tenant);
@@ -145,11 +158,21 @@ export async function POST(req: NextRequest) {
           session.email,
           tenant,
           booking,
-          "decline",
+          eventType,
         ))
       ) {
         return NextResponse.json(
-          { error: "You are not authorized to decline this booking" },
+          { error: `You are not authorized to ${eventType} this booking` },
+          { status: 403 },
+        );
+      }
+    }
+
+    if (isServiceEvent(eventType) && session) {
+      const role = await resolveCallerRole(session, tenant);
+      if (role !== PagePermission.ADMIN && role !== PagePermission.SUPER_ADMIN) {
+        return NextResponse.json(
+          { error: "Only admins can change service decisions here" },
           { status: 403 },
         );
       }

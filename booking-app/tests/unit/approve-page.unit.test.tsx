@@ -260,15 +260,24 @@ describe("approve page", () => {
     },
   );
 
-  it("says so when no booking matches the link", async () => {
-    mockClientGetDataByCalendarEventId.mockResolvedValue(null);
+  it("offers a retry when the booking could not be loaded", async () => {
+    mockClientGetDataByCalendarEventId
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(booking);
 
     renderPage();
 
     expect(
-      await screen.findByText("No booking was found for this link."),
+      await screen.findByText(/We couldn.t load this booking/),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Approve Booking" }),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(await screen.findByText("Title: Thesis critique")).toBeInTheDocument();
+    expect(mockClientGetDataByCalendarEventId).toHaveBeenCalledTimes(2);
   });
 
   it("marks the booking approved and warns when a follow-up step failed", async () => {

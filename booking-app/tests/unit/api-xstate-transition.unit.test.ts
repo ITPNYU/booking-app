@@ -21,7 +21,13 @@ vi.mock("@/lib/api/bookingDecisionAuthz", () => ({
   authorizeBookingDecision: vi.fn(),
 }));
 
+vi.mock("@/lib/api/authz", () => ({
+  resolveCallerRole: vi.fn(),
+}));
+
 import { POST } from "@/app/api/xstate-transition/route";
+import { PagePermission } from "@/components/src/types";
+import { resolveCallerRole } from "@/lib/api/authz";
 import { authorizeBookingDecision } from "@/lib/api/bookingDecisionAuthz";
 import { requireSession } from "@/lib/api/requireSession";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
@@ -32,6 +38,7 @@ const mockExecuteXStateTransition = vi.mocked(executeXStateTransition);
 const mockRequireSession = vi.mocked(requireSession);
 const mockShouldBypassAuth = vi.mocked(shouldBypassAuth);
 const mockAuthorizeBookingDecision = vi.mocked(authorizeBookingDecision);
+const mockResolveCallerRole = vi.mocked(resolveCallerRole);
 const mockServerGetDataByCalendarEventId = vi.mocked(
   serverGetDataByCalendarEventId,
 );
@@ -252,5 +259,131 @@ describe("POST /api/xstate-transition decline", () => {
 
     expect(response.status).toBe(200);
     expect(mockAuthorizeBookingDecision).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/xstate-transition approve", () => {
+  const booking = { id: "booking-db-id", roomId: "room-1" };
+  const approveRequest = () =>
+    createRequest({
+      calendarEventId: "calendar-123",
+      eventType: "approve",
+      email: "someone-else@nyu.edu",
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRequireSession.mockResolvedValue({
+      email: "approver@nyu.edu",
+      netId: "approver",
+    });
+    mockShouldBypassAuth.mockReturnValue(false);
+    mockServerGetDataByCalendarEventId.mockResolvedValue(booking);
+    mockAuthorizeBookingDecision.mockResolvedValue(true);
+    mockExecuteXStateTransition.mockResolvedValue({
+      success: true,
+      newState: "Pre-approved",
+    });
+  });
+
+  it("applies the /api/approve rule and records the session user", async () => {
+    const response = await POST(approveRequest());
+
+    expect(response.status).toBe(200);
+    expect(mockAuthorizeBookingDecision).toHaveBeenCalledWith(
+      "approver@nyu.edu",
+      "mc",
+      booking,
+      "approve",
+    );
+    expect(mockExecuteXStateTransition).toHaveBeenCalledWith(
+      "calendar-123",
+      "approve",
+      "mc",
+      "approver@nyu.edu",
+      undefined,
+      "approver",
+      undefined,
+    );
+  });
+
+  it("returns 403 and does not approve for a user who is not an approver", async () => {
+    mockAuthorizeBookingDecision.mockResolvedValue(false);
+
+    const response = await POST(approveRequest());
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "You are not authorized to approve this booking",
+    });
+    expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unauthenticated approve", async () => {
+    mockRequireSession.mockResolvedValue(null);
+
+    const response = await POST(approveRequest());
+
+    expect(response.status).toBe(401);
+    expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/xstate-transition service events", () => {
+  const serviceRequest = (eventType: string) =>
+    createRequest({
+      calendarEventId: "calendar-123",
+      eventType,
+      email: "someone@nyu.edu",
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRequireSession.mockResolvedValue({
+      email: "staff@nyu.edu",
+      netId: "staff",
+    });
+    mockShouldBypassAuth.mockReturnValue(false);
+    mockResolveCallerRole.mockResolvedValue(PagePermission.ADMIN);
+    mockExecuteXStateTransition.mockResolvedValue({
+      success: true,
+      newState: "Services Request",
+    });
+  });
+
+  it.each(["approveSetup", "declineStaff", "closeoutCatering"])(
+    "lets an admin send %s",
+    async (eventType) => {
+      const response = await POST(serviceRequest(eventType));
+
+      expect(response.status).toBe(200);
+      expect(mockResolveCallerRole).toHaveBeenCalledWith(
+        { email: "staff@nyu.edu", netId: "staff" },
+        "mc",
+      );
+      expect(mockExecuteXStateTransition).toHaveBeenCalled();
+    },
+  );
+
+  it.each([PagePermission.SERVICES, PagePermission.LIAISON, PagePermission.BOOKING])(
+    "returns 403 for a %s user",
+    async (role) => {
+      mockResolveCallerRole.mockResolvedValue(role);
+
+      const response = await POST(serviceRequest("approveSetup"));
+
+      expect(response.status).toBe(403);
+      expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects an unauthenticated service event", async () => {
+    mockRequireSession.mockResolvedValue(null);
+
+    const response = await POST(serviceRequest("declineEquipment"));
+
+    expect(response.status).toBe(401);
+    expect(mockResolveCallerRole).not.toHaveBeenCalled();
+    expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
   });
 });

@@ -43,10 +43,12 @@ const ApprovePageContent: React.FC = () => {
   const { tenant } = useParams<{ tenant: string }>();
   const router = useRouter();
   const paramCalendarEventId = searchParams.get("calendarEventId");
-  // undefined while loading, null when no booking matches the event ID.
+  // undefined while loading; null when the lookup found nothing, which is
+  // also what it returns when the request failed.
   const [booking, setBooking] = useState<Booking | null | undefined>(
     undefined,
   );
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [loading, setLoading] = useState(false);
   const [approved, setApproved] = useState(false);
   const [declining, setDeclining] = useState(false);
@@ -82,7 +84,13 @@ const ApprovePageContent: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [permissionsLoading, redirectToAdmin, paramCalendarEventId, tenant]);
+  }, [
+    permissionsLoading,
+    redirectToAdmin,
+    paramCalendarEventId,
+    tenant,
+    loadAttempt,
+  ]);
 
   const handleApprove = async () => {
     if (paramCalendarEventId) {
@@ -154,7 +162,19 @@ const ApprovePageContent: React.FC = () => {
     return (
       <div style={{ padding: 24 }}>
         <h1>Booking Approval</h1>
-        <p>No booking was found for this link.</p>
+        <p>
+          We couldn&apos;t load this booking. The link may be wrong, or
+          something went wrong while loading it.
+        </p>
+        <Button
+          onClick={() => {
+            setBooking(undefined);
+            setLoadAttempt((attempt) => attempt + 1);
+          }}
+          variant="outlined"
+        >
+          Try again
+        </Button>
       </div>
     );
   }
