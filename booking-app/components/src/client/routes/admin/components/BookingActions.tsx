@@ -1,8 +1,15 @@
-import { IconButton, MenuItem, Select } from "@mui/material";
+import {
+  AlertColor,
+  IconButton,
+  MenuItem,
+  Portal,
+  Select,
+} from "@mui/material";
 import { useContext, useMemo, useState } from "react";
 import Check from "@mui/icons-material/Check";
 import { Timestamp } from "firebase/firestore";
 import { BookingStatusLabel, PageContextLevel } from "../../../../types";
+import { ApprovedWithWarningError } from "../../../bookingActionClient";
 import useBookingActions, {
   ActionDefinition,
   Actions,
@@ -14,6 +21,8 @@ import DeclineReasonDialog from "../../components/DeclineReasonDialog";
 import Loading from "../../components/Loading";
 import { DatabaseContext } from "../../components/Provider";
 import shouldDisableCheckIn from "../hooks/shouldDisableCheckIn";
+
+const DEFAULT_ERROR_MESSAGE = "Failed to perform action on booking";
 
 interface Props {
   calendarEventId: string;
@@ -39,6 +48,8 @@ export default function BookingActions(props: Props) {
   );
   const { reloadFutureBookings, allBookings } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(DEFAULT_ERROR_MESSAGE);
+  const [toastSeverity, setToastSeverity] = useState<AlertColor>("error");
   const [reason, setReason] = useState<string>();
 
   const { actions, updateActions, options } = useBookingActions({
@@ -58,7 +69,15 @@ export default function BookingActions(props: Props) {
     reloadFutureBookings();
   };
 
-  const onError = () => {
+  const onError = (error: unknown, severity: AlertColor = "error") => {
+    // Show the server's message, e.g. when an approval succeeded but the
+    // Google Calendar title could not be updated.
+    setErrorMessage(
+      error instanceof Error && error.message
+        ? error.message
+        : DEFAULT_ERROR_MESSAGE,
+    );
+    setToastSeverity(severity);
     setShowError(true);
   };
 
@@ -81,8 +100,16 @@ export default function BookingActions(props: Props) {
       await reload();
     } catch (ex) {
       console.error(ex);
-      setOptimisticStatus(undefined);
-      onError();
+      if (ex instanceof ApprovedWithWarningError) {
+        // The booking is approved: keep that status, warn, and load the real
+        // row so approval is not offered again. Admin lists keep approved
+        // rows, so this component (and its toast) stays mounted.
+        onError(ex, "warning");
+        await reload();
+      } else {
+        setOptimisticStatus(undefined);
+        onError(ex);
+      }
     } finally {
       setSelectedAction(Actions.PLACEHOLDER);
       setUiLoading(false);
@@ -229,12 +256,15 @@ export default function BookingActions(props: Props) {
       ) : (
         onAction
       )}
-      <AlertToast
-        message="Failed to perform action on booking"
-        severity="error"
-        open={showError}
-        handleClose={() => setShowError(false)}
-      />
+      {/* Rendered in a grid cell; portal it so the row does not clip it. */}
+      <Portal>
+        <AlertToast
+          message={errorMessage}
+          severity={toastSeverity}
+          open={showError}
+          handleClose={() => setShowError(false)}
+        />
+      </Portal>
     </div>
   );
 }

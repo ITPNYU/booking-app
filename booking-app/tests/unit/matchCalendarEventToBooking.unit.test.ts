@@ -87,6 +87,41 @@ describe("findBookingForCalendarEvent", () => {
     ).toBeUndefined();
   });
 
+  it("matches a guest copy when a legacy booking stores roomId as a number", () => {
+    // Older imports wrote roomId as a number; #1638 was .split throwing on it.
+    const legacyBooking = { ...originalBooking, roomId: 203 as unknown as string };
+    expect(
+      find(
+        {
+          id: "google-guest-copy",
+          start: { dateTime: start },
+          end: { dateTime: end },
+        },
+        [legacyBooking],
+        ["203"],
+      ),
+    ).toBe(legacyBooking);
+  });
+
+  it("skips bookings without a usable roomId instead of throwing", () => {
+    const bookings = [
+      { ...originalBooking, calendarEventId: "no-room", roomId: undefined },
+      { ...originalBooking, calendarEventId: "blank-room", roomId: "  " },
+    ] as unknown as typeof originalBooking[];
+    expect(() => buildBookingMatchIndex(bookings)).not.toThrow();
+    expect(
+      find(
+        {
+          id: "google-guest-copy",
+          start: { dateTime: start },
+          end: { dateTime: end },
+        },
+        bookings,
+        ["203"],
+      ),
+    ).toBeUndefined();
+  });
+
   it("does not match a booking for a different room", () => {
     expect(
       find(

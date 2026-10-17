@@ -27,6 +27,15 @@ vi.mock("@/components/src/client/routes/hooks/getBookingStatus", () => ({
   default: vi.fn(),
 }));
 
+vi.mock("@/lib/utils/matchCalendarEventToBooking", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/utils/matchCalendarEventToBooking")>();
+  return {
+    ...actual,
+    buildBookingMatchIndex: vi.fn(actual.buildBookingMatchIndex),
+  };
+});
+
 import { DELETE, GET, POST, PUT } from "@/app/api/calendarEvents/route";
 import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
 import { TableNames } from "@/components/src/policy";
@@ -37,9 +46,11 @@ import {
   updateCalendarEvent,
 } from "@/components/src/server/calendars";
 import { _resetBookingsCacheForTesting } from "@/lib/bookingsCache";
+import { _resetCalendarEventsCacheForTesting } from "@/lib/calendarEventsCache";
 import { serverFetchAllDataFromCollection } from "@/lib/firebase/server/adminDb";
 import { getCalendarClient } from "@/lib/googleClient";
 import { getTenantRooms } from "@/app/api/bookings/shared";
+import { buildBookingMatchIndex } from "@/lib/utils/matchCalendarEventToBooking";
 
 const mockInsertEvent = vi.mocked(insertEvent);
 const mockDeleteEvent = vi.mocked(deleteEvent);
@@ -51,6 +62,22 @@ const mockServerFetchAllDataFromCollection = vi.mocked(
 const mockGetCalendarClient = vi.mocked(getCalendarClient);
 const mockGetTenantRooms = vi.mocked(getTenantRooms);
 const mockGetBookingStatus = vi.mocked(getBookingStatus);
+const mockBuildBookingMatchIndex = vi.mocked(buildBookingMatchIndex);
+
+// Helper: build a batch GET request (the booking flow's shape)
+function makeBatchGETRequest(calendarIds: string[], tenant: string) {
+  return {
+    url: `https://example.com/api/calendarEvents?calendarIds=${calendarIds.join(",")}`,
+    headers: new Headers({ "x-tenant": tenant }),
+  } as any;
+}
+
+const orientationEvent = {
+  id: "google-guest-copy",
+  summary: "Orientation",
+  start: { dateTime: "2024-09-01T10:00:00.000Z" },
+  end: { dateTime: "2024-09-01T12:00:00.000Z" },
+};
 
 // Helper: build a minimal GET request for a given calendarId + tenant
 function makeGETRequest(calendarId: string, tenant: string) {
@@ -75,6 +102,7 @@ describe("/api/calendarEvents", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     _resetBookingsCacheForTesting();
+    _resetCalendarEventsCacheForTesting();
     mockGetTenantRooms.mockResolvedValue([]);
   });
 
@@ -230,6 +258,82 @@ describe("/api/calendarEvents", () => {
       expect(payload[0].booking).toBeUndefined();
     });
 
+    it("still returns every calendar's events when a legacy booking stores roomId as a number (#1638)", async () => {
+      stubCalendarClient([orientationEvent]);
+      mockGetTenantRooms.mockResolvedValue([
+        { roomId: "203", calendarId: "cal-a" },
+        { roomId: "220", calendarId: "cal-b" },
+      ] as any);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([
+        {
+          // 2024 import: roomId is a number, not a string
+          calendarEventId: "legacy-id",
+          roomId: 220,
+          startDate: { toDate: () => new Date("2024-01-01T10:00:00.000Z") },
+          endDate: { toDate: () => new Date("2024-01-01T12:00:00.000Z") },
+        } as any,
+        {
+          calendarEventId: "primary-id",
+          roomId: "203",
+          startDate: { toDate: () => new Date("2024-09-01T10:00:00.000Z") },
+          endDate: { toDate: () => new Date("2024-09-01T12:00:00.000Z") },
+          requestNumber: 99,
+          email: "student@nyu.edu",
+          department: "ITP",
+        } as any,
+      ]);
+      mockGetBookingStatus.mockReturnValue("approved");
+
+      const response = await GET(
+        makeBatchGETRequest(["cal-a", "cal-b"], "tenant-one"),
+      );
+      expect(response.status).toBe(200);
+      const payload = await response.json();
+      expect(payload["cal-a"]).toHaveLength(1);
+      expect(payload["cal-b"]).toHaveLength(1);
+      // Matching still works for the well-formed booking
+      expect(payload["cal-a"][0].calendarEventId).toBe("primary-id");
+      expect(payload["cal-a"][0].booking?.requestNumber).toBe(99);
+    });
+
+    it("returns unmatched events instead of none when the booking index cannot be built", async () => {
+      stubCalendarClient([orientationEvent]);
+      mockGetTenantRooms.mockResolvedValue([
+        { roomId: "203", calendarId: "cal-a" },
+      ] as any);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([
+        { calendarEventId: "primary-id", roomId: "203" } as any,
+      ]);
+      mockBuildBookingMatchIndex.mockImplementationOnce(() => {
+        throw new TypeError("d.roomId.split is not a function");
+      });
+
+      const response = await GET(makeBatchGETRequest(["cal-a"], "tenant-one"));
+      expect(response.status).toBe(200);
+      const payload = await response.json();
+      expect(payload["cal-a"]).toEqual([
+        {
+          title: "Orientation",
+          start: "2024-09-01T10:00:00.000Z",
+          end: "2024-09-01T12:00:00.000Z",
+          calendarEventId: "google-guest-copy",
+          booking: undefined,
+        },
+      ]);
+    });
+
+    it("returns unmatched events when tenant rooms cannot be loaded", async () => {
+      stubCalendarClient([orientationEvent]);
+      mockGetTenantRooms.mockRejectedValueOnce(new Error("schema unavailable"));
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([]);
+
+      const response = await GET(makeBatchGETRequest(["cal-a"], "tenant-one"));
+      expect(response.status).toBe(200);
+      const payload = await response.json();
+      expect(payload["cal-a"]).toHaveLength(1);
+      expect(payload["cal-a"][0].calendarEventId).toBe("google-guest-copy");
+    });
+
     it("validates calendarId", async () => {
       const request = {
         url: "https://example.com/api/calendarEvents",
@@ -243,6 +347,88 @@ describe("/api/calendarEvents", () => {
         error: "Invalid calendarId",
       });
       expect(mockGetCalendarClient).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unparseable start/end with 400", async () => {
+      const request = {
+        url: "https://example.com/api/calendarEvents?calendarId=cal-1&start=not-a-date",
+        headers: new Headers(),
+      } as any;
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        error: "Invalid start/end date",
+      });
+      expect(mockGetCalendarClient).not.toHaveBeenCalled();
+    });
+
+    it("rejects end <= start with 400", async () => {
+      const request = {
+        url:
+          "https://example.com/api/calendarEvents?calendarId=cal-1" +
+          "&start=2026-09-01T00:00:00Z&end=2026-08-01T00:00:00Z",
+        headers: new Headers(),
+      } as any;
+
+      const response = await GET(request);
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        error: "end must be after start",
+      });
+      expect(mockGetCalendarClient).not.toHaveBeenCalled();
+    });
+
+    it("defaults the window from start when only start is given", async () => {
+      const listMock = stubCalendarClient([]);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([]);
+
+      // A future start with no end must get a default window anchored to
+      // start, not rejected because "today + default" lands before it.
+      const request = {
+        url:
+          "https://example.com/api/calendarEvents?calendarId=cal-1" +
+          "&start=2030-01-01T00:00:00Z",
+        headers: new Headers(),
+      } as any;
+
+      const response = await GET(request);
+      expect(response.status).toBe(200);
+
+      const { timeMin, timeMax } = listMock.mock.calls[0][0];
+      expect(timeMin).toBe("2030-01-01T00:00:00.000Z");
+      const spanDays =
+        (Date.parse(timeMax) - Date.parse(timeMin)) / 86_400_000;
+      expect(spanDays).toBeGreaterThan(85); // ~3 months after start
+      expect(spanDays).toBeLessThan(95);
+    });
+
+    it("clamps an oversized window to the maximum range", async () => {
+      const listMock = stubCalendarClient([]);
+      mockServerFetchAllDataFromCollection.mockResolvedValueOnce([]);
+
+      // A 5-year window (e.g. a probing caller) must not reach Google as-is.
+      const request = {
+        url:
+          "https://example.com/api/calendarEvents?calendarId=cal-1" +
+          "&start=2026-09-01T00:00:00Z&end=2031-09-01T00:00:00Z",
+        headers: new Headers(),
+      } as any;
+
+      const response = await GET(request);
+      expect(response.status).toBe(200);
+
+      const { timeMin, timeMax } = listMock.mock.calls[0][0];
+      expect(timeMin).toBe("2026-09-01T00:00:00.000Z");
+      // Clamped to ~6 months after start (setMonth is local-time based, so
+      // assert on the span rather than an exact instant), far below the
+      // requested 5 years.
+      const spanDays =
+        (Date.parse(timeMax) - Date.parse(timeMin)) / 86_400_000;
+      expect(spanDays).toBeGreaterThan(150);
+      expect(spanDays).toBeLessThan(190);
     });
   });
 
@@ -284,6 +470,23 @@ describe("/api/calendarEvents", () => {
         error: "Missing required fields",
       });
       expect(mockInsertEvent).not.toHaveBeenCalled();
+    });
+
+    it("invalidates the events cache so a following GET refetches", async () => {
+      const listMock = stubCalendarClient([]);
+      mockServerFetchAllDataFromCollection.mockResolvedValue([]);
+
+      // Warm the cache for this calendar…
+      await GET(makeGETRequest("gmail-calendar", "tenant-one"));
+      expect(listMock).toHaveBeenCalledTimes(1);
+
+      // …then mutate it: the cached range must be dropped…
+      mockInsertEvent.mockResolvedValueOnce({ id: "created-event" });
+      await POST({ json: async () => basePayload } as any);
+
+      // …so the next GET goes back to Google instead of serving stale data.
+      await GET(makeGETRequest("gmail-calendar", "tenant-one"));
+      expect(listMock).toHaveBeenCalledTimes(2);
     });
 
     it("handles insertion errors", async () => {
@@ -464,6 +667,27 @@ describe("/api/calendarEvents", () => {
       expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledTimes(1);
     });
 
+    it("shares one Google fetch across no-range GETs (quantized fallback window)", async () => {
+      // Callers that omit start/end (e.g. stale client bundles right after a
+      // deploy) get a day-quantized fallback range, so consecutive requests
+      // produce the same cache key instead of a unique per-millisecond key.
+      const listMock = stubCalendarClient([
+        {
+          id: "ev-1",
+          summary: "Event 1",
+          start: { dateTime: "2024-01-01T10:00:00Z" },
+          end: { dateTime: "2024-01-01T11:00:00Z" },
+        },
+      ]);
+      mockServerFetchAllDataFromCollection.mockResolvedValue([]);
+
+      const res1 = await GET(makeGETRequest("cal-1", tenantA));
+      const res2 = await GET(makeGETRequest("cal-1", tenantA));
+      expect(res1.status).toBe(200);
+      expect(res2.status).toBe(200);
+      expect(listMock).toHaveBeenCalledTimes(1);
+    });
+
     it("does NOT share cached bookings across different tenants", async () => {
       stubCalendarClient([
         {
@@ -496,6 +720,12 @@ describe("/api/calendarEvents", () => {
         },
       ]);
       mockServerFetchAllDataFromCollection.mockResolvedValueOnce(bookingsB);
+
+      // Reset the Google events cache: both GETs hit the same calendarId and
+      // can land in the same millisecond (identical timeMin/timeMax → cache
+      // hit), which would serve tenant A's stubbed events. This test targets
+      // the bookings cache only.
+      _resetCalendarEventsCacheForTesting();
 
       // Second call with tenant B – cache MUST be invalidated
       const res2 = await GET(makeGETRequest("cal-1", tenantB));
@@ -621,6 +851,10 @@ describe("/api/calendarEvents", () => {
         Promise.resolve(bookingsB),
       );
       stubCalendarClient(calEventsB);
+
+      // Reset the Google events cache so tenant B's request (same calendarId,
+      // possibly same-millisecond range) doesn't get tenant A's stubbed events.
+      _resetCalendarEventsCacheForTesting();
 
       // Fire request for tenant B – must NOT reuse tenant A's cache
       const res2 = await GET(makeGETRequest("cal-1", tenantB));

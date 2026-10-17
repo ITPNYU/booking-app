@@ -8,6 +8,7 @@ import {
   notifyServiceApproversForRequestedServices,
 } from "@/components/src/server/serviceApproverNotifications";
 import {
+  ApprovalFollowUpError,
   resolveFirstApprovalHistoryNote,
   serverApproveBooking,
 } from "@/components/src/server/admin";
@@ -67,8 +68,30 @@ const parseBookingResourceIds = (roomId: unknown): string[] =>
     .map(resourceId => resourceId.trim())
     .filter(Boolean);
 
-const getErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
+// serverApproveBooking rethrows failures as plain { status, message } objects.
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return String(error);
+};
+
+// The booking is already Approved, but a follow-up step (e.g. the calendar
+// title) failed. `approved: true` tells the client not to offer approval again.
+const approvedWithFollowUpFailure = (error: unknown) =>
+  NextResponse.json(
+    {
+      error: `Booking was approved, but a follow-up step failed: ${getErrorMessage(error)}`,
+      approved: true,
+    },
+    { status: 500 },
+  );
 
 const getErrorStatus = (error: unknown): number =>
   typeof error === "object" &&
@@ -249,6 +272,7 @@ export async function POST(req: NextRequest) {
               error: getErrorMessage(error),
             },
           );
+          return approvedWithFollowUpFailure(error);
         }
       } else if (xstateResult.newState === "Pre-approved") {
         console.log(
@@ -368,6 +392,10 @@ export async function POST(req: NextRequest) {
         error: getErrorMessage(error),
       },
     );
+    // Fallback approval: finalApprove already recorded the approval.
+    if (error instanceof ApprovalFollowUpError) {
+      return approvedWithFollowUpFailure(error);
+    }
     return NextResponse.json(
       { error: getErrorMessage(error) },
       { status: getErrorStatus(error) },

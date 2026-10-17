@@ -15,7 +15,8 @@ export type MatchableCalendarEvent = {
 
 export type MatchableBooking = {
   calendarEventId?: string;
-  roomId?: string;
+  /** Legacy documents store this as a number; it is coerced on read. */
+  roomId?: string | number;
   startDate?: unknown;
   endDate?: unknown;
 };
@@ -117,11 +118,16 @@ export function buildBookingMatchIndex<T extends MatchableBooking>(
 
     const start = bookingTimeMillis(booking.startDate);
     const end = bookingTimeMillis(booking.endDate);
-    if (start == null || end == null || !booking.roomId) continue;
+    if (start == null || end == null) continue;
+    // Firestore has no schema: older imports stored roomId as a number, and
+    // calling .split on it threw and blanked every calendar in the response.
+    const roomIdField =
+      booking.roomId == null ? "" : String(booking.roomId).trim();
+    if (!roomIdField) continue;
 
     const startBucket = timeBucket(start);
     const endBucket = timeBucket(end);
-    const roomIds = booking.roomId
+    const roomIds = roomIdField
       .split(",")
       .map((roomId) => roomId.trim())
       .filter(Boolean);

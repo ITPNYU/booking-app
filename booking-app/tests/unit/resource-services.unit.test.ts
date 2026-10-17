@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  getBookingServiceRooms,
+  getMediaCommonsAutoCloseout,
   getMediaCommonsServices,
   isServiceRequested,
 } from "@/components/src/utils/tenantUtils";
@@ -128,6 +130,70 @@ describe("getMediaCommonsServices", () => {
         setupDetails: "Need extra tables for the adjacent room",
       }).setup,
     ).toBe(true);
+  });
+});
+
+describe("getMediaCommonsAutoCloseout", () => {
+  const rooms = [
+    {
+      resourceId: "221",
+      services: {
+        setup: { label: "Setup", autoCloseout: true },
+        staffing: { label: "Staffing", autoCloseout: true, sections: {} },
+        equipment: { label: "Equipment", autoCloseout: false },
+        catering: { label: "Catering" },
+      },
+    },
+    {
+      resourceId: "222",
+      services: {
+        setup: { label: "Setup" },
+        cleaning: { label: "Cleaning", autoCloseout: true },
+      },
+    },
+    { resourceId: "223", services: ["setup", "equipment"] },
+    {
+      resourceId: "1202",
+      parentResourceId: "1201",
+      services: { security: { label: "Security", autoCloseout: true } },
+    },
+    { resourceId: "1201", services: { annex: { label: "Breakout" } } },
+  ];
+
+  it("flags a service when its booked room sets autoCloseout, mapping staff to staffing", () => {
+    expect(getMediaCommonsAutoCloseout({ roomId: "221" }, rooms)).toEqual({
+      setup: true,
+      staff: true,
+    });
+  });
+
+  it("flags a service when any of several booked rooms sets it", () => {
+    expect(getMediaCommonsAutoCloseout({ roomId: "222, 221" }, rooms)).toEqual({
+      setup: true,
+      staff: true,
+      cleaning: true,
+    });
+  });
+
+  it("returns nothing for unknown rooms, legacy string[] services, or a missing roomId", () => {
+    expect(getMediaCommonsAutoCloseout({ roomId: "999" }, rooms)).toEqual({});
+    expect(getMediaCommonsAutoCloseout({ roomId: "223" }, rooms)).toEqual({});
+    expect(getMediaCommonsAutoCloseout({}, rooms)).toEqual({});
+  });
+
+  it("includes annex spaces picked under a booked room", () => {
+    expect(
+      getMediaCommonsAutoCloseout(
+        { roomId: "1201", annexByRoom: { "1201": ["1202"] } },
+        rooms,
+      ),
+    ).toEqual({ security: true });
+    expect(
+      getBookingServiceRooms(
+        { roomId: "1201", annexByRoom: { "1201": ["1202"] } },
+        rooms,
+      ).map((r) => r.resourceId),
+    ).toEqual(["1201", "1202"]);
   });
 });
 
@@ -394,6 +460,44 @@ describe("migrateResourceServices", () => {
     expect(result.furnishings?.chartField?.validation).toBe("CHARTFIELD_REGEX");
     expect(result.staffing?.mode).toBe("static");
     expect(result.staffing?.sections).toBeUndefined();
+  });
+
+  it("keeps autoCloseout on sections and staffing, reading the old autoCloseoutOnCancel spelling too", () => {
+    const result = migrateResourceServices({
+      services: {
+        setup: {
+          label: "Setup",
+          options: [{ value: "a", label: "A" }],
+          autoCloseout: true,
+        },
+        equipment: {
+          label: "Equipment",
+          chartField: {},
+          autoCloseout: "false",
+        },
+        cleaning: {
+          label: "Cleaning",
+          toggle: "optional",
+          autoCloseoutOnCancel: true,
+        },
+        catering: { label: "Catering", toggle: "optional" },
+        staffing: {
+          label: "Staffing",
+          autoCloseout: true,
+          sections: {
+            default: {
+              label: "Staffing",
+              options: [{ value: "x", label: "X" }],
+            },
+          },
+        },
+      },
+    });
+    expect(result.setup?.autoCloseout).toBe(true);
+    expect(result.equipment?.autoCloseout).toBe(false);
+    expect(result.cleaning?.autoCloseout).toBe(true);
+    expect(result.catering).not.toHaveProperty("autoCloseout");
+    expect(result.staffing?.autoCloseout).toBe(true);
   });
 
   it("preserves staffing mode hidden when there are no sections", () => {
