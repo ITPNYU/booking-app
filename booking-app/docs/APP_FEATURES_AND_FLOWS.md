@@ -433,6 +433,8 @@ Service Closeout Pending → Closed Out
 
 All services must be closed out before the booking is fully closed.
 
+**Automatic closeout (`autoCloseout`):** a room's schema can mark a service section with `autoCloseout: true` (for example `resources[].services.setup.autoCloseout`). When the booking reaches Service Closeout, on either the cancel or the check-out path, every approved service flagged on any booked room (annex spaces included) is closed out by the system in the same transition: no Closeout button appears for it, and the booking history gets a `CHECKED-OUT` row from `System` with the note "<Service> Service Closed Out (automatic)". Services without the flag keep the manual closeout. The flag is read from the tenant schema each time the machine is restored, so changing it applies to existing bookings that have not yet reached Service Closeout. A declined or unrequested service is never logged as closed out.
+
 ### Pregame Bookings
 
 Bookings imported from the pregame calendar sync automatically have all their requested services approved when the final approval is granted.

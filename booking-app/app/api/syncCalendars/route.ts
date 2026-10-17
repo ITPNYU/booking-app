@@ -13,6 +13,7 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import admin from "@/lib/firebase/server/firebaseAdmin";
+import { invalidateCalendarEventsCache } from "@/lib/calendarEventsCache";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase/firestore";
 import { NextResponse } from "next/server";
@@ -254,6 +255,10 @@ export async function POST(request: Request) {
         );
       }
     }
+
+    // The loop above renames events through the Calendar API directly rather
+    // than through server/calendars.ts, so drop the events cache here.
+    invalidateCalendarEventsCache();
 
     console.log("targetBookings", targetBookings);
     console.log("totalNewBookings", totalNewBookings);
