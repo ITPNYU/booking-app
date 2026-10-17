@@ -105,18 +105,34 @@ export const getCancelCcEmail = async (tenant?: string): Promise<string> => {
 };
 
 /**
- * Address that gets a copy of the decline email, or "" when the tenant has
- * none configured or it is the requester's own address (they already get one).
+ * Splits a comma- and/or semicolon-separated address list into trimmed
+ * addresses, dropping blanks, case-insensitive duplicates, and `exclude`.
+ * Addresses keep their configured spelling.
  */
-export const getDeclineCcEmail = async (
+export const parseEmailList = (value: string, exclude?: string): string[] => {
+  const seen = new Set<string>();
+  const excluded = exclude?.trim().toLowerCase();
+  if (excluded) seen.add(excluded);
+  const addresses: string[] = [];
+  for (const part of value.split(/[,;]/)) {
+    const address = part.trim();
+    const key = address.toLowerCase();
+    if (!address || seen.has(key)) continue;
+    seen.add(key);
+    addresses.push(address);
+  }
+  return addresses;
+};
+
+/**
+ * Addresses that get a copy of the decline email (`ccEmails.declined`, which
+ * may list several), minus the requester's own address since they already
+ * get one. Empty when the tenant has none configured.
+ */
+export const getDeclineCcEmails = async (
   tenant?: string,
   requesterEmail?: string,
-): Promise<string> => {
-  if (!tenant) return "";
-  const ccEmail = (await getDeclinedCcEmail(tenant)).trim();
-  if (!ccEmail) return "";
-  if (ccEmail.toLowerCase() === requesterEmail?.trim().toLowerCase()) {
-    return "";
-  }
-  return ccEmail;
+): Promise<string[]> => {
+  if (!tenant) return [];
+  return parseEmailList(await getDeclinedCcEmail(tenant), requesterEmail);
 };

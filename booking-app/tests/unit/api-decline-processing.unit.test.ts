@@ -155,4 +155,49 @@ describe("POST /api/decline-processing", () => {
       "mc",
     );
   });
+
+  it("sends one copy to each address in a CC list, skipping the requester", async () => {
+    mocks.serverGetDocumentById.mockResolvedValue(
+      schemaWithDeclineCc(
+        "mediacommons.operations@nyu.edu; jhanele@nyu.edu, guest@nyu.edu",
+      ),
+    );
+
+    await POST(declineRequest());
+
+    const [guestEmail, ...ccEmails] = sentEmails();
+    expect(ccEmails.map((email) => email.targetEmail)).toEqual([
+      "mediacommons.operations@nyu.edu",
+      "jhanele@nyu.edu",
+    ]);
+    ccEmails.forEach((email) => {
+      expect(email).toMatchObject({
+        headerMessage: guestEmail.headerMessage,
+        replyTo: GUEST_EMAIL,
+        status: BookingStatusLabel.DECLINED,
+      });
+    });
+  });
+
+  it("keeps sending to the other CC addresses and updates the calendar when one fails", async () => {
+    mocks.serverGetDocumentById.mockResolvedValue(
+      schemaWithDeclineCc("first@nyu.edu, second@nyu.edu"),
+    );
+    mocks.serverSendBookingDetailEmail.mockImplementation(
+      async ({ targetEmail }: { targetEmail: string }) => {
+        if (targetEmail === "first@nyu.edu") throw new Error("gmail down");
+        return { ok: true };
+      },
+    );
+
+    const response = await POST(declineRequest());
+
+    expect(response.status).toBe(200);
+    expect(sentEmails().map((email) => email.targetEmail)).toEqual([
+      GUEST_EMAIL,
+      "first@nyu.edu",
+      "second@nyu.edu",
+    ]);
+    expect(mocks.updateCalendarEvent).toHaveBeenCalledTimes(1);
+  });
 });

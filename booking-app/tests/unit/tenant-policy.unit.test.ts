@@ -5,8 +5,9 @@ import {
 import {
   getApprovedCcEmail,
   getCanceledCcEmail,
-  getDeclineCcEmail,
+  getDeclineCcEmails,
   getDeclinedCcEmail,
+  parseEmailList,
 } from "@/components/src/tenantPolicyServer";
 import { getApprovalCcEmail, getCancelCcEmail } from "@/components/src/tenantPolicyServer";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
@@ -183,7 +184,7 @@ describe("getCancelCcEmail (policy.ts wrapper)", () => {
   });
 });
 
-describe("getDeclinedCcEmail / getDeclineCcEmail", () => {
+describe("getDeclinedCcEmail / getDeclineCcEmails", () => {
   const schemaWithDeclinedCc = (declined: {
     development: string;
     staging: string;
@@ -191,8 +192,16 @@ describe("getDeclinedCcEmail / getDeclineCcEmail", () => {
   }) =>
     makeMockSchema({
       ccEmails: {
-        approved: { development: "", staging: "", production: "approved@nyu.edu" },
-        canceled: { development: "", staging: "", production: "cancel@nyu.edu" },
+        approved: {
+          development: "",
+          staging: "",
+          production: "approved@nyu.edu",
+        },
+        canceled: {
+          development: "",
+          staging: "",
+          production: "cancel@nyu.edu",
+        },
         declined,
       },
     });
@@ -229,8 +238,16 @@ describe("getDeclinedCcEmail / getDeclineCcEmail", () => {
     mockServerGetDocumentById.mockResolvedValue(
       makeMockSchema({
         ccEmails: {
-          approved: { development: "", staging: "", production: "approved@nyu.edu" },
-          canceled: { development: "", staging: "", production: "cancel@nyu.edu" },
+          approved: {
+            development: "",
+            staging: "",
+            production: "approved@nyu.edu",
+          },
+          canceled: {
+            development: "",
+            staging: "",
+            production: "cancel@nyu.edu",
+          },
         },
       }),
     );
@@ -245,28 +262,93 @@ describe("getDeclinedCcEmail / getDeclineCcEmail", () => {
       schemaWithDeclinedCc({ development: "", staging: "", production: "" }),
     );
 
-    expect(await getDeclineCcEmail("mc", "guest@nyu.edu")).toBe("");
+    expect(await getDeclineCcEmails("mc", "guest@nyu.edu")).toEqual([]);
   });
 
   it("returns the configured address for another requester", async () => {
     mockServerGetDocumentById.mockResolvedValue(
-      schemaWithDeclinedCc({ development: "", staging: "", production: " ops@nyu.edu " }),
+      schemaWithDeclinedCc({
+        development: "",
+        staging: "",
+        production: " ops@nyu.edu ",
+      }),
     );
 
-    expect(await getDeclineCcEmail("mc", "guest@nyu.edu")).toBe("ops@nyu.edu");
-    expect(await getDeclineCcEmail("mc")).toBe("ops@nyu.edu");
+    expect(await getDeclineCcEmails("mc", "guest@nyu.edu")).toEqual([
+      "ops@nyu.edu",
+    ]);
+    expect(await getDeclineCcEmails("mc")).toEqual(["ops@nyu.edu"]);
   });
 
-  it("returns empty string when the requester is the CC address", async () => {
+  it("returns every address in a configured list, minus the requester", async () => {
     mockServerGetDocumentById.mockResolvedValue(
-      schemaWithDeclinedCc({ development: "", staging: "", production: "Ops@NYU.edu" }),
+      schemaWithDeclinedCc({
+        development: "",
+        staging: "",
+        production:
+          "mediacommons.operations@nyu.edu, jhanele@nyu.edu; Guest@NYU.edu",
+      }),
     );
 
-    expect(await getDeclineCcEmail("mc", "ops@nyu.edu")).toBe("");
+    expect(await getDeclineCcEmails("mc", "guest@nyu.edu")).toEqual([
+      "mediacommons.operations@nyu.edu",
+      "jhanele@nyu.edu",
+    ]);
   });
 
-  it("returns empty string without reading the schema when tenant is undefined", async () => {
-    expect(await getDeclineCcEmail(undefined, "guest@nyu.edu")).toBe("");
+  it("returns nothing when the requester is the only CC address", async () => {
+    mockServerGetDocumentById.mockResolvedValue(
+      schemaWithDeclinedCc({
+        development: "",
+        staging: "",
+        production: "Ops@NYU.edu",
+      }),
+    );
+
+    expect(await getDeclineCcEmails("mc", "ops@nyu.edu")).toEqual([]);
+  });
+
+  it("returns nothing without reading the schema when tenant is undefined", async () => {
+    expect(await getDeclineCcEmails(undefined, "guest@nyu.edu")).toEqual([]);
     expect(mockServerGetDocumentById).not.toHaveBeenCalled();
+  });
+});
+
+describe("parseEmailList", () => {
+  it("splits on commas", () => {
+    expect(parseEmailList("a@nyu.edu,b@nyu.edu")).toEqual([
+      "a@nyu.edu",
+      "b@nyu.edu",
+    ]);
+  });
+
+  it("splits on semicolons and mixed separators", () => {
+    expect(parseEmailList("a@nyu.edu;b@nyu.edu, c@nyu.edu ;d@nyu.edu")).toEqual(
+      ["a@nyu.edu", "b@nyu.edu", "c@nyu.edu", "d@nyu.edu"],
+    );
+  });
+
+  it("trims spaces and drops blank entries", () => {
+    expect(parseEmailList("  a@nyu.edu ,, ; b@nyu.edu ;  ")).toEqual([
+      "a@nyu.edu",
+      "b@nyu.edu",
+    ]);
+  });
+
+  it("drops case-insensitive duplicates and keeps the first spelling", () => {
+    expect(parseEmailList("Ops@NYU.edu, ops@nyu.edu; OPS@nyu.edu")).toEqual([
+      "Ops@NYU.edu",
+    ]);
+  });
+
+  it("excludes the given address regardless of case or spaces", () => {
+    expect(
+      parseEmailList("ops@nyu.edu, guest@nyu.edu", "  GUEST@nyu.edu "),
+    ).toEqual(["ops@nyu.edu"]);
+  });
+
+  it("returns an empty list for an empty or blank value", () => {
+    expect(parseEmailList("")).toEqual([]);
+    expect(parseEmailList(" ; , ")).toEqual([]);
   });
 });
