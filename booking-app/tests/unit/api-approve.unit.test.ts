@@ -257,6 +257,30 @@ describe("POST /api/approve", () => {
     expect(response.status).toBe(200);
   });
 
+  it.each([
+    ["missing", {}],
+    ["blank", { id: "  " }],
+    ["not a string", { id: 42 }],
+  ])("returns 400 when the booking id is %s", async (_label, body) => {
+    const response = await POST(createRequest(body as any) as any);
+
+    expect(response.status).toBe(400);
+    expect(mockServerGetDataByCalendarEventId).not.toHaveBeenCalled();
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a body that isn't JSON", async () => {
+    const response = await POST({
+      json: async () => {
+        throw new SyntaxError("Unexpected end of JSON input");
+      },
+      headers: new Headers(),
+    } as any);
+
+    expect(response.status).toBe(400);
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
   it("allows an approver of any booked room to final approve", async () => {
     mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
     mockServerGetDataByCalendarEventId.mockResolvedValue({

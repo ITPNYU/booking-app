@@ -141,7 +141,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await req.json();
+  let id: unknown;
+  try {
+    ({ id } = await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (typeof id !== "string" || !id.trim()) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
