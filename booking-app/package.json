@@ -23,6 +23,8 @@
     "migrate:tenant-resource-ids:dry-run": "node scripts/migrateTenantResourceIds.js --dry-run",
     "seed:mc-services": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/seedMcResourceServices.ts",
     "seed:mc-services:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/seedMcResourceServices.ts --dry-run",
+    "migrate:approvers-resources": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/migrateApproversResources.ts",
+    "migrate:approvers-resources:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/migrateApproversResources.ts --dry-run",
     "backup:tenant-schema": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/backupTenantSchemaToDisk.ts"
   },
   "dependencies": {
