@@ -633,12 +633,15 @@ export const DatabaseProvider = ({
   );
 
   const fetchBannedUsers = async () => {
-    clientFetchAllDataFromCollection(TableNames.BANNED, [], tenant)
+    // usersBanned is shared across tenants, so this read is not tenant-scoped.
+    clientFetchAllDataFromCollection(TableNames.BANNED, [])
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
           email: item.email,
           bannedAt: item.createdAt,
+          startsAt: item.startsAt,
+          endsAt: item.endsAt,
         }));
         setBannedUsers(filtered);
       })

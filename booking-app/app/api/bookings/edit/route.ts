@@ -44,6 +44,10 @@ import {
   shouldUseXState,
 } from "@/components/src/utils/tenantUtils";
 import { logServerBookingChange } from "@/lib/firebase/server/adminDb";
+import {
+  anyRequesterIsBanned,
+  BANNED_FROM_BOOKING_MESSAGE,
+} from "@/lib/bookingBan";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
@@ -242,6 +246,15 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(
       { error: "modifiedBy field is required for edits" },
       { status: 400 },
+    );
+  }
+
+  // Both fields are client-supplied. A ban on either address blocks the
+  // resubmit, which deletes the old event and creates a new REQUESTED one.
+  if (await anyRequesterIsBanned([email, modifiedBy])) {
+    return NextResponse.json(
+      { error: BANNED_FROM_BOOKING_MESSAGE },
+      { status: 403 },
     );
   }
 

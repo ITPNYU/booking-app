@@ -41,6 +41,10 @@ import {
   getRequestLimitRoleKey,
 } from "@/lib/bookingRequestLimits";
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
+import {
+  BANNED_FROM_BOOKING_MESSAGE,
+  requesterIsBanned,
+} from "@/lib/bookingBan";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
 import {
@@ -98,6 +102,26 @@ export async function POST(request: NextRequest) {
       { error: maintenanceMode.message, maintenanceMode: true },
       { status: 503 },
     );
+  }
+
+  // Walk-ins are restricted on the guest. VIP claims are client-controlled, so
+  // a banned guest cannot be hidden behind an unbanned requestedBy.
+  const banSubjects =
+    origin === BookingOrigin.VIP || type === BookingOrigin.VIP
+      ? [email, requestedBy]
+      : [email];
+  const checkedBanSubjects = new Set<string>();
+  for (const subject of banSubjects) {
+    if (typeof subject !== "string") continue;
+    const key = subject.trim().toLowerCase();
+    if (!key || checkedBanSubjects.has(key)) continue;
+    checkedBanSubjects.add(key);
+    if (await requesterIsBanned(subject)) {
+      return NextResponse.json(
+        { error: BANNED_FROM_BOOKING_MESSAGE },
+        { status: 403 },
+      );
+    }
   }
 
   const tenantSchema = await getCachedTenantSchema(tenant);

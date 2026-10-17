@@ -40,6 +40,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
 import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 import {
+  anyRequesterIsBanned,
+  BANNED_FROM_BOOKING_MESSAGE,
+} from "@/lib/bookingBan";
+import {
   buildBookingContents,
   extractTenantFromRequest,
   getTenantFlags,
@@ -147,6 +151,15 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(
       { error: "missing bookingCalendarId" },
       { status: 500 },
+    );
+  }
+
+  // Recreates the calendar event. Block when the guest or the signed-in
+  // staff member is banned.
+  if (await anyRequesterIsBanned([email, modifiedBy])) {
+    return NextResponse.json(
+      { error: BANNED_FROM_BOOKING_MESSAGE },
+      { status: 403 },
     );
   }
 
