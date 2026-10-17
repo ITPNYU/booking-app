@@ -1,5 +1,10 @@
 import { DEFAULT_TENANT, TENANTS } from "@/components/src/constants/tenants";
-import { requireSession } from "@/lib/api/requireSession";
+import { TableNames } from "@/components/src/policy";
+import { PagePermission } from "@/components/src/types";
+import { resolveCallerRole } from "@/lib/api/authz";
+import { authorizeBookingDecision } from "@/lib/api/bookingDecisionAuthz";
+import { requireSession, type SessionContext } from "@/lib/api/requireSession";
+import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -11,6 +16,10 @@ import {
   MEDIA_COMMONS_SERVICE_KEYS,
   type MediaCommonsServiceKey,
 } from "@/components/src/utils/serviceDecisions";
+
+/** Media Commons service events, e.g. approveSetup, declineStaff, closeoutCatering. */
+const isServiceEvent = (eventType: string) =>
+  /^(approve|decline|closeout)[A-Z]/.test(eventType);
 
 /** Keep only known service keys from an "edit" event's changed-services list. */
 const toChangedServices = (
@@ -33,6 +42,11 @@ const toChangedServices = (
  * netId is the authoritative user id from the caller's session — needed because
  * some queued side effects (pre-ban logging inside /api/cancel-processing) key
  * off it. Reconstructing from email.split("@")[0] is wrong for aliases.
+ *
+ * "approve" and "decline" need a session whose user may approve or decline
+ * the booking (authorizeBookingDecision), the same rule as /api/approve.
+ * Service events need an admin session: service approvers act through
+ * /api/services, which runs the machine itself.
  */
 export async function POST(req: NextRequest) {
   const { calendarEventId, eventType, email, netId, reason, changedServices } =
@@ -104,8 +118,14 @@ export async function POST(req: NextRequest) {
 
   let actorEmail = email;
   let actorNetId = netId;
-  if (eventType === "noShow") {
-    const session = await requireSession();
+  let session: SessionContext | null = null;
+  const isBookingDecision = eventType === "approve" || eventType === "decline";
+  if (
+    eventType === "noShow" ||
+    isBookingDecision ||
+    isServiceEvent(eventType)
+  ) {
+    session = await requireSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -123,6 +143,41 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    if (isBookingDecision && session) {
+      const booking = await serverGetDataByCalendarEventId<
+        Record<string, unknown>
+      >(TableNames.BOOKING, calendarEventId, tenant);
+      if (!booking) {
+        return NextResponse.json(
+          { error: "Booking not found" },
+          { status: 404 },
+        );
+      }
+      if (
+        !(await authorizeBookingDecision(
+          session.email,
+          tenant,
+          booking,
+          eventType,
+        ))
+      ) {
+        return NextResponse.json(
+          { error: `You are not authorized to ${eventType} this booking` },
+          { status: 403 },
+        );
+      }
+    }
+
+    if (isServiceEvent(eventType) && session) {
+      const role = await resolveCallerRole(session, tenant);
+      if (role !== PagePermission.ADMIN && role !== PagePermission.SUPER_ADMIN) {
+        return NextResponse.json(
+          { error: "Only admins can change service decisions here" },
+          { status: 403 },
+        );
+      }
+    }
+
     console.log(`🎬 XSTATE TRANSITION REQUEST [${tenant?.toUpperCase()}]:`, {
       calendarEventId,
       eventType,
