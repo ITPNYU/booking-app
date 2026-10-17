@@ -733,7 +733,7 @@ export default function useBookingActions({
     }
 
     // Execute service action
-    await fetch("/api/services", {
+    const response = await fetch("/api/services", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -747,6 +747,16 @@ export default function useBookingActions({
         ...(reason && { reason }),
       }),
     });
+    if (!response.ok) {
+      // e.g. a 403 for someone who isn't this service's approver on any of
+      // the booked rooms; BookingActions shows the message.
+      const body = await response.json().catch(() => ({}));
+      throw new Error(
+        typeof body?.error === "string"
+          ? body.error
+          : `Failed to ${action} the ${serviceType} service`,
+      );
+    }
 
     // When declining, other services are automatically declined
     // Manual auto-decline is not needed as XState state machine handles it automatically

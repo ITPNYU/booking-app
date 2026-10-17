@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const superSnap = vi.fn();
 const usersRightsSnap = vi.fn();
 const approverSnap = vi.fn();
+const assignmentSnap = vi.fn();
 
 function snapshot(docs: Array<Record<string, unknown>>) {
   return {
@@ -19,6 +20,8 @@ vi.mock("@/lib/firebase/server/firebaseAdmin", () => {
           if (name === "usersSuperAdmin") return snapshot(superSnap());
           if (name.endsWith("usersRights")) return snapshot(usersRightsSnap());
           if (name.endsWith("usersApprovers")) return snapshot(approverSnap());
+          if (name.endsWith("usersApproversResources"))
+            return snapshot(assignmentSnap());
           return snapshot([]);
         },
       }),
@@ -32,7 +35,12 @@ vi.mock("@/lib/firebase/server/firebaseAdmin", () => {
   };
 });
 
-import { authorizeRead, authorizeWrite } from "@/lib/api/authz";
+import {
+  authorizeRead,
+  authorizeWrite,
+  resolveCallerRole,
+} from "@/lib/api/authz";
+import { PagePermission } from "@/components/src/types";
 
 const session = { email: "rh3555@nyu.edu", netId: "rh3555" };
 
@@ -40,6 +48,7 @@ beforeEach(() => {
   superSnap.mockReturnValue([]);
   usersRightsSnap.mockReturnValue([]);
   approverSnap.mockReturnValue([]);
+  assignmentSnap.mockReturnValue([]);
 });
 afterEach(() => {
   vi.clearAllMocks();
@@ -60,24 +69,16 @@ describe("authorizeWrite", () => {
     expect(decision.ok).toBe(true);
   });
 
-  it("allows admin write to usersResourceApprovers", async () => {
+  it("blocks generic writes to usersApproversResources, even for admins", async () => {
+    // Writes go through /api/approversResources, which keeps
+    // serviceApproverEmails in step with serviceApprovers.
     usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
     const decision = await authorizeWrite(
       session,
       "mc",
-      "usersResourceApprovers",
+      "usersApproversResources",
     );
-    expect(decision.ok).toBe(true);
-  });
-
-  it("allows admin write to usersServiceApprovers", async () => {
-    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
-    const decision = await authorizeWrite(
-      session,
-      "mc",
-      "usersServiceApprovers",
-    );
-    expect(decision.ok).toBe(true);
+    expect(decision.ok).toBe(false);
   });
 
   it("blocks admin from writing usersSuperAdmin (super-only)", async () => {
@@ -160,40 +161,21 @@ describe("authorizeRead", () => {
     expect(decision.ok).toBe(true);
   });
 
-  it("blocks non-admin read of usersResourceApprovers", async () => {
+  it("blocks non-admin read of usersApproversResources", async () => {
     const decision = await authorizeRead(
       session,
       "mc",
-      "usersResourceApprovers",
+      "usersApproversResources",
     );
     expect(decision.ok).toBe(false);
   });
 
-  it("blocks non-admin read of usersServiceApprovers", async () => {
-    const decision = await authorizeRead(
-      session,
-      "mc",
-      "usersServiceApprovers",
-    );
-    expect(decision.ok).toBe(false);
-  });
-
-  it("allows admin read of usersResourceApprovers", async () => {
+  it("allows admin read of usersApproversResources", async () => {
     usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
     const decision = await authorizeRead(
       session,
       "mc",
-      "usersResourceApprovers",
-    );
-    expect(decision.ok).toBe(true);
-  });
-
-  it("allows admin read of usersServiceApprovers", async () => {
-    usersRightsSnap.mockReturnValue([{ isAdmin: true }]);
-    const decision = await authorizeRead(
-      session,
-      "mc",
-      "usersServiceApprovers",
+      "usersApproversResources",
     );
     expect(decision.ok).toBe(true);
   });
@@ -215,5 +197,43 @@ describe("authorizeRead", () => {
   it("denies reads to unknown collection by default", async () => {
     const decision = await authorizeRead(session, "mc", "totally-fake");
     expect(decision.ok).toBe(false);
+  });
+});
+
+describe("resolveCallerRole for service approvers", () => {
+  it("gives a per-resource service approver the Services page", async () => {
+    assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
+    await expect(resolveCallerRole(session, "mc")).resolves.toBe(
+      PagePermission.SERVICES,
+    );
+  });
+
+  it("gives a tenant-wide service flag holder the Services page", async () => {
+    usersRightsSnap.mockReturnValue([{ isFurnishings: true }]);
+    await expect(resolveCallerRole(session, "mc")).resolves.toBe(
+      PagePermission.SERVICES,
+    );
+  });
+
+  it("keeps a PA a PA, so nobody loses the page they have", async () => {
+    usersRightsSnap.mockReturnValue([{ isWorker: true, isSetup: true }]);
+    assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
+    await expect(resolveCallerRole(session, "mc")).resolves.toBe(
+      PagePermission.PA,
+    );
+  });
+
+  it("keeps a liaison a liaison", async () => {
+    approverSnap.mockReturnValue([{ level: 1 }]);
+    assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
+    await expect(resolveCallerRole(session, "mc")).resolves.toBe(
+      PagePermission.LIAISON,
+    );
+  });
+
+  it("leaves everyone else booking", async () => {
+    await expect(resolveCallerRole(session, "mc")).resolves.toBe(
+      PagePermission.BOOKING,
+    );
   });
 });
