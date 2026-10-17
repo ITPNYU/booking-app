@@ -6,6 +6,7 @@ vi.mock("@/lib/firebase/firebase", () => ({
 
 import {
   ApprovedWithWarningError,
+  NotAnApproverError,
   clientApproveBooking,
 } from "@/components/src/client/bookingActionClient";
 
@@ -42,14 +43,32 @@ describe("clientApproveBooking", () => {
   });
 
   it("throws a plain Error with the server's message when approval failed", async () => {
-    const error = "You are not authorized to approve this booking";
+    const error =
+      "This request is in the services approval flow. Complete or decline each service request before final approval, or refresh the page.";
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({ ok: false, json: async () => ({ error }) }),
+      vi
+        .fn()
+        .mockResolvedValue({ ok: false, status: 409, json: async () => ({ error }) }),
     );
 
     const result = clientApproveBooking("calendar-1", "admin@nyu.edu", "mc");
     await expect(result).rejects.toThrow(error);
     await expect(result).rejects.not.toBeInstanceOf(ApprovedWithWarningError);
+    await expect(result).rejects.not.toBeInstanceOf(NotAnApproverError);
+  });
+
+  it("throws NotAnApproverError when the server refuses the caller (403)", async () => {
+    const error = "You are not authorized to approve this booking";
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue({ ok: false, status: 403, json: async () => ({ error }) }),
+    );
+
+    const result = clientApproveBooking("calendar-1", "approver@nyu.edu", "itp");
+    await expect(result).rejects.toBeInstanceOf(NotAnApproverError);
+    await expect(result).rejects.toThrow(error);
   });
 });

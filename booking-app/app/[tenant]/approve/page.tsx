@@ -1,26 +1,83 @@
 "use client";
 
-import React, { Suspense, useContext, useState } from "react";
+import React, { Suspense, useContext, useEffect, useState } from "react";
 
-import {
-  DatabaseContext,
-  DatabaseProvider,
-} from "@/components/src/client/routes/components/Provider";
+import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import {
   ApprovedWithWarningError,
+  NotAnApproverError,
   clientApproveBooking,
 } from "@/components/src/client/bookingActionClient";
+import { CenterLoading } from "@/components/src/client/routes/components/Loading";
+import getBookingStatus from "@/components/src/client/routes/hooks/getBookingStatus";
+import { formatDate, formatTimeAmPm } from "@/components/src/client/utils/date";
+import { TableNames } from "@/components/src/policy";
+import { Booking, BookingStatusLabel } from "@/components/src/types";
+import { canAccessAdmin } from "@/components/src/utils/permissions";
+import { clientGetDataByCalendarEventId } from "@/lib/firebase/firebase";
+import { timestampToDate } from "@/lib/utils/timestampWire";
 import { Alert, Button } from "@mui/material";
-import { useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+
+// Statuses the admin page offers an approve action for.
+const APPROVABLE_STATUSES = new Set<string>([
+  BookingStatusLabel.REQUESTED,
+  BookingStatusLabel.PRE_APPROVED,
+  BookingStatusLabel.EQUIPMENT,
+]);
+
+const NOT_AN_APPROVER_MESSAGE =
+  "You are not an approver for this booking, so you can't approve it. If you think you should be, contact the admins.";
+
+const formatBookingTime = (booking: Booking) => {
+  const start = timestampToDate(booking.startDate);
+  const end = timestampToDate(booking.endDate);
+  if (!start) return "";
+  return `${formatDate(start)}${end ? ` – ${formatTimeAmPm(end)}` : ""}`;
+};
 
 const ApprovePageContent: React.FC = () => {
   const searchParams = useSearchParams();
+  const { tenant } = useParams<{ tenant: string }>();
+  const router = useRouter();
   const paramCalendarEventId = searchParams.get("calendarEventId");
+  // undefined while loading, null when no booking matches the event ID.
+  const [booking, setBooking] = useState<Booking | null | undefined>(
+    undefined,
+  );
   const [loading, setLoading] = useState(false);
   const [approved, setApproved] = useState(false);
+  const [notApprover, setNotApprover] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
-  const { userEmail } = useContext(DatabaseContext);
+  const { userEmail, pagePermission, permissionsLoading } =
+    useContext(DatabaseContext);
+
+  // Final-approver emails link here so non-admin resource approvers have a
+  // page they can open; admins keep approving from the admin page.
+  const redirectToAdmin = !permissionsLoading && canAccessAdmin(pagePermission);
+
+  useEffect(() => {
+    if (!redirectToAdmin || !paramCalendarEventId) return;
+    router.replace(
+      `/${tenant}/admin?calendarEventId=${encodeURIComponent(paramCalendarEventId)}`,
+    );
+  }, [redirectToAdmin, paramCalendarEventId, tenant, router]);
+
+  useEffect(() => {
+    if (permissionsLoading || redirectToAdmin || !paramCalendarEventId) return;
+    let cancelled = false;
+    clientGetDataByCalendarEventId<Booking>(
+      TableNames.BOOKING,
+      paramCalendarEventId,
+      tenant,
+    ).then((data) => {
+      if (!cancelled) setBooking(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [permissionsLoading, redirectToAdmin, paramCalendarEventId, tenant]);
 
   const handleApprove = async () => {
     if (paramCalendarEventId) {
@@ -28,7 +85,7 @@ const ApprovePageContent: React.FC = () => {
       setError(null);
       setWarning(null);
       try {
-        await clientApproveBooking(paramCalendarEventId, userEmail);
+        await clientApproveBooking(paramCalendarEventId, userEmail, tenant);
         setApproved(true);
       } catch (err) {
         if (err instanceof ApprovedWithWarningError) {
@@ -36,6 +93,8 @@ const ApprovePageContent: React.FC = () => {
           // offer approval again.
           setApproved(true);
           setWarning(err.message);
+        } else if (err instanceof NotAnApproverError) {
+          setNotApprover(true);
         } else {
           setError(
             err instanceof Error && err.message
@@ -49,15 +108,48 @@ const ApprovePageContent: React.FC = () => {
     }
   };
 
+  if (!paramCalendarEventId) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h1>Booking Approval</h1>
+        <p>No calendar event ID provided.</p>
+      </div>
+    );
+  }
+
+  if (permissionsLoading || redirectToAdmin || booking === undefined) {
+    return <CenterLoading />;
+  }
+
+  if (booking === null) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h1>Booking Approval</h1>
+        <p>No booking was found for this link.</p>
+      </div>
+    );
+  }
+
+  const status = getBookingStatus(booking, tenant);
+
   return (
     <div style={{ padding: 24 }}>
       <h1>Booking Approval</h1>
-      {paramCalendarEventId ? (
+      <div>
+        <p>Request #{booking.requestNumber}</p>
+        <p>Title: {booking.title}</p>
+        <p>
+          Requested by: {booking.firstName} {booking.lastName} ({booking.email})
+        </p>
+        <p>Rooms: {booking.roomId}</p>
+        <p>Time: {formatBookingTime(booking)}</p>
+        <p>Status: {status}</p>
+      </div>
+      {APPROVABLE_STATUSES.has(status) ? (
         <div>
-          <p>Event ID: {paramCalendarEventId}</p>
           <Button
             onClick={() => handleApprove()}
-            disabled={loading || approved}
+            disabled={loading || approved || notApprover}
             variant="contained"
           >
             {loading
@@ -71,21 +163,24 @@ const ApprovePageContent: React.FC = () => {
               {warning}
             </Alert>
           )}
+          {notApprover && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {NOT_AN_APPROVER_MESSAGE}
+            </Alert>
+          )}
           {error && <p style={{ color: "red" }}>{error}</p>}
         </div>
       ) : (
-        <p>No calendar event ID provided.</p>
+        <p>This booking is {status}, so there is nothing to approve.</p>
       )}
     </div>
   );
 };
 
 const ApprovePage: React.FC = () => (
-  <DatabaseProvider>
-    <Suspense fallback={<div>Loading...</div>}>
-      <ApprovePageContent />
-    </Suspense>
-  </DatabaseProvider>
+  <Suspense fallback={<div>Loading...</div>}>
+    <ApprovePageContent />
+  </Suspense>
 );
 
 export default ApprovePage;

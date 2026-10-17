@@ -336,9 +336,25 @@ export const clientApproveBooking = async (
         result.error || "Booking was approved, but a follow-up step failed",
       );
     }
+    if (response.status === 403) {
+      throw new NotAnApproverError(
+        result.error || "You are not authorized to approve this booking",
+      );
+    }
     throw new Error(result.error || "Failed to approve booking");
   }
 };
+
+/**
+ * /api/approve refused the approval (403): the caller is not an admin, the
+ * tenant final approver, or a resource approver for this booking's rooms.
+ */
+export class NotAnApproverError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotAnApproverError";
+  }
+}
 
 /**
  * The booking was approved, but a follow-up step (e.g. updating the Google
