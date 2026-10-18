@@ -30,6 +30,34 @@ export function plainResourceDefault(): Resource {
   return resource;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function cloneValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function deepMerge(base: unknown, overlay: unknown): unknown {
+  if (Array.isArray(overlay) || !isRecord(overlay) || !isRecord(base)) {
+    return cloneValue(overlay);
+  }
+  const result = cloneValue(base) as Record<string, unknown>;
+  for (const [key, value] of Object.entries(overlay)) {
+    result[key] = key in result ? deepMerge(result[key], value) : cloneValue(value);
+  }
+  return result;
+}
+
+/** Fill missing nested fields from the base resource. Arrays and scalars in the overlay win. */
+export function mergeResource(base: Resource, overlay: unknown): Resource {
+  const left = plainResource(base);
+  if (!left) return plainResourceDefault();
+  const right = plainResource(overlay);
+  if (!right) return left;
+  return deepMerge(left, right) as Resource;
+}
+
 export function resourceIdError(
   resourceId: string,
   existingIds: string[],

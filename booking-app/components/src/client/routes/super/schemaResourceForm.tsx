@@ -3,57 +3,23 @@
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import type { Resource } from "@/components/src/client/routes/components/schemaTypes";
 import {
-  resourceFromDefault,
+  mergeResource,
+  plainResourceDefault,
   resourceIdError,
   TEMPLATE_SCHEMA_ID,
-  type ResourceFormFields,
 } from "@/lib/tenant/resourceDefault";
+import SchemaResourceFields from "./schemaResourceFields";
 import {
   Alert,
   Box,
   Button,
-  Checkbox,
   FormControl,
-  FormControlLabel,
   InputLabel,
   MenuItem,
   Select,
-  TextField,
   Typography,
 } from "@mui/material";
 import { useEffect, useState } from "react";
-
-type FormState = {
-  name: string;
-  resourceId: string;
-  capacity: string;
-  calendarId: string;
-  calendarIdProd: string;
-  isEquipment: boolean;
-  isWalkIn: boolean;
-};
-
-const emptyForm: FormState = {
-  name: "",
-  resourceId: "",
-  capacity: "0",
-  calendarId: "",
-  calendarIdProd: "",
-  isEquipment: false,
-  isWalkIn: false,
-};
-
-function formFromResource(resource: Resource): FormState {
-  return {
-    name: resource.name ?? "",
-    resourceId: resource.resourceId ?? "",
-    capacity: String(resource.capacity ?? 0),
-    calendarId: resource.calendarId ?? "",
-    calendarIdProd: resource.calendarIdProd ?? "",
-    isEquipment: Boolean(resource.isEquipment),
-    isWalkIn: Boolean(resource.isWalkIn),
-  };
-}
 
 function resourceLabel(resource: Resource): string {
   return `${resource.name || "(unnamed)"} · ${resource.resourceId} · capacity ${resource.capacity}`;
@@ -100,7 +66,7 @@ export default function SchemaResourceForm({
 }) {
   const [mode, setMode] = useState<FormMode>("closed");
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [form, setForm] = useState<FormState>(emptyForm);
+  const [draft, setDraft] = useState<Resource | null>(null);
   const [resourceDefault, setResourceDefault] = useState<Resource | null>(null);
   const [defaultStatus, setDefaultStatus] = useState<
     "loading" | "ready" | "missing" | "error"
@@ -140,10 +106,17 @@ export default function SchemaResourceForm({
     }
   }, [resources.length, selectedIndex]);
 
+  const draftFrom = (source: Resource): Resource => {
+    const base = resourceDefault
+      ? mergeResource(plainResourceDefault(), resourceDefault)
+      : plainResourceDefault();
+    return mergeResource(base, source);
+  };
+
   const openAdd = () => {
     setFormError(null);
     setSelectedIndex(null);
-    setForm(resourceDefault ? formFromResource(resourceDefault) : emptyForm);
+    if (resourceDefault) setDraft(draftFrom(resourceDefault));
     setMode("add");
   };
 
@@ -152,7 +125,7 @@ export default function SchemaResourceForm({
     if (!resource) return;
     setFormError(null);
     setSelectedIndex(index);
-    setForm(formFromResource(resource));
+    setDraft(draftFrom(resource));
     setMode("edit");
   };
 
@@ -168,7 +141,7 @@ export default function SchemaResourceForm({
     try {
       await initializeResourceDefault();
       const stored = await loadDefault();
-      if (stored) setForm(formFromResource(stored));
+      if (stored) setDraft(mergeResource(plainResourceDefault(), stored));
     } catch (err: unknown) {
       setStatusError(
         err instanceof Error ? err.message : "Failed to initialize resource default",
@@ -178,39 +151,29 @@ export default function SchemaResourceForm({
     }
   };
 
-  const readFields = (): ResourceFormFields | null => {
+  const readResource = (): Resource | null => {
+    if (!draft) return null;
     const otherIds = resources
       .filter((_, index) => mode !== "edit" || index !== selectedIndex)
       .map((resource) => String(resource.resourceId ?? ""));
-    const idError = resourceIdError(form.resourceId, otherIds);
+    const idError = resourceIdError(draft.resourceId, otherIds);
     if (idError) {
       setFormError(idError);
       return null;
     }
-    const capacity = Number(form.capacity);
-    if (form.capacity.trim() === "" || !Number.isFinite(capacity)) {
+    const capacity = Number(draft.capacity);
+    if (!Number.isFinite(capacity)) {
       setFormError("Capacity must be a number");
       return null;
     }
-    return {
-      name: form.name,
-      resourceId: form.resourceId,
-      capacity,
-      calendarId: form.calendarId,
-      calendarIdProd: form.calendarIdProd,
-      isEquipment: form.isEquipment,
-      isWalkIn: form.isWalkIn,
-    };
+    return { ...draft, resourceId: draft.resourceId.trim(), capacity };
   };
 
   const handleAdd = () => {
     if (!resourceDefault) return;
-    const fields = readFields();
-    if (!fields) return;
-    const nextResources = [
-      ...resources,
-      resourceFromDefault(resourceDefault, fields),
-    ];
+    const resource = readResource();
+    if (!resource) return;
+    const nextResources = [...resources, resource];
     onSchemaChange({ ...schema, resources: nextResources });
     setSelectedIndex(nextResources.length - 1);
     setMode("edit");
@@ -219,12 +182,10 @@ export default function SchemaResourceForm({
 
   const handleUpdate = () => {
     if (!selected || selectedIndex === null) return;
-    const fields = readFields();
-    if (!fields) return;
-    const nextResources = resources.map((resource, index) =>
-      index === selectedIndex
-        ? resourceFromDefault(resource, fields)
-        : resource,
+    const resource = readResource();
+    if (!resource) return;
+    const nextResources = resources.map((current, index) =>
+      index === selectedIndex ? resource : current,
     );
     onSchemaChange({ ...schema, resources: nextResources });
     setFormError(null);
@@ -251,10 +212,11 @@ export default function SchemaResourceForm({
         Resources
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        Choose a resource to edit or delete it, or add one. This updates the
-        schema JSON on this page. Save to write it to the database.
+        Choose a resource to edit or delete it, or add one. Hours, limits,
+        services, staffing, and training are in the form below. This updates
+        the schema JSON on this page. Save to write it to the database.
       </Typography>
-      <Box display="flex" gap={1} alignItems="center" flexWrap="wrap" mb={1}>
+      <Box display="flex" gap={1} alignItems="center" flexWrap="wrap" mb={4}>
         <FormControl sx={{ minWidth: 360 }} disabled={resources.length === 0}>
           <InputLabel id="schema-resource-select">Resource</InputLabel>
           <Select
@@ -296,7 +258,7 @@ export default function SchemaResourceForm({
       </Box>
 
       {mode === "add" && (
-        <Box sx={{ maxWidth: 480, mt: 1 }}>
+        <Box sx={{ maxWidth: 480, mt: 2 }}>
           {defaultStatus === "loading" && (
             <Typography variant="body2">Loading resource default...</Typography>
           )}
@@ -327,88 +289,14 @@ export default function SchemaResourceForm({
           sx={{
             display: "flex",
             flexDirection: "column",
-            gap: 2,
-            maxWidth: 480,
-            mt: 1,
+            gap: 1.5,
+            mt: 2,
           }}
         >
           {formError && <Alert severity="error">{formError}</Alert>}
-          <TextField
-            label="Name"
-            value={form.name}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, name: event.target.value }))
-            }
-          />
-          <TextField
-            label="Resource id"
-            value={form.resourceId}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                resourceId: event.target.value,
-              }))
-            }
-          />
-          <TextField
-            label="Capacity"
-            type="number"
-            value={form.capacity}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                capacity: event.target.value,
-              }))
-            }
-          />
-          <TextField
-            label="Calendar id"
-            value={form.calendarId}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                calendarId: event.target.value,
-              }))
-            }
-          />
-          <TextField
-            label="Production calendar id"
-            value={form.calendarIdProd}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                calendarIdProd: event.target.value,
-              }))
-            }
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={form.isEquipment}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    isEquipment: event.target.checked,
-                  }))
-                }
-              />
-            }
-            label="Equipment"
-          />
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={form.isWalkIn}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    isWalkIn: event.target.checked,
-                  }))
-                }
-              />
-            }
-            label="Walk-in"
-          />
+          {draft && (
+            <SchemaResourceFields resource={draft} onChange={setDraft} />
+          )}
           <Box display="flex" gap={1}>
             {mode === "add" ? (
               <Button variant="contained" onClick={handleAdd}>

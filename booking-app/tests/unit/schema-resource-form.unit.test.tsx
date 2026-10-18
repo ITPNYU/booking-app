@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
@@ -90,6 +90,54 @@ describe("SchemaResourceForm", () => {
       name: "Ballroom A",
       resourceId: "room-a",
       capacity: 4,
+    });
+  });
+
+  it("edits hours and services on the selected resource", async () => {
+    const user = userEvent.setup();
+    const onSchemaChange = vi.fn();
+    const withDetails = {
+      ...schema,
+      resources: [
+        {
+          name: "Room A",
+          resourceId: "room-a",
+          capacity: 4,
+          maxHour: {
+            student: 4,
+            faculty: 8,
+            admin: 12,
+            studentWalkIn: 4,
+            facultyWalkIn: 8,
+            adminWalkIn: 12,
+            studentVIP: 8,
+            facultyVIP: 12,
+            adminVIP: 16,
+          },
+          services: { setup: { label: "Room Setup", descriptionHtml: "" } },
+        },
+      ],
+    } as SchemaContextType;
+    render(<SchemaResourceForm schema={withDetails} onSchemaChange={onSchemaChange} />);
+
+    await user.click(await screen.findByRole("combobox", { name: "Resource" }));
+    await user.click(await screen.findByRole("option", { name: /Room A · room-a · capacity 4/ }));
+
+    const maxHours = screen.getAllByRole("region", { name: "Maximum hours" })[0];
+    const student = within(maxHours).getByLabelText("Student");
+    await user.clear(student);
+    await user.type(student, "6");
+
+    await user.click(screen.getByRole("button", { name: "Setup" }));
+    const label = screen.getByLabelText("Label");
+    await user.clear(label);
+    await user.type(label, "Garage layout");
+    await user.click(screen.getByRole("button", { name: "Update resource" }));
+
+    const next = onSchemaChange.mock.calls[0][0] as SchemaContextType;
+    expect(next.resources[0].maxHour?.student).toBe(6);
+    expect(next.resources[0].services).toMatchObject({
+      setup: { label: "Garage layout" },
     });
   });
 

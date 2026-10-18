@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { defaultResource } from "@/components/src/client/routes/components/schemaTypes";
 import {
+  mergeResource,
   plainResourceDefault,
   resourceFromDefault,
   resourceIdError,
@@ -48,6 +49,26 @@ describe("resource default", () => {
       faculty: 2,
       student: 3,
     });
+  });
+
+  it("fills missing hour fields and keeps a room's services object", () => {
+    const stored = plainResourceDefault();
+    const room = mergeResource(stored, {
+      name: "Garage",
+      resourceId: "103",
+      capacity: 91,
+      services: { setup: { label: "Room Setup" } },
+    });
+
+    expect(room.maxHour?.student).toBe(stored.maxHour?.student);
+    expect(room.services).toEqual({ setup: { label: "Room Setup" } });
+  });
+
+  it("keeps a legacy services list instead of merging it into an object", () => {
+    const room = mergeResource(plainResourceDefault(), {
+      services: ["equipment", "setup"],
+    });
+    expect(room.services).toEqual(["equipment", "setup"]);
   });
 
   it("rejects empty, comma, and duplicate resource ids", () => {
