@@ -105,7 +105,7 @@ export async function GET(
   try {
     const { tenant } = await params;
     if (isTemplateSchemaId(tenant)) {
-      return getTemplateDocument();
+      return await getTemplateDocument();
     }
 
     // The schema exposes calendar IDs, email templates, and org mappings, so it
@@ -164,7 +164,7 @@ export async function PUT(
   try {
     const { tenant } = await params;
     if (isTemplateSchemaId(tenant)) {
-      return putTemplateDocument(request);
+      return await putTemplateDocument(request);
     }
 
     // Validate tenant

@@ -245,6 +245,32 @@ describe("tenantSchema/_template resource default", () => {
     expect(data.resources).toBeUndefined();
   });
 
+  it("returns a JSON error when loading the template fails", async () => {
+    mockServerGetDocumentById.mockRejectedValue(new Error("firestore down"));
+
+    const response = await GET(createRequest("GET"), { params: templateParams });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(500);
+    expect(data.error).toMatch(/failed to fetch/i);
+  });
+
+  it("returns a JSON error when saving the template fails", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+    mockServerSaveDataToFirestoreWithId.mockRejectedValue(new Error("firestore down"));
+
+    const response = await PUT(
+      createRequest("PUT", {
+        resourceDefault: { name: "Default room", resourceId: "" },
+      }),
+      { params: templateParams },
+    );
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(500);
+    expect(data.error).toMatch(/failed to update/i);
+  });
+
   it("returns 404 when the template document is missing", async () => {
     mockServerGetDocumentById.mockResolvedValue(null);
 

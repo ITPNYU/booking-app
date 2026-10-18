@@ -82,6 +82,7 @@ export default function SchemaResourceForm({
   const [baseline, setBaseline] = useState<Resource | null>(null);
   const [initialDraft, setInitialDraft] = useState<Resource | null>(null);
   const baselineJsonRef = useRef("");
+  const seenTenantId = useRef(schema.tenantId);
 
   const loadDefault = async (): Promise<Resource | null> => {
     setDefaultStatus("loading");
@@ -161,12 +162,14 @@ export default function SchemaResourceForm({
 
   useEffect(() => {
     if (mode !== "edit" || !selected) return;
+    if (schema.tenantId !== seenTenantId.current) return;
     const json = JSON.stringify(selected);
     if (json === baselineJsonRef.current) return;
     rememberResource(selected);
-  }, [mode, selected, resourceDefault]);
+  }, [mode, selected, resourceDefault, schema.tenantId]);
 
   useEffect(() => {
+    seenTenantId.current = schema.tenantId;
     setSelectedIndex(null);
     setMode("closed");
     setDraft(null);

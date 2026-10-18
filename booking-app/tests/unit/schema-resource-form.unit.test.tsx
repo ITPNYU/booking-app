@@ -152,6 +152,33 @@ describe("SchemaResourceForm", () => {
     });
   });
 
+  it("closes the open resource when the tenant changes", async () => {
+    const user = userEvent.setup();
+    const onSchemaChange = vi.fn();
+    const { rerender } = render(
+      <SchemaResourceForm schema={schema} onSchemaChange={onSchemaChange} />,
+    );
+
+    await user.click(await screen.findByRole("combobox", { name: "Resource" }));
+    await user.click(await screen.findByRole("option", { name: /Room A · room-a · capacity 4/ }));
+    expect(screen.getByLabelText("Name")).toHaveValue("Room A");
+
+    rerender(
+      <SchemaResourceForm
+        schema={{
+          ...schema,
+          tenantId: "itp",
+          resources: [{ name: "Studio", resourceId: "studio", capacity: 8 }],
+        } as SchemaContextType}
+        onSchemaChange={onSchemaChange}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Update resource" })).not.toBeInTheDocument();
+    expect(onSchemaChange).not.toHaveBeenCalled();
+  });
+
   it("deletes the resource chosen in the dropdown", async () => {
     const user = userEvent.setup();
     const onSchemaChange = vi.fn();
