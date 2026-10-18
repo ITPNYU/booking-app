@@ -3,6 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockGetCalendarClient = vi.fn();
 const mockServerGetRoomCalendarIds = vi.fn();
 const mockGetStatusFromXState = vi.fn();
+const mockInvalidateCalendarEventsCache = vi.fn();
+
+vi.mock("@/lib/calendarEventsCache", () => ({
+  invalidateCalendarEventsCache: mockInvalidateCalendarEventsCache,
+}));
 
 vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
   serverGetTenantResources: vi.fn().mockResolvedValue([]),
@@ -72,16 +77,20 @@ describe("server/calendars", () => {
       summary: "Updated",
     });
 
-    expect(patchMock).toHaveBeenCalledWith({
-      calendarId: "cal-1",
-      eventId: "evt-1",
-      requestBody: {
-        start: existingEvent.start,
-        end: existingEvent.end,
-        summary: "Updated",
+    expect(patchMock).toHaveBeenCalledWith(
+      {
+        calendarId: "cal-1",
+        eventId: "evt-1",
+        requestBody: {
+          start: existingEvent.start,
+          end: existingEvent.end,
+          summary: "Updated",
+        },
+        sendUpdates: "all",
       },
-      sendUpdates: "all",
-    });
+      // googleapis does not retry PATCH on 429/5xx unless asked to.
+      { retryConfig: { httpMethodsToRetry: ["PATCH"] } },
+    );
   });
 
   it("inviteUserToCalendarEvent appends guest to attendees", async () => {
@@ -110,17 +119,20 @@ describe("server/calendars", () => {
 
     await inviteUserToCalendarEvent("evt-1", "guest@nyu.edu", 123);
 
-    expect(patchMock).toHaveBeenCalledWith({
-      calendarId: "room-cal-1",
-      eventId: "evt-1",
-      requestBody: expect.objectContaining({
-        attendees: expect.arrayContaining([
-          { email: "existing@nyu.edu" },
-          { email: "guest@nyu.edu" },
-        ]),
-      }),
-      sendUpdates: "all",
-    });
+    expect(patchMock).toHaveBeenCalledWith(
+      {
+        calendarId: "room-cal-1",
+        eventId: "evt-1",
+        requestBody: expect.objectContaining({
+          attendees: expect.arrayContaining([
+            { email: "existing@nyu.edu" },
+            { email: "guest@nyu.edu" },
+          ]),
+        }),
+        sendUpdates: "all",
+      },
+      expect.anything(),
+    );
   });
 
   it("insertEvent logs the Google error body and rethrows on failure", async () => {
@@ -285,15 +297,66 @@ describe("server/calendars", () => {
       "tenant-a",
     );
 
-    expect(calendar.events.patch).toHaveBeenCalledWith({
-      calendarId: "room-cal-1",
-      eventId: "evt-1",
-      requestBody: expect.objectContaining({
-        summary: "[APPROVED] Demo Event",
-        description: expect.stringContaining("Request #"),
-      }),
-      sendUpdates: "all",
-    });
+    expect(calendar.events.patch).toHaveBeenCalledWith(
+      {
+        calendarId: "room-cal-1",
+        eventId: "evt-1",
+        requestBody: expect.objectContaining({
+          summary: "[APPROVED] Demo Event",
+          description: expect.stringContaining("Request #"),
+        }),
+        sendUpdates: "all",
+      },
+      expect.anything(),
+    );
+  });
+
+  it("reports Google Calendar title-update failures to the caller", async () => {
+    const getMock = vi.fn().mockRejectedValue(new Error("Event unavailable"));
+    mockGetCalendarClient.mockResolvedValue({ events: { get: getMock } });
+    mockServerGetRoomCalendarIds.mockResolvedValue(["room-cal-1"]);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const { updateCalendarEvent } = await import(
+      "@/components/src/server/calendars"
+    );
+
+    await expect(
+      updateCalendarEvent(
+        "evt-1",
+        { statusPrefix: "APPROVED" },
+        { roomId: "101" } as any,
+        "tenant-a",
+      ),
+    ).rejects.toThrow(
+      "Failed to update calendar event evt-1 in 1 calendar(s): Event unavailable",
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("rejects instead of silently skipping when no room calendar matches", async () => {
+    const getMock = vi.fn();
+    mockGetCalendarClient.mockResolvedValue({ events: { get: getMock } });
+    mockServerGetRoomCalendarIds.mockResolvedValue([]);
+
+    const { updateCalendarEvent } = await import(
+      "@/components/src/server/calendars"
+    );
+
+    await expect(
+      updateCalendarEvent(
+        "evt-1",
+        { statusPrefix: "APPROVED" },
+        { roomId: "999, 101" } as any,
+        "tenant-a",
+      ),
+    ).rejects.toThrow(
+      "No calendar found for room 999; event evt-1 was not updated.",
+    );
+    expect(getMock).not.toHaveBeenCalled();
   });
 
   it("deleteEvent sends cancellation notifications to all attendees", async () => {
@@ -314,6 +377,73 @@ describe("server/calendars", () => {
       calendarId: "room-cal-1",
       eventId: "evt-1",
       sendUpdates: "all",
+    });
+  });
+
+  // Booking flows call these directly (never /api/calendarEvents), so each
+  // write must drop the events cache or other viewers keep pre-mutation data.
+  describe("events cache invalidation", () => {
+    it("insertEvent drops the cache after a successful insert", async () => {
+      mockGetCalendarClient.mockResolvedValue({
+        events: { insert: vi.fn().mockResolvedValue({ data: { id: "evt-1" } }) },
+      });
+      const { insertEvent } = await import("@/components/src/server/calendars");
+
+      await insertEvent({
+        calendarId: "cal-1",
+        title: "t",
+        description: "d",
+        startTime: "2026-10-01T10:00:00-04:00",
+        endTime: "2026-10-01T11:00:00-04:00",
+        roomEmails: ["cal-2"],
+      });
+
+      // No calendarId: the event is mirrored onto guest room calendars too.
+      expect(mockInvalidateCalendarEventsCache).toHaveBeenCalledWith();
+    });
+
+    it("insertEvent leaves the cache alone when the insert fails", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      mockGetCalendarClient.mockResolvedValue({
+        events: { insert: vi.fn().mockRejectedValue(new Error("Bad Request")) },
+      });
+      const { insertEvent } = await import("@/components/src/server/calendars");
+
+      await expect(
+        insertEvent({
+          calendarId: "cal-1",
+          title: "t",
+          description: "d",
+          startTime: "2026-10-01T10:00:00-04:00",
+          endTime: "2026-10-01T11:00:00-04:00",
+          roomEmails: [],
+        }),
+      ).rejects.toThrow("Bad Request");
+      expect(mockInvalidateCalendarEventsCache).not.toHaveBeenCalled();
+    });
+
+    it("patchCalendarEvent drops the cache", async () => {
+      mockGetCalendarClient.mockResolvedValue({
+        events: { patch: vi.fn().mockResolvedValue({}) },
+      });
+      const { patchCalendarEvent } = await import(
+        "@/components/src/server/calendars"
+      );
+
+      await patchCalendarEvent({}, "cal-1", "evt-1", { summary: "[APPROVED] t" });
+
+      expect(mockInvalidateCalendarEventsCache).toHaveBeenCalledWith();
+    });
+
+    it("deleteEvent drops the cache", async () => {
+      mockGetCalendarClient.mockResolvedValue({
+        events: { delete: vi.fn().mockResolvedValue({}) },
+      });
+      const { deleteEvent } = await import("@/components/src/server/calendars");
+
+      await deleteEvent("cal-1", "evt-1", "221");
+
+      expect(mockInvalidateCalendarEventsCache).toHaveBeenCalledWith();
     });
   });
 });

@@ -317,15 +317,39 @@ export const clientApproveBooking = async (
   email: string,
   tenant?: string,
 ) => {
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/approve`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/approve`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify({ id, email }),
     },
-    body: JSON.stringify({ id, email }),
-  });
+  );
+
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    if (result.approved === true) {
+      throw new ApprovedWithWarningError(
+        result.error || "Booking was approved, but a follow-up step failed",
+      );
+    }
+    throw new Error(result.error || "Failed to approve booking");
+  }
 };
+
+/**
+ * The booking was approved, but a follow-up step (e.g. updating the Google
+ * Calendar title) failed. Callers should treat the booking as approved.
+ */
+export class ApprovedWithWarningError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApprovedWithWarningError";
+  }
+}
 
 export const clientEquipmentApprove = async (_id: string, _email: string) => {
   // Equipment approval is handled via dedicated API routes when enabled.

@@ -17,7 +17,12 @@ const mockGetTenantRooms = vi.fn();
 const mockRequireSession = vi.fn();
 const mockResolveCallerRole = vi.fn();
 
+const { ApprovalFollowUpError } = vi.hoisted(() => ({
+  ApprovalFollowUpError: class ApprovalFollowUpError extends Error {},
+}));
+
 vi.mock("@/components/src/server/admin", () => ({
+  ApprovalFollowUpError,
   serverBookingContents: (...args: any[]) => mockServerBookingContents(...args),
   serverUpdateDataByCalendarEventId: (...args: any[]) =>
     mockServerUpdateDataByCalendarEventId(...args),
@@ -110,6 +115,16 @@ vi.mock("@/lib/api/authz", () => ({
   resolveCallerRole: (...args: any[]) => mockResolveCallerRole(...args),
 }));
 
+const banMocks = vi.hoisted(() => ({
+  anyRequesterIsBanned: vi.fn(async () => false),
+}));
+
+vi.mock("@/lib/bookingBan", () => ({
+  BANNED_FROM_BOOKING_MESSAGE: "You are banned from booking",
+  anyRequesterIsBanned: (...args: unknown[]) =>
+    banMocks.anyRequesterIsBanned(...args),
+}));
+
 import { PUT } from "@/app/api/bookings/modification/route";
 
 const createRequest = (body: object) =>
@@ -135,6 +150,7 @@ const modificationBody = {
 describe("Checked In booking modification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    banMocks.anyRequesterIsBanned.mockResolvedValue(false);
     mockRequireSession.mockResolvedValue({
       email: "pa@nyu.edu",
       netId: "pa",
@@ -172,6 +188,23 @@ describe("Checked In booking modification", () => {
     mockFinalApprove.mockResolvedValue(undefined);
     mockLogServerBookingChange.mockResolvedValue(undefined);
     mockServerSendBookingDetailEmail.mockResolvedValue(undefined);
+  });
+
+  it("rejects when the guest or the staff member is banned", async () => {
+    banMocks.anyRequesterIsBanned.mockResolvedValue(true);
+
+    const res = await PUT(createRequest(modificationBody));
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: "You are banned from booking",
+    });
+    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith([
+      "user@nyu.edu",
+      "pa@nyu.edu",
+    ]);
+    expect(mockDeleteEvent).not.toHaveBeenCalled();
+    expect(mockInsertEvent).not.toHaveBeenCalled();
   });
 
   it("keeps Checked In status, timestamps, and calendar prefix", async () => {
@@ -347,6 +380,42 @@ describe("Checked In booking modification", () => {
     );
     expect(mockLogServerBookingChange).not.toHaveBeenCalled();
     expect(mockServerSendBookingDetailEmail).not.toHaveBeenCalled();
+  });
+
+  it("still succeeds, with a warning, when a post-approval step fails", async () => {
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-123",
+      origin: "user",
+      finalApprovedAt: { seconds: 1700000000 },
+      xstateData: { snapshot: { value: "Approved" } },
+    });
+    const followUp =
+      "Failed to invite secondary contact (status 500 Internal Server Error)";
+    mockFinalApprove.mockRejectedValueOnce(new ApprovalFollowUpError(followUp));
+
+    const res = await PUT(createRequest(modificationBody));
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      result: "success",
+      calendarEventId: "new-cal-456",
+      requestNumber: 100,
+      warning: followUp,
+    });
+  });
+
+  it("still fails when final approval itself fails", async () => {
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-123",
+      origin: "user",
+      finalApprovedAt: { seconds: 1700000000 },
+      xstateData: { snapshot: { value: "Approved" } },
+    });
+    mockFinalApprove.mockRejectedValueOnce(new Error("Booking not found"));
+
+    const res = await PUT(createRequest(modificationBody));
+
+    expect(res.status).toBe(500);
   });
 
   it("rejects unauthenticated callers", async () => {

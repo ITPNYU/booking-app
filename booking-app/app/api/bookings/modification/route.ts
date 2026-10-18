@@ -1,6 +1,7 @@
 import { toFirebaseTimestampFromString } from "@/components/src/client/utils/serverDate";
 import { TableNames } from "@/components/src/policy";
 import {
+  ApprovalFollowUpError,
   finalApprove,
   serverBookingContents,
   serverSendBookingDetailEmail,
@@ -38,6 +39,10 @@ import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
 import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
+import {
+  anyRequesterIsBanned,
+  BANNED_FROM_BOOKING_MESSAGE,
+} from "@/lib/bookingBan";
 import {
   buildBookingContents,
   extractTenantFromRequest,
@@ -146,6 +151,15 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(
       { error: "missing bookingCalendarId" },
       { status: 500 },
+    );
+  }
+
+  // Recreates the calendar event. Block when the guest or the signed-in
+  // staff member is banned.
+  if (await anyRequesterIsBanned([email, modifiedBy])) {
+    return NextResponse.json(
+      { error: BANNED_FROM_BOOKING_MESSAGE },
+      { status: 403 },
     );
   }
 
@@ -495,6 +509,7 @@ export async function PUT(request: NextRequest) {
       },
     );
 
+    let followUpWarning: string | undefined;
     if (isCheckedIn) {
       // Calendar + Firestore writes already succeeded. Do not fail the request
       // if history logging throws — a 500 here would make retries 404.
@@ -552,12 +567,21 @@ export async function PUT(request: NextRequest) {
         },
       );
 
-      await finalApprove(
-        newCalendarEventId,
-        modifiedBy,
-        tenant,
-        "Approved via booking modification",
-      );
+      try {
+        await finalApprove(
+          newCalendarEventId,
+          modifiedBy,
+          tenant,
+          "Approved via booking modification",
+        );
+      } catch (error) {
+        // The new event and booking doc already exist, so a failed follow-up
+        // step (title, invite, history) must not report the modification as
+        // failed: a client retry could create a duplicate booking.
+        if (!(error instanceof ApprovalFollowUpError)) throw error;
+        console.error("🚨 MODIFICATION FOLLOW-UP FAILED:", error);
+        followUpWarning = error.message;
+      }
     }
 
     console.log(`✅ MODIFICATION COMPLETED [${tenant?.toUpperCase()}]:`, {
@@ -569,6 +593,7 @@ export async function PUT(request: NextRequest) {
       result: "success",
       calendarEventId: newCalendarEventId,
       requestNumber: existingContents.requestNumber,
+      ...(followUpWarning ? { warning: followUpWarning } : {}),
     });
   } catch (error) {
     console.error("❌ MODIFICATION FAILED:", error);

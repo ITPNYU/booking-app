@@ -6,6 +6,7 @@ export enum TableNames {
   ADMINS = "usersAdmin",
   APPROVERS = "usersApprovers",
   RESOURCE_APPROVERS = "usersResourceApprovers",
+  /** Shared across tenants. A ban blocks booking in every tenant. */
   BANNED = "usersBanned",
   BOOKING = "bookings",
   BOOKING_TYPES = "bookingTypes",
@@ -34,7 +35,8 @@ export const getTenantCollectionName = (
     return baseCollection;
   }
 
-  // Collections that should be tenant-specific
+  // Collections that should be tenant-specific.
+  // usersBanned is omitted on purpose: bans are shared across tenants.
   const tenantSpecificCollections = [
     "bookings",
     "bookingLogs",

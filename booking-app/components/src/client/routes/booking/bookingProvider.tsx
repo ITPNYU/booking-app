@@ -22,6 +22,11 @@ import {
 } from "../../../types";
 import { SAFETY_TRAINING_REQUIRED_ROOM } from "../../../mediaCommonsPolicy";
 import { getAffectingBlackoutPeriods } from "../../../utils/blackoutUtils";
+import {
+  banWindowBounds,
+  banWindowStatus,
+  findActiveBan,
+} from "../../../utils/banWindow";
 import { canAccessAdmin } from "../../../utils/permissions";
 import {
   getServiceResourceId,
@@ -75,10 +80,14 @@ export interface BookingContextType {
   setServiceDecisions: (x: ServiceDecisions) => void;
   hasShownMocapModal: boolean;
   isBanned: boolean;
+  /** Set when the active ban has an end time. Null for a permanent ban. */
+  banEndsAt: string | null;
   isSafetyTrained: boolean;
   needsSafetyTraining: boolean;
   isInBlackoutPeriod: boolean;
   reloadExistingCalendarEvents: () => void;
+  viewDate: Date;
+  setViewDate: (x: Date) => void;
   role: Role | undefined;
   selectedRooms: RoomSetting[];
   /** Selected auxiliary spaces keyed by parent room id. */
@@ -114,10 +123,13 @@ export const BookingContext = createContext<BookingContextType>({
   setServiceDecisions: (x: ServiceDecisions) => {},
   hasShownMocapModal: false,
   isBanned: false,
+  banEndsAt: null,
   isSafetyTrained: true,
   needsSafetyTraining: false,
   isInBlackoutPeriod: false,
   reloadExistingCalendarEvents: () => {},
+  viewDate: new Date(),
+  setViewDate: (x: Date) => {},
   role: undefined,
   selectedRooms: [],
   annexByRoom: {},
@@ -253,11 +265,12 @@ export function BookingProvider({ children }) {
     (status: SubmitStatus) => setSubmission({ flowKey, status }),
     [flowKey],
   );
+  const [viewDate, setViewDate] = useState<Date>(new Date());
   const {
     existingCalendarEvents,
     reloadExistingCalendarEvents,
     fetchingStatus,
-  } = fetchCalendarEvents(roomSettings);
+  } = fetchCalendarEvents(roomSettings, viewDate);
   const [error, setError] = useState<Error | null>(null);
 
   // Update safety trained users when selected rooms change
@@ -308,17 +321,30 @@ export function BookingProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serviceRoomKey]);
 
-  const isBanned = useMemo<boolean>(() => {
-    const bannedEmails = bannedUsers.map((bannedUser) => bannedUser.email);
+  // Timed bans are evaluated against this clock. bannedUsers is loaded once,
+  // so the clock has to move or an expired ban stays on the page.
+  const [banCheckedAt, setBanCheckedAt] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setBanCheckedAt(Date.now());
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
-    // For walk-in bookings, check if the walk-in person (not the PA) is banned
-    if (pathname.includes("/walk-in") && formData?.walkInNetId?.length > 0) {
-      return bannedEmails.includes(`${formData?.walkInNetId}@nyu.edu`);
-    }
+  const activeBan = useMemo(() => {
+    // For walk-in bookings, check the walk-in person (not the PA).
+    const emailToCheck =
+      pathname.includes("/walk-in") && formData?.walkInNetId?.length > 0
+        ? `${formData.walkInNetId}@nyu.edu`
+        : userEmail;
+    return findActiveBan(bannedUsers, emailToCheck, banCheckedAt) ?? null;
+  }, [userEmail, bannedUsers, formData?.walkInNetId, pathname, banCheckedAt]);
 
-    if (!userEmail) return false;
-    return bannedEmails.includes(userEmail);
-  }, [userEmail, bannedUsers, formData?.walkInNetId, pathname]);
+  const isBanned = activeBan != null;
+  const banEndsAt =
+    activeBan != null && banWindowStatus(activeBan, banCheckedAt) === "active"
+      ? new Date(banWindowBounds(activeBan).end ?? 0).toISOString()
+      : null;
 
   const isSafetyTrained = useMemo(() => {
     const safetyTrainedEmails = safetyTrainedUsers.map((user) => user.email);
@@ -374,6 +400,8 @@ export function BookingProvider({ children }) {
         department,
         existingCalendarEvents,
         reloadExistingCalendarEvents,
+        viewDate,
+        setViewDate,
         formData,
         isDetailsValid,
         serviceRuleMemory: serviceRuleMemory.current,
@@ -383,6 +411,7 @@ export function BookingProvider({ children }) {
         setServiceDecisions,
         hasShownMocapModal,
         isBanned,
+        banEndsAt,
         isSafetyTrained,
         needsSafetyTraining,
         isInBlackoutPeriod,

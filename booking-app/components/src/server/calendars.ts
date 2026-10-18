@@ -1,4 +1,5 @@
 import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
+import { invalidateCalendarEventsCache } from "@/lib/calendarEventsCache";
 import { getCalendarClient } from "@/lib/googleClient";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { traceExternalCall } from "@/lib/newrelic-utils";
@@ -30,6 +31,14 @@ async function resourcesForServicesDisplay(
   return [...tenantResources, ...fallbackRooms];
 }
 
+// Booking flows write to Google Calendar through insertEvent,
+// patchCalendarEvent or deleteEvent below — not through /api/calendarEvents —
+// so the events cache has to be dropped here for other viewers on this
+// instance to see the change. (The admin sync/import routes patch events
+// directly and invalidate on their own.) A multi-room event is mirrored onto each guest
+// room's calendar, so drop every calendar rather than just the organizer's.
+const invalidateBookingCalendarCache = () => invalidateCalendarEventsCache();
+
 export const patchCalendarEvent = async (
   event: any,
   calendarId: string,
@@ -43,13 +52,19 @@ export const patchCalendarEvent = async (
     ...body,
   };
   await traceExternalCall("GoogleCalendar", "events.patch", () =>
-    calendar.events.patch({
-      calendarId,
-      eventId,
-      requestBody,
-      sendUpdates: "all", // Send notifications to all attendees when calendar is updated
-    }),
+    calendar.events.patch(
+      {
+        calendarId,
+        eventId,
+        requestBody,
+        sendUpdates: "all", // Send notifications to all attendees when calendar is updated
+      },
+      // googleapis retries only GET/HEAD/PUT/OPTIONS/DELETE by default;
+      // without PATCH here one 429/5xx leaves the event title stale.
+      { retryConfig: { httpMethodsToRetry: ["PATCH"] } },
+    ),
   );
+  invalidateBookingCalendarCache();
 };
 
 export const inviteUserToCalendarEvent = async (
@@ -270,6 +285,7 @@ export const insertEvent = async ({
           },
         }),
     );
+    invalidateBookingCalendarCache();
     return event.data;
   } catch (error: any) {
     // Log the raw inputs and the Google error body; the generic gaxios
@@ -306,13 +322,19 @@ export const updateCalendarEvent = async (
     return;
   }
 
-  const roomCalendarIds = await serverGetRoomCalendarIds(
-    String(bookingContents.roomId).split(",")[0].trim(),
-    tenant,
-  );
+  const firstRoomId = String(bookingContents.roomId).split(",")[0].trim();
+  const roomCalendarIds = await serverGetRoomCalendarIds(firstRoomId, tenant);
   console.log(`Room Calendar Ids: ${roomCalendarIds}`);
   console.log("bookingContents", bookingContents);
+  // Callers treat a resolved promise as "the event was updated", so failing
+  // to find or patch the event must reject instead of being logged only.
+  if (roomCalendarIds.length === 0) {
+    throw new Error(
+      `No calendar found for room ${firstRoomId}; event ${calendarEventId} was not updated.`,
+    );
+  }
   const calendar = await getCalendarClient();
+  const updateErrors: unknown[] = [];
 
   for (const roomCalendarId of roomCalendarIds) {
     try {
@@ -366,6 +388,7 @@ export const updateCalendarEvent = async (
         `Updated event ${calendarEventId} in calendar ${roomCalendarId} with new values: ${JSON.stringify(newValues)}`,
       );
     } catch (error) {
+      updateErrors.push(error);
       console.error(
         "Error updating event %s in calendar %s:",
         calendarEventId,
@@ -373,6 +396,15 @@ export const updateCalendarEvent = async (
         error,
       );
     }
+  }
+
+  if (updateErrors.length > 0) {
+    const [firstError] = updateErrors;
+    throw new Error(
+      `Failed to update calendar event ${calendarEventId} in ${updateErrors.length} calendar(s): ${
+        firstError instanceof Error ? firstError.message : String(firstError)
+      }`,
+    );
   }
 };
 
@@ -390,6 +422,7 @@ export const deleteEvent = async (
         sendUpdates: "all", // Send cancellation notifications to all attendees
       }),
     );
+    invalidateBookingCalendarCache();
     console.log(`deleted calendar event for ${roomId}`);
   } catch (error) {
     console.log(`calendar event doesn't exist for room ${roomId}`);
