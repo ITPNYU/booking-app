@@ -49,6 +49,66 @@ function deepMerge(base: unknown, overlay: unknown): unknown {
   return result;
 }
 
+function sameValue(left: unknown, right: unknown): boolean {
+  if (left === right) return true;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return JSON.stringify(left) === JSON.stringify(right);
+  }
+  if (isRecord(left) && isRecord(right)) {
+    const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+    for (const key of keys) {
+      if (!sameValue(left[key], right[key])) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Keep the stored resource, and apply only the fields the form actually changed.
+ * Defaults shown for missing fields are not written back unless they were edited.
+ */
+export function projectResourceEdits(
+  original: Resource,
+  initial: Resource,
+  current: Resource,
+): Resource {
+  return projectNode(original, initial, current) as Resource;
+}
+
+function projectNode(
+  original: unknown,
+  initial: unknown,
+  current: unknown,
+): unknown {
+  if (sameValue(current, initial)) {
+    return original === undefined ? undefined : cloneValue(original);
+  }
+  if (current === undefined) return undefined;
+  const originalRecord = isRecord(original) ? original : undefined;
+  if (
+    isRecord(current) &&
+    isRecord(initial) &&
+    (original === undefined || isRecord(original))
+  ) {
+    const keys = new Set([
+      ...Object.keys(current),
+      ...Object.keys(originalRecord ?? {}),
+    ]);
+    const result: Record<string, unknown> = {};
+    for (const key of keys) {
+      const next = projectNode(
+        originalRecord?.[key],
+        initial[key],
+        current[key],
+      );
+      if (next !== undefined) result[key] = next;
+    }
+    return result;
+  }
+  return cloneValue(current);
+}
+
 /** Fill missing nested fields from the base resource. Arrays and scalars in the overlay win. */
 export function mergeResource(base: Resource, overlay: unknown): Resource {
   const left = plainResource(base);

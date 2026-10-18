@@ -3,6 +3,7 @@ import { defaultResource } from "@/components/src/client/routes/components/schem
 import {
   mergeResource,
   plainResourceDefault,
+  projectResourceEdits,
   resourceFromDefault,
   resourceIdError,
 } from "@/lib/tenant/resourceDefault";
@@ -62,6 +63,42 @@ describe("resource default", () => {
 
     expect(room.maxHour?.student).toBe(stored.maxHour?.student);
     expect(room.services).toEqual({ setup: { label: "Room Setup" } });
+  });
+
+  it("writes back only the fields the form changed", () => {
+    const stored = plainResourceDefault();
+    const original = {
+      name: "Garage",
+      resourceId: "103",
+      capacity: 91,
+      maxHour: { student: 4, faculty: 8 },
+    } as ReturnType<typeof plainResourceDefault>;
+    const initial = mergeResource(stored, original);
+    const current = mergeResource(initial, {
+      name: "Garage A",
+      maxHour: { student: 6 },
+    });
+
+    const edited = projectResourceEdits(original, initial, current);
+
+    expect(edited.name).toBe("Garage A");
+    expect(edited.resourceId).toBe("103");
+    expect(edited.capacity).toBe(91);
+    expect(edited.maxHour).toEqual({ student: 6, faculty: 8 });
+    expect(edited.requestLimits).toBeUndefined();
+    expect(edited.services).toBeUndefined();
+  });
+
+  it("leaves the stored resource unchanged when the form is not edited", () => {
+    const stored = plainResourceDefault();
+    const original = {
+      name: "Garage",
+      resourceId: "103",
+      capacity: 91,
+    } as ReturnType<typeof plainResourceDefault>;
+    const initial = mergeResource(stored, original);
+
+    expect(projectResourceEdits(original, initial, initial)).toEqual(original);
   });
 
   it("keeps a legacy services list instead of merging it into an object", () => {

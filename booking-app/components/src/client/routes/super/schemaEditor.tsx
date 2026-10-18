@@ -776,6 +776,7 @@ export default function SchemaEditor() {
       {schema && !loading && !isTemplateSchemaId(tenant) && (
         <SchemaResourceForm
           schema={schema as SchemaContextType}
+          beforeSchemaChange={confirmLeaveSlice}
           onSchemaChange={(updated) => setSchema(updated)}
         />
       )}

@@ -4,7 +4,9 @@ import type { SchemaContextType } from "@/components/src/client/routes/component
 import type { Resource } from "@/components/src/client/routes/components/schemaTypes";
 import {
   mergeResource,
+  plainResource,
   plainResourceDefault,
+  projectResourceEdits,
   resourceIdError,
   TEMPLATE_SCHEMA_ID,
 } from "@/lib/tenant/resourceDefault";
@@ -19,7 +21,7 @@ import {
   Select,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function resourceLabel(resource: Resource): string {
   return `${resource.name || "(unnamed)"} · ${resource.resourceId} · capacity ${resource.capacity}`;
@@ -60,9 +62,12 @@ async function fetchResourceDefault(): Promise<Resource | null> {
 export default function SchemaResourceForm({
   schema,
   onSchemaChange,
+  beforeSchemaChange,
 }: {
   schema: SchemaContextType;
   onSchemaChange: (schema: SchemaContextType) => void;
+  /** Return false to keep the in-memory schema unchanged. */
+  beforeSchemaChange?: () => boolean;
 }) {
   const [mode, setMode] = useState<FormMode>("closed");
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -74,6 +79,9 @@ export default function SchemaResourceForm({
   const [statusError, setStatusError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(false);
+  const [baseline, setBaseline] = useState<Resource | null>(null);
+  const [initialDraft, setInitialDraft] = useState<Resource | null>(null);
+  const baselineJsonRef = useRef("");
 
   const loadDefault = async (): Promise<Resource | null> => {
     setDefaultStatus("loading");
@@ -113,9 +121,21 @@ export default function SchemaResourceForm({
     return mergeResource(base, source);
   };
 
+  const rememberResource = (source: Resource) => {
+    const stored = plainResource(source);
+    const next = draftFrom(source);
+    baselineJsonRef.current = JSON.stringify(source);
+    setBaseline(stored);
+    setInitialDraft(next);
+    setDraft(next);
+  };
+
   const openAdd = () => {
     setFormError(null);
     setSelectedIndex(null);
+    setBaseline(null);
+    setInitialDraft(null);
+    baselineJsonRef.current = "";
     if (resourceDefault) setDraft(draftFrom(resourceDefault));
     setMode("add");
   };
@@ -125,15 +145,36 @@ export default function SchemaResourceForm({
     if (!resource) return;
     setFormError(null);
     setSelectedIndex(index);
-    setDraft(draftFrom(resource));
+    rememberResource(resource);
     setMode("edit");
   };
 
   const closeForm = () => {
     setMode("closed");
     setSelectedIndex(null);
+    setDraft(null);
+    setBaseline(null);
+    setInitialDraft(null);
+    baselineJsonRef.current = "";
     setFormError(null);
   };
+
+  useEffect(() => {
+    if (mode !== "edit" || !selected) return;
+    const json = JSON.stringify(selected);
+    if (json === baselineJsonRef.current) return;
+    rememberResource(selected);
+  }, [mode, selected, resourceDefault]);
+
+  useEffect(() => {
+    setSelectedIndex(null);
+    setMode("closed");
+    setDraft(null);
+    setBaseline(null);
+    setInitialDraft(null);
+    baselineJsonRef.current = "";
+    setFormError(null);
+  }, [schema.tenantId]);
 
   const handleInitialize = async () => {
     setInitializing(true);
@@ -155,7 +196,7 @@ export default function SchemaResourceForm({
     if (!draft) return null;
     const otherIds = resources
       .filter((_, index) => mode !== "edit" || index !== selectedIndex)
-      .map((resource) => String(resource.resourceId ?? ""));
+      .map((resource) => String(resource.resourceId ?? "").trim());
     const idError = resourceIdError(draft.resourceId, otherIds);
     if (idError) {
       setFormError(idError);
@@ -169,34 +210,45 @@ export default function SchemaResourceForm({
     return { ...draft, resourceId: draft.resourceId.trim(), capacity };
   };
 
+  const commitSchema = (next: SchemaContextType): boolean => {
+    if (beforeSchemaChange && !beforeSchemaChange()) return false;
+    onSchemaChange(next);
+    return true;
+  };
+
   const handleAdd = () => {
     if (!resourceDefault) return;
     const resource = readResource();
     if (!resource) return;
     const nextResources = [...resources, resource];
-    onSchemaChange({ ...schema, resources: nextResources });
+    if (!commitSchema({ ...schema, resources: nextResources })) return;
     setSelectedIndex(nextResources.length - 1);
     setMode("edit");
     setFormError(null);
   };
 
   const handleUpdate = () => {
-    if (!selected || selectedIndex === null) return;
+    if (!selected || selectedIndex === null || !baseline || !initialDraft) return;
     const resource = readResource();
     if (!resource) return;
+    const edited = projectResourceEdits(baseline, initialDraft, resource);
     const nextResources = resources.map((current, index) =>
-      index === selectedIndex ? resource : current,
+      index === selectedIndex ? edited : current,
     );
-    onSchemaChange({ ...schema, resources: nextResources });
+    if (!commitSchema({ ...schema, resources: nextResources })) return;
     setFormError(null);
   };
 
   const handleDelete = () => {
     if (selectedIndex === null) return;
-    onSchemaChange({
-      ...schema,
-      resources: resources.filter((_, index) => index !== selectedIndex),
-    });
+    if (
+      !commitSchema({
+        ...schema,
+        resources: resources.filter((_, index) => index !== selectedIndex),
+      })
+    ) {
+      return;
+    }
     setSelectedIndex(null);
     setMode("closed");
     setFormError(null);

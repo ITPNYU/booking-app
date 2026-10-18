@@ -2,7 +2,7 @@
 
 import type { Resource } from "@/components/src/client/routes/components/schemaTypes";
 import { Box, Button, Checkbox, FormControlLabel, MenuItem, Stack, TextField } from "@mui/material";
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
 const IDENTITY_KEYS = [
   "name",
@@ -304,6 +304,51 @@ function Disclosure({
   );
 }
 
+function NumberField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: unknown) => void;
+}) {
+  const [text, setText] = useState(() => String(value));
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) setText(String(value));
+  }, [value]);
+
+  return (
+    <TextField
+      label={label}
+      type="number"
+      size="small"
+      value={text}
+      onFocus={() => {
+        focused.current = true;
+      }}
+      onBlur={() => {
+        focused.current = false;
+        if (text.trim() === "" || !Number.isFinite(Number(text))) {
+          setText(String(value));
+          return;
+        }
+        onChange(Number(text));
+      }}
+      onChange={(event) => {
+        const raw = event.target.value;
+        setText(raw);
+        if (raw.trim() !== "" && Number.isFinite(Number(raw))) {
+          onChange(Number(raw));
+        }
+      }}
+      fullWidth
+    />
+  );
+}
+
 function ScalarField({
   fieldKey,
   label,
@@ -332,19 +377,7 @@ function ScalarField({
   }
 
   if (typeof value === "number") {
-    return (
-      <TextField
-        label={label}
-        type="number"
-        size="small"
-        value={value}
-        onChange={(event) => {
-          const raw = event.target.value;
-          onChange(raw === "" ? 0 : Number(raw));
-        }}
-        fullWidth
-      />
-    );
+    return <NumberField label={label} value={value} onChange={onChange} />;
   }
 
   const text = value == null ? "" : String(value);

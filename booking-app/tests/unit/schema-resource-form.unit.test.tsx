@@ -86,7 +86,7 @@ describe("SchemaResourceForm", () => {
     expect(onSchemaChange).toHaveBeenCalledTimes(1);
     const next = onSchemaChange.mock.calls[0][0] as SchemaContextType;
     expect(next.resources).toHaveLength(1);
-    expect(next.resources[0]).toMatchObject({
+    expect(next.resources[0]).toEqual({
       name: "Ballroom A",
       resourceId: "room-a",
       capacity: 4,
@@ -135,9 +135,20 @@ describe("SchemaResourceForm", () => {
     await user.click(screen.getByRole("button", { name: "Update resource" }));
 
     const next = onSchemaChange.mock.calls[0][0] as SchemaContextType;
-    expect(next.resources[0].maxHour?.student).toBe(6);
-    expect(next.resources[0].services).toMatchObject({
-      setup: { label: "Garage layout" },
+    expect(next.resources[0].maxHour).toEqual({
+      student: 6,
+      faculty: 8,
+      admin: 12,
+      studentWalkIn: 4,
+      facultyWalkIn: 8,
+      adminWalkIn: 12,
+      studentVIP: 8,
+      facultyVIP: 12,
+      adminVIP: 16,
+    });
+    expect(next.resources[0].requestLimits).toBeUndefined();
+    expect(next.resources[0].services).toEqual({
+      setup: { label: "Garage layout", descriptionHtml: "" },
     });
   });
 
