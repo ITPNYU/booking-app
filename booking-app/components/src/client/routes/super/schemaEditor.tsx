@@ -663,6 +663,7 @@ export default function SchemaEditor() {
   const handleTenantChange = (next: string) => {
     if (next === tenant) return;
     if (!confirmLeaveSlice()) return;
+    setSelected(SELECT_ALL);
     setTenant(next);
   };
 

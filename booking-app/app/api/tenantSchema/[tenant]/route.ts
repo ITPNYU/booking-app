@@ -92,7 +92,6 @@ async function putTemplateDocument(request: NextRequest): Promise<NextResponse> 
   }
 
   const backupCreated = await writeSchemaDocument(TEMPLATE_SCHEMA_ID, {
-    ...(body as Record<string, unknown>),
     resourceDefault,
   });
   return NextResponse.json({ success: true, backupCreated });

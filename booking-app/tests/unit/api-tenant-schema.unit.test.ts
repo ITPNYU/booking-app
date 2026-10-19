@@ -304,6 +304,31 @@ describe("tenantSchema/_template resource default", () => {
     );
   });
 
+  it("does not persist extra fields on the template document", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+    mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
+
+    const response = await PUT(
+      createRequest("PUT", {
+        tenantId: "mc",
+        policy: "<p>unrelated</p>",
+        resources: [{ name: "Room", resourceId: "1" }],
+        resourceDefault: { name: "Default room", resourceId: "" },
+      }),
+      { params: templateParams },
+    );
+    const { status } = await parseJson(response);
+
+    expect(status).toBe(200);
+    expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalledWith(
+      "tenantSchema",
+      "_template",
+      {
+        resourceDefault: { name: "Default room", resourceId: "" },
+      },
+    );
+  });
+
   it("rejects a template save that has no resourceDefault object", async () => {
     const response = await PUT(createRequest("PUT", { name: "no default" }), {
       params: templateParams,

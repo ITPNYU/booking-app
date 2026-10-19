@@ -92,4 +92,23 @@ describe("SchemaEditor add resource", () => {
       expect(String(put?.[1]?.body)).toContain("studio");
     });
   });
+
+  it("shows the whole document after switching tenants", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "mc" }));
+    await user.click(await screen.findByRole("button", { name: /^policy/ }));
+    expect(screen.queryByText("(entire schema)")).not.toBeInTheDocument();
+
+    const [tenantSelect] = screen.getAllByRole("combobox");
+    await user.click(tenantSelect);
+    await user.click(await screen.findByRole("option", { name: "_template (defaults)" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("(entire schema)")).toBeInTheDocument();
+      expect(document.querySelector("textarea")?.value).toContain("resourceDefault");
+    });
+  });
 });
