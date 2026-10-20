@@ -2,15 +2,18 @@ import { buildNewTenantSchema } from "@/lib/tenant/buildNewTenantSchema";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 
-const mockServerGetDocumentById = vi.fn();
-const mockServerSaveDataToFirestoreWithId = vi.fn();
+const mockCreate = vi.fn();
 const mockListTenantSchemaIds = vi.fn();
 const mockRequireSuperAdmin = vi.fn();
 
-vi.mock("@/lib/firebase/server/adminDb", () => ({
-  serverGetDocumentById: (...args: unknown[]) => mockServerGetDocumentById(...args),
-  serverSaveDataToFirestoreWithId: (...args: unknown[]) =>
-    mockServerSaveDataToFirestoreWithId(...args),
+vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
+  default: {
+    firestore: () => ({
+      collection: () => ({
+        doc: () => ({ create: (...args: unknown[]) => mockCreate(...args) }),
+      }),
+    }),
+  },
 }));
 
 vi.mock("@/lib/tenant/listTenantSchemaIds", () => ({
@@ -41,8 +44,7 @@ function postSchema(body: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockRequireSuperAdmin.mockResolvedValue({ session: SUPER });
-  mockServerGetDocumentById.mockResolvedValue(null);
-  mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
+  mockCreate.mockResolvedValue(undefined);
   mockListTenantSchemaIds.mockResolvedValue(["_template", "itp", "mc"]);
 });
 
@@ -82,10 +84,8 @@ describe("POST /api/tenantSchema", () => {
 
     expect(status).toBe(200);
     expect(data).toEqual({ success: true, tenantId: "studio" });
-    expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalledTimes(1);
-    expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalledWith(
-      "tenantSchema",
-      "studio",
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+    expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: "studio",
         resources: [],
@@ -94,7 +94,7 @@ describe("POST /api/tenantSchema", () => {
   });
 
   it("rejects a second create for the same slug", async () => {
-    mockServerGetDocumentById.mockResolvedValue({ tenantId: "studio" });
+    mockCreate.mockRejectedValue(Object.assign(new Error("already exists"), { code: 6 }));
 
     const response = await POST(
       postSchema(
@@ -111,10 +111,10 @@ describe("POST /api/tenantSchema", () => {
 
     expect(status).toBe(409);
     expect(data.error).toMatch(/already exists/i);
-    expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
+    expect(mockCreate).toHaveBeenCalledTimes(1);
   });
 
-  it.each(["_template", "api", "signin", "mediaCommons", "Studio", ""])(
+  it.each(["_template", "api", "signin", "mc", "itp", "mediaCommons", "Studio", ""])(
     "rejects slug %s",
     async (tenantId) => {
       const response = await POST(
@@ -128,7 +128,7 @@ describe("POST /api/tenantSchema", () => {
 
       expect(status).toBe(400);
       expect(data.error).toMatch(/invalid tenant slug/i);
-      expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
+      expect(mockCreate).not.toHaveBeenCalled();
     },
   );
 
@@ -144,6 +144,6 @@ describe("POST /api/tenantSchema", () => {
 
     expect(status).toBe(400);
     expect(data.error).toMatch(/invalid schema/i);
-    expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 });

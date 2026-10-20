@@ -18,6 +18,8 @@ describe("tenant schema slugs", () => {
     expect(isCreatableTenantSlug("_template")).toBe(false);
     expect(isCreatableTenantSlug("api")).toBe(false);
     expect(isCreatableTenantSlug("signin")).toBe(false);
+    expect(isCreatableTenantSlug("mc")).toBe(false);
+    expect(isCreatableTenantSlug("itp")).toBe(false);
     expect(isCreatableTenantSlug("mediaCommons")).toBe(false);
     expect(isCreatableTenantSlug("Studio")).toBe(false);
     expect(isCreatableTenantSlug("")).toBe(false);

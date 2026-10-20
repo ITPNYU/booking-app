@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { TableNames } from "@/components/src/policy";
 import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
-import {
-  serverGetDocumentById,
-  serverSaveDataToFirestoreWithId,
-} from "@/lib/firebase/server/adminDb";
+import admin from "@/lib/firebase/server/firebaseAdmin";
 import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 import { listTenantSchemaIds } from "@/lib/tenant/listTenantSchemaIds";
 import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
+
+function alreadyExists(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  return code === 6 || code === "already-exists" || code === "ALREADY_EXISTS";
+}
 
 /**
  * GET /api/tenantSchema
@@ -63,17 +66,6 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const existing = await serverGetDocumentById(
-      TableNames.TENANT_SCHEMA,
-      tenantId,
-    );
-    if (existing) {
-      return NextResponse.json(
-        { error: `Tenant schema already exists: ${tenantId}` },
-        { status: 409 },
-      );
-    }
-
     schema.tenantId = tenantId;
     try {
       coerceTenantSchema(schema, tenantId);
@@ -90,11 +82,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await serverSaveDataToFirestoreWithId(
-      TableNames.TENANT_SCHEMA,
-      tenantId,
-      schema,
-    );
+    try {
+      await admin
+        .firestore()
+        .collection(TableNames.TENANT_SCHEMA)
+        .doc(tenantId)
+        .create(schema);
+    } catch (error) {
+      if (alreadyExists(error)) {
+        return NextResponse.json(
+          { error: `Tenant schema already exists: ${tenantId}` },
+          { status: 409 },
+        );
+      }
+      throw error;
+    }
     return NextResponse.json({ success: true, tenantId });
   } catch (error) {
     console.error("Error creating tenant schema:", error);
