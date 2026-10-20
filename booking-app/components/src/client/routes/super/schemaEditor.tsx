@@ -62,6 +62,7 @@ import {
 import SchemaResourceForm, {
   initializeResourceDefault,
 } from "./schemaResourceForm";
+import { SchemaValueFields } from "./schemaResourceFields";
 
 const SCHEMA_TARGETS = ["mc", "itp", TEMPLATE_SCHEMA_ID] as const;
 
@@ -309,6 +310,7 @@ function JsonEditor({
           handleChange(e.target.value)
         }
         spellCheck={false}
+        aria-label="Schema JSON"
         sx={{
           width: "100%",
           minHeight,
@@ -698,6 +700,30 @@ export default function SchemaEditor() {
     effectiveSelected.kind === "section" && schema
       ? !(effectiveSelected.key in schema)
       : false;
+  const showResourceForm =
+    !isTemplateSchemaId(tenant) &&
+    (effectiveSelected.kind === "resource" ||
+      (effectiveSelected.kind === "section" &&
+        effectiveSelected.key === "resources"));
+  const showFieldForm = effectiveSelected.kind !== "all" && !showResourceForm;
+  const sliceFieldKey =
+    effectiveSelected.kind === "section" ? effectiveSelected.key : "schema";
+
+  const writeSlice = (updated: unknown) => {
+    setSchema((prev) =>
+      prev
+        ? setSlice(prev, effectiveSelected, updated, {
+            original: original ?? undefined,
+            fallback: DEFAULTS,
+          })
+        : prev,
+    );
+  };
+
+  const applySlice = (updated: unknown) => {
+    if (!confirmLeaveSlice()) return;
+    writeSlice(updated);
+  };
 
   return (
     <Box>
@@ -772,14 +798,6 @@ export default function SchemaEditor() {
         >
           No resource default is stored in the database yet.
         </Alert>
-      )}
-
-      {schema && !loading && !isTemplateSchemaId(tenant) && (
-        <SchemaResourceForm
-          schema={schema as SchemaContextType}
-          beforeSchemaChange={confirmLeaveSlice}
-          onSchemaChange={(updated) => setSchema(updated)}
-        />
       )}
 
       {schema && !loading && !isTemplateSchemaId(tenant) && (
@@ -872,19 +890,27 @@ export default function SchemaEditor() {
               )}
             </Box>
 
+            {showResourceForm && (
+              <SchemaResourceForm
+                schema={schema as SchemaContextType}
+                beforeSchemaChange={confirmLeaveSlice}
+                onSchemaChange={(updated) => setSchema(updated)}
+              />
+            )}
+            {showFieldForm && (
+              <Box component="section" aria-label="Schema fields" sx={{ mb: 2 }}>
+                <SchemaValueFields
+                  fieldKey={sliceFieldKey}
+                  value={sliceValue}
+                  onChange={applySlice}
+                />
+              </Box>
+            )}
+
             <JsonEditor
               key={`${tenant}:${selectionId(effectiveSelected)}`}
               value={sliceValue}
-              onChange={(updated) =>
-                setSchema((prev) =>
-                  prev
-                    ? setSlice(prev, effectiveSelected, updated, {
-                        original: original ?? undefined,
-                        fallback: DEFAULTS,
-                      })
-                    : prev,
-                )
-              }
+              onChange={writeSlice}
               onParseErrorChange={setHasParseError}
               minHeight={effectiveSelected.kind === "all" ? 600 : 400}
             />

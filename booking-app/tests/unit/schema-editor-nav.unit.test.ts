@@ -127,13 +127,13 @@ describe("resourceLabels / resourceLabelForPath", () => {
 });
 
 describe("sectionKeys", () => {
-  it("lists default keys in default order, then extras, flagging presence", () => {
+  it("lists keys alphabetically and flags which ones are stored", () => {
     const defaults = { name: "", policy: "", resources: [] };
     expect(sectionKeys(schema, defaults)).toEqual([
+      { key: "calendarConfig", present: true },
       { key: "name", present: true },
       { key: "policy", present: false },
       { key: "resources", present: true },
-      { key: "calendarConfig", present: true },
     ]);
   });
 });

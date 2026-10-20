@@ -422,12 +422,14 @@ function ArrayField({
   onChange,
   depth,
   columnMin,
+  inventKeys,
 }: {
   fieldKey: string;
   value: unknown[];
   onChange: (value: unknown[]) => void;
   depth: number;
   columnMin: number;
+  inventKeys: boolean;
 }) {
   return (
     <Stack spacing={1}>
@@ -480,6 +482,7 @@ function ArrayField({
               onChange={change}
               depth={depth + 1}
               columnMin={columnMin}
+              inventKeys={inventKeys}
             />
           </Disclosure>
         );
@@ -510,16 +513,18 @@ function ObjectField({
   onChange,
   depth,
   columnMin,
+  inventKeys,
 }: {
   fieldKey: string;
   value: Record<string, unknown>;
   onChange: (value: Record<string, unknown>) => void;
   depth: number;
   columnMin: number;
+  inventKeys: boolean;
 }) {
-  const keys = orderedKeys(value);
+  const keys = inventKeys ? orderedKeys(value) : Object.keys(value).sort();
   const missingServices =
-    fieldKey === "services"
+    inventKeys && fieldKey === "services"
       ? SERVICE_KEYS.filter((key) => !(key in value))
       : [];
 
@@ -531,7 +536,7 @@ function ObjectField({
         columnMin={columnMin}
         render={(key) => {
           const remove =
-            fieldKey === "services"
+            inventKeys && fieldKey === "services"
               ? () => {
                   const next = { ...value };
                   delete next[key];
@@ -546,6 +551,7 @@ function ObjectField({
               depth={depth}
               onRemove={remove}
               columnMin={INLINE_SECTIONS.has(fieldKey) ? 90 : columnMin}
+              inventKeys={inventKeys}
             />
           );
         }}
@@ -613,6 +619,7 @@ function FieldNode({
   depth,
   onRemove,
   columnMin = 220,
+  inventKeys,
 }: {
   fieldKey: string;
   value: unknown;
@@ -620,6 +627,7 @@ function FieldNode({
   depth: number;
   onRemove?: () => void;
   columnMin?: number;
+  inventKeys: boolean;
 }) {
   const complex = isRecord(value) || Array.isArray(value);
   if (complex && depth > 0) {
@@ -631,6 +639,7 @@ function FieldNode({
           onChange={onChange}
           depth={depth + 1}
           columnMin={columnMin}
+          inventKeys={inventKeys}
         />
       </Disclosure>
     );
@@ -642,6 +651,7 @@ function FieldNode({
       onChange={onChange}
       depth={depth}
       columnMin={columnMin}
+      inventKeys={inventKeys}
     />
   );
 }
@@ -652,12 +662,14 @@ function ValueBody({
   onChange,
   depth,
   columnMin = 220,
+  inventKeys,
 }: {
   fieldKey: string;
   value: unknown;
   onChange: (value: unknown) => void;
   depth: number;
   columnMin?: number;
+  inventKeys: boolean;
 }) {
   if (Array.isArray(value)) {
     return (
@@ -673,6 +685,7 @@ function ValueBody({
           onChange={onChange}
           depth={depth}
           columnMin={columnMin}
+          inventKeys={inventKeys}
         />
       </Stack>
     );
@@ -685,6 +698,7 @@ function ValueBody({
         onChange={onChange}
         depth={depth}
         columnMin={columnMin}
+        inventKeys={inventKeys}
       />
     );
   }
@@ -694,6 +708,28 @@ function ValueBody({
       label={labelFor(fieldKey)}
       value={value}
       onChange={onChange}
+    />
+  );
+}
+
+/** Renders the keys already on a schema value. It does not add new keys. */
+export function SchemaValueFields({
+  fieldKey,
+  value,
+  onChange,
+}: {
+  fieldKey: string;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  return (
+    <ValueBody
+      fieldKey={fieldKey}
+      value={value}
+      onChange={onChange}
+      depth={1}
+      columnMin={220}
+      inventKeys={false}
     />
   );
 }
@@ -737,6 +773,7 @@ export default function SchemaResourceFields({
             onChange={(value) => setKey(fieldKey, value)}
             depth={1}
             columnMin={220}
+            inventKeys
           />
         </Disclosure>
       ))}
@@ -753,6 +790,7 @@ export default function SchemaResourceFields({
                 value={record[fieldKey]}
                 onChange={(value) => setKey(fieldKey, value)}
                 depth={1}
+                inventKeys
               />
             )}
           />
