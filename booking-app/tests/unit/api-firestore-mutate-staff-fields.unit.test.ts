@@ -99,7 +99,7 @@ describe("POST /api/firestore/mutate — staff-only booking fields", () => {
     const res = await POST(
       request({
         op: "set",
-        collection: "usersResourceApprovers",
+        collection: "usersApprovers",
         tenant: "mc",
         docId: "r1",
         data: { email: "a@nyu.edu" },

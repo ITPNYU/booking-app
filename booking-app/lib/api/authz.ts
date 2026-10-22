@@ -5,8 +5,30 @@ import {
   getTenantCollectionName,
 } from "@/components/src/policy";
 import { PagePermission } from "@/components/src/types";
+import { hasLegacyServiceApproverFlag } from "@/components/src/utils/approversResources";
 import type { SessionContext } from "@/lib/api/requireSession";
 import { MAINTENANCE_MODE_SETTINGS_DOC_ID } from "@/lib/utils/maintenanceMode";
+
+/**
+ * Whether the caller approves at least one service in the tenant: by a
+ * tenant-wide `usersRights` flag or by an assignment on some resource. Both
+ * reach the Services page. `/api/permissions` and `resolveCallerRole` share
+ * this so the page the client shows and the role the server enforces agree.
+ */
+export async function isServiceApprover(
+  email: string,
+  tenant: string,
+  userRights: Record<string, unknown> | null | undefined,
+): Promise<boolean> {
+  if (hasLegacyServiceApproverFlag(userRights)) return true;
+  const snapshot = await admin
+    .firestore()
+    .collection(getTenantCollectionName(TableNames.APPROVERS_RESOURCES, tenant))
+    .where("serviceApproverEmails", "array-contains", email)
+    .limit(1)
+    .get();
+  return !snapshot.empty;
+}
 
 /**
  * Resolve the caller's role for a given tenant by reading the same
@@ -64,6 +86,12 @@ export async function resolveCallerRole(
 
   if (userRights?.isWorker === true) return PagePermission.PA;
 
+  // Last, so the Services page is only ever added for someone who would
+  // otherwise just book; nobody loses the page they have today.
+  if (await isServiceApprover(email, tenant, userRights)) {
+    return PagePermission.SERVICES;
+  }
+
   return PagePermission.BOOKING;
 }
 
@@ -86,14 +114,10 @@ const POLICY: Record<string, Policy> = {
   [TableNames.SUPER_ADMINS]: { read: "anyNYU", write: "superOnly" },
   [TableNames.USERS_RIGHTS]: { read: "anyNYU", write: "adminOrSuper" },
   [TableNames.APPROVERS]: { read: "anyNYU", write: "adminOrSuper" },
-  [TableNames.RESOURCE_APPROVERS]: {
-    read: "adminOrSuper",
-    write: "adminOrSuper",
-  },
-  [TableNames.SERVICE_APPROVERS]: {
-    read: "adminOrSuper",
-    write: "adminOrSuper",
-  },
+  // Approver assignments: admins read them in Settings; writes go through
+  // /api/approversResources, which validates and keeps serviceApproverEmails
+  // in step.
+  [TableNames.APPROVERS_RESOURCES]: { read: "adminOrSuper", write: "deny" },
   [TableNames.ADMINS]: { read: "anyNYU", write: "adminOrSuper" },
   [TableNames.PAS]: { read: "anyNYU", write: "adminOrSuper" },
 
