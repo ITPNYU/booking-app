@@ -46,6 +46,7 @@ import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources"
 import {
   resolveAnnexCalendarIds,
   resolveSelectedRoomCalendars,
+  roomCalendarResolutionError,
 } from "@/components/src/utils/resourceServicesUtils";
 import { calendarOverlapResponse } from "@/app/api/bookings/checkOverlap";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
@@ -151,16 +152,18 @@ export async function POST(request: NextRequest) {
   // Calendar ids on the request are not authoritative. The event is written
   // to the schema calendar for each roomId, so the conflict check must use
   // those same ids.
-  const { rooms: bookedRooms, missingRoomId } = resolveSelectedRoomCalendars(
+  const resolvedRooms = resolveSelectedRoomCalendars(
     selectedRooms,
     tenantResources,
   );
-  if (missingRoomId) {
+  const calendarError = roomCalendarResolutionError(resolvedRooms);
+  if (calendarError) {
     return NextResponse.json(
-      { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
+      { result: "error", message: calendarError },
       { status: 500 },
     );
   }
+  const bookedRooms = resolvedRooms.rooms;
   const overlapResponse = await calendarOverlapResponse({
     tenant,
     rooms: bookedRooms,

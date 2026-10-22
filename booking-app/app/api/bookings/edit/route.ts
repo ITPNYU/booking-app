@@ -25,6 +25,7 @@ import { getSecondaryContactName } from "@/components/src/utils/formatters";
 import {
   resolveAnnexCalendarIds,
   resolveSelectedRoomCalendars,
+  roomCalendarResolutionError,
 } from "@/components/src/utils/resourceServicesUtils";
 import {
   getChangedServiceKeys,
@@ -345,16 +346,18 @@ export async function PUT(request: NextRequest) {
       data?.annexByRoom,
       tenantResources,
     );
-    const { rooms: bookedRooms, missingRoomId } = resolveSelectedRoomCalendars(
+    const resolvedRooms = resolveSelectedRoomCalendars(
       selectedRooms,
       tenantResources,
     );
-    if (missingRoomId) {
+    const calendarError = roomCalendarResolutionError(resolvedRooms);
+    if (calendarError) {
       return NextResponse.json(
-        { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
+        { result: "error", message: calendarError },
         { status: 500 },
       );
     }
+    const bookedRooms = resolvedRooms.rooms;
     const overlapResponse = await calendarOverlapResponse({
       tenant,
       rooms: bookedRooms,

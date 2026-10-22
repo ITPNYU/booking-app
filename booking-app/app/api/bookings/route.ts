@@ -29,6 +29,7 @@ import {
 import {
   resolveAnnexCalendarIds,
   resolveSelectedRoomCalendars,
+  roomCalendarResolutionError,
 } from "@/components/src/utils/resourceServicesUtils";
 import { canRequestAuxiliarySpaces } from "@/components/src/utils/roleUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
@@ -517,16 +518,18 @@ export async function POST(request: NextRequest) {
     data?.annexByRoom,
     tenantResources,
   );
-  const { rooms: bookedRooms, missingRoomId } = resolveSelectedRoomCalendars(
+  const resolvedRooms = resolveSelectedRoomCalendars(
     selectedRooms,
     tenantResources,
   );
-  if (missingRoomId) {
+  const calendarError = roomCalendarResolutionError(resolvedRooms);
+  if (calendarError) {
     return NextResponse.json(
-      { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
+      { result: "error", message: calendarError },
       { status: 500 },
     );
   }
+  const bookedRooms = resolvedRooms.rooms;
 
   // Get tenant-specific flags
   const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);

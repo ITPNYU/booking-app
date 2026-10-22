@@ -338,7 +338,9 @@ describe("submit conflict check", () => {
   });
 
   it("rejects a walk-in when the room has no schema calendar", async () => {
-    mocks.mockServerGetTenantResources.mockResolvedValue([]);
+    mocks.mockServerGetTenantResources.mockResolvedValue([
+      { resourceId: "other", calendarId: "other-cal" },
+    ]);
     const response = await POSTBookingsDirect(
       post("http://localhost:3000/api/bookingsDirect"),
     );
@@ -346,6 +348,20 @@ describe("submit conflict check", () => {
     await expect(response.json()).resolves.toEqual({
       result: "error",
       message: "ROOM CALENDAR ID NOT FOUND",
+    });
+    expect(getCalendarClient).not.toHaveBeenCalled();
+    expect(mocks.mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects a walk-in when the tenant resource list is empty", async () => {
+    mocks.mockServerGetTenantResources.mockResolvedValue([]);
+    const response = await POSTBookingsDirect(
+      post("http://localhost:3000/api/bookingsDirect"),
+    );
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      result: "error",
+      message: "TENANT RESOURCES UNAVAILABLE",
     });
     expect(getCalendarClient).not.toHaveBeenCalled();
     expect(mocks.mockInsertEvent).not.toHaveBeenCalled();

@@ -474,30 +474,40 @@ export function pruneServiceMapsToRooms<
   return changed ? next : data;
 }
 
-/**
- * Resolve selected auxiliary spaces to the calendar IDs of their annex
- * resources so they can be invited to the parent booking's calendar event.
- * Values that don't match an annex resource (legacy options without a
- * registered resource) resolve to nothing.
- */
+export const ROOM_CALENDAR_ID_NOT_FOUND = "ROOM CALENDAR ID NOT FOUND";
+export const TENANT_RESOURCES_UNAVAILABLE = "TENANT RESOURCES UNAVAILABLE";
+
+type ResolvedRoomCalendars = {
+  missingRoomId?: string;
+  /** Resource catalog was empty, so no selected room could be matched. */
+  resourcesUnavailable?: boolean;
+};
+
 /**
  * Replace client-supplied calendar ids with the tenant schema's calendar for
- * each selected room. A room that is not in the schema, or has no calendar,
- * is reported as missing so callers can refuse the booking.
+ * each selected room.
+ *
+ * An empty catalog is reported as `resourcesUnavailable` — the fetch failed,
+ * or every resource was skipped — rather than blamed on whichever room was
+ * selected. A room missing from a non-empty catalog is `missingRoomId`.
  */
 export function resolveSelectedRoomCalendars<
   T extends { roomId?: string | number | null },
 >(
   selectedRooms: T[] | null | undefined,
   resources: ServiceResourceLike[] | null | undefined,
-): {
+): ResolvedRoomCalendars & {
   rooms: Array<
     Omit<T, "roomId" | "calendarId"> & { roomId: string; calendarId: string }
   >;
-  missingRoomId?: string;
 } {
-  if (!Array.isArray(selectedRooms)) return { rooms: [] };
+  if (!Array.isArray(selectedRooms) || selectedRooms.length === 0) {
+    return { rooms: [] };
+  }
   const list = Array.isArray(resources) ? resources : [];
+  if (list.length === 0) {
+    return { rooms: [], resourcesUnavailable: true };
+  }
   const rooms: Array<
     Omit<T, "roomId" | "calendarId"> & { roomId: string; calendarId: string }
   > = [];
@@ -517,6 +527,35 @@ export function resolveSelectedRoomCalendars<
   return { rooms };
 }
 
+/**
+ * Message for a failed room-calendar resolution, or null when every selected
+ * room resolved. Logs the actual cause so an empty catalog is not reported
+ * as a missing room.
+ */
+export function roomCalendarResolutionError(
+  result: ResolvedRoomCalendars,
+): string | null {
+  if (result.resourcesUnavailable) {
+    console.error(
+      "Refusing booking write: tenant resource list is empty, so room calendars could not be resolved",
+    );
+    return TENANT_RESOURCES_UNAVAILABLE;
+  }
+  if (result.missingRoomId) {
+    console.error(
+      `Refusing booking write: schema has no calendar for room ${result.missingRoomId}`,
+    );
+    return ROOM_CALENDAR_ID_NOT_FOUND;
+  }
+  return null;
+}
+
+/**
+ * Resolve selected auxiliary spaces to the calendar IDs of their annex
+ * resources so they can be invited to the parent booking's calendar event.
+ * Values that don't match an annex resource (legacy options without a
+ * registered resource) resolve to nothing.
+ */
 export function resolveAnnexCalendarIds(
   annexByRoom: Record<string, string[]> | undefined,
   allResources: ServiceResourceLike[],
