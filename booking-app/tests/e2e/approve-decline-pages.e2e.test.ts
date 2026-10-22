@@ -1,13 +1,58 @@
-import { expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 import { registerBookingMocks } from "./helpers/mock-routes";
 
 const jsonHeaders = { "content-type": "application/json" };
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 const TEST_USER_EMAIL = "test@nyu.edu";
 
+const APPROVE_EVENT_ID = "mock-approve-test";
+const pendingBooking = {
+  id: "mock-approve-doc",
+  calendarEventId: APPROVE_EVENT_ID,
+  requestNumber: 7073,
+  title: "Thesis critique",
+  firstName: "Ada",
+  lastName: "Lovelace",
+  email: "requester@nyu.edu",
+  roomId: "221",
+  startDate: { __ts: Date.parse("2026-10-20T14:00:00Z") },
+  endDate: { __ts: Date.parse("2026-10-20T16:00:00Z") },
+  firstApprovedAt: { __ts: Date.parse("2026-10-17T12:00:00Z") },
+  status: "PRE-APPROVED",
+};
+
+/** Make the test user an admin, or nobody special, without /api/permissions. */
+const setUsersRights = (page: Page, isAdmin: boolean) =>
+  page.addInitScript((admin) => {
+    (window as any).__bookingE2EMocks = {
+      ...((window as any).__bookingE2EMocks ?? {}),
+      usersRights: admin
+        ? [{ email: "test@nyu.edu", isAdmin: true, createdAt: "2026-01-01" }]
+        : [],
+    };
+  }, isAdmin);
+
 test.describe("Approve/Decline Action Pages", () => {
   test.beforeEach(async ({ page }) => {
     await registerBookingMocks(page);
+
+    // The approve page loads the booking it was linked to.
+    await page.route("**/api/firestore/list", async (route) => {
+      const body = route.request().postDataJSON() ?? {};
+      const asksForApproveBooking =
+        body.collection === "bookings" &&
+        (body.where ?? []).some(
+          (clause: { field?: string; value?: unknown }) =>
+            clause.field === "calendarEventId" &&
+            clause.value === APPROVE_EVENT_ID,
+        );
+      if (!asksForApproveBooking) return route.fallback();
+      return route.fulfill({
+        status: 200,
+        headers: jsonHeaders,
+        body: JSON.stringify({ docs: [pendingBooking] }),
+      });
+    });
 
     // Mock the approve endpoint
     await page.route("**/api/approve", async (route) => {
@@ -81,6 +126,7 @@ test.describe("Approve/Decline Action Pages", () => {
   });
 
   test("approve page approves a booking successfully", async ({ page }) => {
+    await setUsersRights(page, false);
     const approveRequestPromise = page.waitForRequest(
       (request) =>
         request.url().includes("/api/approve") &&
@@ -88,7 +134,7 @@ test.describe("Approve/Decline Action Pages", () => {
     );
 
     await page.goto(
-      `${BASE_URL}/mc/approve?calendarEventId=mock-approve-test`,
+      `${BASE_URL}/mc/approve?calendarEventId=${APPROVE_EVENT_ID}`,
       { waitUntil: "domcontentloaded" }
     );
     await page.waitForLoadState("networkidle");
@@ -96,8 +142,9 @@ test.describe("Approve/Decline Action Pages", () => {
     const heading = page.getByRole("heading", { name: "Booking Approval" });
     await heading.waitFor({ state: "visible", timeout: 15000 });
 
-    // Verify the event ID is displayed on the page
-    await expect(page.getByText("mock-approve-test")).toBeVisible();
+    // The page shows the booking it was linked to
+    await expect(page.getByText("Title: Thesis critique")).toBeVisible();
+    await expect(page.getByText("Status: PRE-APPROVED")).toBeVisible();
 
     const approveBtn = page.getByRole("button", { name: "Approve Booking" });
     await approveBtn.waitFor({ state: "visible", timeout: 10000 });
@@ -106,7 +153,7 @@ test.describe("Approve/Decline Action Pages", () => {
     const request = await approveRequestPromise;
     const payload = request.postDataJSON();
     expect(payload).toMatchObject({
-      id: "mock-approve-test",
+      id: APPROVE_EVENT_ID,
       email: TEST_USER_EMAIL,
     });
 
@@ -117,6 +164,57 @@ test.describe("Approve/Decline Action Pages", () => {
     await expect(
       page.getByRole("button", { name: "Approved" })
     ).toBeDisabled();
+  });
+
+  test("approve page declines a booking with a reason", async ({ page }) => {
+    await setUsersRights(page, false);
+    const declineRequestPromise = page.waitForRequest(
+      (request) =>
+        request.url().includes("/api/xstate-transition") &&
+        request.method() === "POST"
+    );
+
+    await page.goto(
+      `${BASE_URL}/mc/approve?calendarEventId=${APPROVE_EVENT_ID}`,
+      { waitUntil: "domcontentloaded" }
+    );
+    await page.waitForLoadState("networkidle");
+
+    const declineBtn = page.getByRole("button", { name: "Decline Booking" });
+    await declineBtn.waitFor({ state: "visible", timeout: 15000 });
+    await expect(declineBtn).toBeDisabled();
+
+    await page
+      .getByLabel("Reason for declining")
+      .fill("Room is closed that week");
+    await expect(declineBtn).toBeEnabled();
+    await declineBtn.click();
+
+    const request = await declineRequestPromise;
+    expect(request.postDataJSON()).toMatchObject({
+      calendarEventId: APPROVE_EVENT_ID,
+      eventType: "decline",
+      reason: "Room is closed that week",
+    });
+
+    await expect(page.getByRole("button", { name: "Declined" })).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Approve Booking" })
+    ).toBeDisabled();
+  });
+
+  test("approve page sends admins on to the admin page", async ({ page }) => {
+    await setUsersRights(page, true);
+
+    await page.goto(
+      `${BASE_URL}/mc/approve?calendarEventId=${APPROVE_EVENT_ID}`,
+      { waitUntil: "domcontentloaded" }
+    );
+
+    await page.waitForURL(
+      `**/mc/admin?calendarEventId=${APPROVE_EVENT_ID}`,
+      { timeout: 30000 }
+    );
   });
 
   test("decline page requires a reason before declining", async ({ page }) => {

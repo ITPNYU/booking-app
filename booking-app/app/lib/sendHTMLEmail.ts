@@ -58,8 +58,10 @@ export const getApprovalUrl = (
     case ApproverType.LIAISON:
       urlPath = `/${resolvedTenant}/liaison`;
       break;
+    // Final approvers include per-resource approvers who are not admins and
+    // cannot open /admin. The approve page sends admins on to /admin.
     case ApproverType.FINAL_APPROVER:
-      urlPath = `/${resolvedTenant}/admin`;
+      urlPath = `/${resolvedTenant}/approve`;
       break;
     default:
       urlPath = "/";
