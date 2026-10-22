@@ -1,0 +1,192 @@
+name: Dev Test Request
+
+# After a PR is merged to main and the DEVELOPMENT deploy succeeds, ask the PR
+# author in Google Chat to verify the change on dev. The author confirms by
+# commenting `/tested` on the PR, which adds the `dev-tested` label and posts a
+# confirmation back to Google Chat. `dev-test-nag.yml` reminds authors about
+# merged PRs that are still missing the label.
+#
+# Configuration:
+#   secrets.GCHAT_WEBHOOK_URL  Incoming webhook of the team space (shared with
+#                              pr-deadline-reminder.yml).
+#   vars.GCHAT_USER_MAP        Optional JSON object mapping GitHub logins to
+#                              Google Chat user identifiers, e.g.
+#                              {"rlho": "123456789012345678901", "octocat": "octocat@nyu.edu"}
+#                              The value is inserted as <users/VALUE>; both the
+#                              numeric user ID and the Workspace email form are
+#                              accepted by Google Chat. Logins missing from the
+#                              map are shown as plain @login without a mention.
+#   Label `no-dev-test`        Add to a PR to skip the request (e.g. CI-only changes).
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+on:
+  workflow_run:
+    workflows: ["Deploy DEVELOPMENT to App Engine"]
+    types: [completed]
+  issue_comment:
+    types: [created]
+
+jobs:
+  request:
+    name: Ask the author to test on dev
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Find the PRs merged by this deploy
+        id: prs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # The deploy runs once per push to main; a push is normally a single PR merge.
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+            --jq '[.[] | select(.merged_at != null and .base.ref == "main")
+                    | select(([.labels[].name] | index("no-dev-test")) == null)
+                    | select(.user.type != "Bot")
+                    | {number, title, html_url, author: .user.login}]' > prs.json
+          echo "count=$(jq length prs.json)" >> "$GITHUB_OUTPUT"
+          cat prs.json
+
+      - name: Post the request to Google Chat
+        if: steps.prs.outputs.count != '0'
+        env:
+          GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
+          GCHAT_USER_MAP: ${{ vars.GCHAT_USER_MAP }}
+          DEV_URL: https://dev-booking-app.nyu.edu
+        run: |
+          if [ -z "${GCHAT_WEBHOOK_URL}" ]; then
+            echo "Error: GCHAT_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+          USER_MAP='{}'
+          if [ -n "${GCHAT_USER_MAP}" ]; then
+            USER_MAP=$(jq -c '.' <<<"${GCHAT_USER_MAP}") || { echo "Error: GCHAT_USER_MAP is not valid JSON."; exit 1; }
+          fi
+
+          jq -c '.[]' prs.json | while read -r pr; do
+            NUMBER=$(jq -r '.number' <<<"$pr")
+            TITLE=$(jq -r '.title' <<<"$pr")
+            URL=$(jq -r '.html_url' <<<"$pr")
+            AUTHOR=$(jq -r '.author' <<<"$pr")
+            MENTION=$(jq -r --arg login "$AUTHOR" '.[$login] // empty' <<<"$USER_MAP")
+            if [ -n "$MENTION" ]; then
+              WHO="<users/${MENTION}>"
+            else
+              WHO="@${AUTHOR}"
+            fi
+
+            TEXT=$(printf '%s\n' \
+              "${WHO} PR #${NUMBER} is now on dev. Please test it there and comment \`/tested\` on the PR when it works." \
+              "${TITLE}")
+
+            PAYLOAD=$(jq -n --arg text "$TEXT" --arg url "$URL" --arg dev "$DEV_URL" '{
+              text: $text,
+              cardsV2: [{
+                cardId: "dev-test-request",
+                card: { sections: [{ widgets: [{ buttonList: { buttons: [
+                  { text: "Open PR", onClick: { openLink: { url: $url } } },
+                  { text: "Open dev", onClick: { openLink: { url: $dev } } }
+                ] } }] }] }
+              }]
+            }')
+
+            HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+              -H "Content-Type: application/json; charset=UTF-8" \
+              --data "${PAYLOAD}" \
+              "${GCHAT_WEBHOOK_URL}" \
+              --connect-timeout 10 --max-time 30 || echo "000")
+
+            if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
+              echo "Request for PR #${NUMBER} sent (HTTP ${HTTP_STATUS})"
+            else
+              echo "Failed to send request for PR #${NUMBER} (HTTP ${HTTP_STATUS})"
+              cat /tmp/response.txt
+              exit 1
+            fi
+          done
+
+  confirm:
+    name: Record the author's /tested comment
+    if: >-
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/tested')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check that the commenter is the author of a PR merged to main
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number }}
+          COMMENTER: ${{ github.event.comment.user.login }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${NUMBER}" > pr.json
+          AUTHOR=$(jq -r '.user.login' pr.json)
+          MERGED=$(jq -r '.merged_at // empty' pr.json)
+          BASE=$(jq -r '.base.ref' pr.json)
+          if [ "$COMMENTER" != "$AUTHOR" ]; then
+            echo "Ignored: ${COMMENTER} is not the PR author (${AUTHOR})."
+            echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ -z "$MERGED" ] || [ "$BASE" != "main" ]; then
+            echo "Ignored: PR #${NUMBER} is not merged to main."
+            echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "title=$(jq -r '.title' pr.json)"
+            echo "url=$(jq -r '.html_url' pr.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Label the PR and acknowledge the comment
+        if: steps.check.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.issue.number }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+        run: |
+          gh label create dev-tested --color 0E8A16 --description "Author verified the change on dev" --force
+          gh pr edit "$NUMBER" --add-label dev-tested
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}/reactions" -f content='+1' > /dev/null
+
+      - name: Post the confirmation to Google Chat
+        if: steps.check.outputs.ok == 'true'
+        env:
+          GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
+          NUMBER: ${{ github.event.issue.number }}
+          TITLE: ${{ steps.check.outputs.title }}
+          URL: ${{ steps.check.outputs.url }}
+          COMMENTER: ${{ github.event.comment.user.login }}
+        run: |
+          if [ -z "${GCHAT_WEBHOOK_URL}" ]; then
+            echo "Error: GCHAT_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+          TEXT=$(printf '%s\n' \
+            "✅ PR #${NUMBER} was tested on dev by ${COMMENTER}." \
+            "${TITLE}" \
+            "${URL}")
+          PAYLOAD=$(jq -n --arg text "$TEXT" '{text: $text}')
+
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            --data "${PAYLOAD}" \
+            "${GCHAT_WEBHOOK_URL}" \
+            --connect-timeout 10 --max-time 30 || echo "000")
+
+          if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
+            echo "Confirmation sent (HTTP ${HTTP_STATUS})"
+          else
+            echo "Failed to send confirmation (HTTP ${HTTP_STATUS})"
+            cat /tmp/response.txt
+            exit 1
+          fi
