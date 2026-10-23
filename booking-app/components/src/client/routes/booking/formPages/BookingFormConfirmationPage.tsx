@@ -10,6 +10,7 @@ import { useRouter, useParams } from "next/navigation";
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 import Loading from "../../components/Loading";
+import BookingDetailsSummary from "../../components/bookingTable/BookingDetailsSummary";
 
 const Centered = styled(Box)`
   position: relative;
@@ -25,7 +26,7 @@ interface Props {
 }
 
 export default function BookingFormConfirmationPage({ formContext }: Props) {
-  const { submitting, error } = useContext(BookingContext);
+  const { submitting, error, submittedBooking } = useContext(BookingContext);
   const { pagePermission } = useContext(DatabaseContext);
   const router = useRouter();
   const { tenant } = useParams();
@@ -63,57 +64,55 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
 
   if (submitting === "success") {
     return (
-      <Centered>
-        <Box
-          sx={{
-            position: "absolute",
-            top: "calc(50% - 40px)",
-            left: "50%",
-            transform: "translate(-50%, -100%)",
-          }}
-        >
-          <Typography variant="h3" lineHeight="1.55rem">
-            🎉
-          </Typography>
-        </Box>
-        <Typography variant="h6" sx={{ padding: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          py: 6,
+          px: 2,
+        }}
+      >
+        <Typography variant="h3" lineHeight="1.55rem">
+          🎉
+        </Typography>
+        <Typography variant="h6" sx={{ padding: 3, textAlign: "center" }}>
           {isWalkIn
             ? "Walk-in submitted"
             : isVIP
               ? "VIP request submitted"
               : "Yay! We've received your booking request"}
         </Typography>
-        <Box
+        {submittedBooking && (
+          <Box
+            data-testid="booking-confirmation-summary"
+            sx={{ width: "100%", maxWidth: 720 }}
+          >
+            <BookingDetailsSummary booking={submittedBooking} />
+          </Box>
+        )}
+        <Button
+          onClick={() =>
+            router.push(
+              isVIP
+                ? `/${tenant}/admin`
+                : isWalkIn
+                  ? `/${tenant}/pa`
+                  : isMod
+                    ? getModReturnPath()
+                    : `/${tenant}`,
+            )
+          }
+          variant="text"
           sx={{
-            position: "absolute",
-            top: "calc(50% + 100px)",
-            left: "50%",
-            transform: "translate(-50%, 0%)",
+            background: theme.palette.primary[50],
+            color: theme.palette.primary.main,
           }}
         >
-          <Button
-            onClick={() =>
-              router.push(
-                isVIP
-                  ? `/${tenant}/admin`
-                  : isWalkIn
-                    ? `/${tenant}/pa`
-                    : isMod
-                      ? getModReturnPath()
-                      : `/${tenant}`,
-              )
-            }
-            variant="text"
-            sx={{
-              background: theme.palette.primary[50],
-              color: theme.palette.primary.main,
-            }}
-          >
-            <Event />
-            View Bookings
-          </Button>
-        </Box>
-      </Centered>
+          <Event />
+          View Bookings
+        </Button>
+      </Box>
     );
   }
 

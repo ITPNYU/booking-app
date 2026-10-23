@@ -593,6 +593,7 @@ export async function PUT(request: NextRequest) {
       result: "success",
       calendarEventId: newCalendarEventId,
       requestNumber: existingContents.requestNumber,
+      status: statusLabel,
       ...(followUpWarning ? { warning: followUpWarning } : {}),
     });
   } catch (error) {
