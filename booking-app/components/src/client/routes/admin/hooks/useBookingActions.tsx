@@ -31,6 +31,7 @@ import { useParams, useRouter } from "next/navigation";
 import { BookingContext } from "../../booking/bookingProvider";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { DatabaseContext } from "../../components/Provider";
+import { rememberDashboardReturn } from "../../components/bookingTable/dashboardView";
 import useExistingBooking from "./useExistingBooking";
 
 // Service keys as used in context.servicesRequested / servicesApproved.
@@ -350,6 +351,7 @@ export default function useBookingActions({
       action: async () => {
         loadExistingBookingData(calendarEventId);
         reloadExistingCalendarEvents();
+        rememberDashboardReturn("edit");
         router.push(`/${tenant}/edit/${calendarEventId}`);
       },
       optimisticNextStatus: status,
@@ -359,6 +361,7 @@ export default function useBookingActions({
       action: async () => {
         loadExistingBookingData(calendarEventId);
         reloadExistingCalendarEvents();
+        rememberDashboardReturn("modification");
         router.push(`/${tenant}/modification/${calendarEventId}`);
       },
       optimisticNextStatus: status,

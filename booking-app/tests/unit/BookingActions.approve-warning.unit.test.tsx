@@ -26,7 +26,7 @@ vi.mock(
   }),
 );
 
-const reloadFutureBookings = vi.fn();
+const fetchAllBookings = vi.fn();
 const setOptimisticStatus = vi.fn();
 
 const renderWithFailingApprove = (error: Error) => {
@@ -48,7 +48,7 @@ const renderWithFailingApprove = (error: Error) => {
   render(
     <ThemeProvider theme={createTheme()}>
       <DatabaseContext.Provider
-        value={{ allBookings: [], reloadFutureBookings } as any}
+        value={{ allBookings: [], fetchAllBookings } as any}
       >
         <BookingActions
           status={BookingStatusLabel.PRE_APPROVED}
@@ -90,7 +90,7 @@ describe("BookingActions when final approval only partly succeeds", () => {
       BookingStatusLabel.APPROVED,
     );
     expect(setOptimisticStatus).not.toHaveBeenCalledWith(undefined);
-    expect(reloadFutureBookings).toHaveBeenCalled();
+    expect(fetchAllBookings).toHaveBeenCalledWith(false);
   });
 
   it("reverts the status and shows an error when approval failed", async () => {
@@ -102,6 +102,6 @@ describe("BookingActions when final approval only partly succeeds", () => {
     expect(alert).toHaveTextContent("Failed to approve booking");
     expect(alert).toHaveClass("MuiAlert-standardError");
     expect(setOptimisticStatus).toHaveBeenLastCalledWith(undefined);
-    expect(reloadFutureBookings).not.toHaveBeenCalled();
+    expect(fetchAllBookings).not.toHaveBeenCalled();
   });
 });

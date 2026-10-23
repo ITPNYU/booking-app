@@ -21,7 +21,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { DataGrid, GridSortModel } from "@mui/x-data-grid";
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import {
   BookingOrigin,
   BookingRow,
@@ -46,6 +46,11 @@ import BookingTableFilters from "./BookingTableFilters";
 import EquipmentCartDisplay from "./EquipmentCartDisplay";
 import MoreInfoModal from "./MoreInfoModal";
 import StatusChip from "./StatusChip";
+import {
+  clearDashboardReturn,
+  parseDashboardView,
+  syncDashboardViewUrl,
+} from "./dashboardView";
 import { DateRangeFilter } from "./hooks/getDateFilter";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import {
@@ -112,22 +117,27 @@ export const Bookings: React.FC<BookingsProps> = ({
     (status) => !excludedStatuses.includes(status),
   );
 
-  const [modalData, setModalData] = useState<BookingRow>(null);
-  const [statusFilters, setStatusFilters] = useState(() =>
-    pageContext === PageContextLevel.LIAISON
-      ? [BookingStatusLabel.REQUESTED]
-      : [],
+  const searchParams = useSearchParams();
+  const [initialView] = useState(() =>
+    parseDashboardView(searchParams, pageContext),
   );
+
+  const [modalData, setModalData] = useState<BookingRow>(null);
+  const [statusFilters, setStatusFilters] = useState(initialView.statuses);
   const [selectedDateRange, setSelectedDateRange] = useState<DateRangeFilter>(
-    () => (pageContext === PageContextLevel.PA ? "Today" : "All Future"),
+    initialView.dateRange,
   );
 
   // Added filters for origin, rooms, and services
-  const [selectedOrigins, setSelectedOrigins] = useState<string[]>([]);
-  const [selectedRooms, setSelectedRooms] = useState<string[]>([]);
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [selectedOrigins, setSelectedOrigins] = useState<string[]>(
+    initialView.origins,
+  );
+  const [selectedRooms, setSelectedRooms] = useState<string[]>(initialView.rooms);
+  const [selectedServices, setSelectedServices] = useState<string[]>(
+    initialView.services,
+  );
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialView.searchQuery);
   const [isSearching, setIsSearching] = useState(false);
 
   // Add sort model state for DataGrid
@@ -154,6 +164,37 @@ export const Bookings: React.FC<BookingsProps> = ({
     },
     [],
   );
+
+  // A finished edit or modification lands back here; drop the stored return
+  // once this dashboard is showing it.
+  useEffect(() => {
+    clearDashboardReturn();
+  }, []);
+
+  // Keep search and filters in the URL so a refresh, or a return from an
+  // action that leaves this page, restores the same view. history.replaceState
+  // avoids the navigation router.replace triggers on each change.
+  useEffect(() => {
+    syncDashboardViewUrl(
+      {
+        searchQuery,
+        dateRange: selectedDateRange,
+        statuses: statusFilters,
+        origins: selectedOrigins,
+        rooms: selectedRooms,
+        services: selectedServices,
+      },
+      pageContext,
+    );
+  }, [
+    pageContext,
+    searchQuery,
+    selectedDateRange,
+    selectedOrigins,
+    selectedRooms,
+    selectedServices,
+    statusFilters,
+  ]);
 
   useEffect(() => {
     if (fetchAllBookings && searchQuery !== undefined) {

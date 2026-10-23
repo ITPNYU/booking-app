@@ -27,6 +27,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     liaisonUsers,
     userEmail,
     reloadFutureBookings,
+    fetchAllBookings,
     pagePermission,
     roomSettings,
     showMaintenanceMode,
@@ -353,7 +354,14 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           setServiceDecisions({});
           setHasShownMocapModal(false);
 
-          reloadFutureBookings();
+          // Edit and modification return to a dashboard that may be searched.
+          // Refetch with those filters instead of replacing the list with
+          // every future booking.
+          if (isEdit || isModification) {
+            fetchAllBookings(false);
+          } else {
+            reloadFutureBookings();
+          }
           setSubmitting("success");
         })
         .catch((error) => {
@@ -373,6 +381,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       userEmail,
       router,
       reloadFutureBookings,
+      fetchAllBookings,
       showMaintenanceMode,
       department,
       role,

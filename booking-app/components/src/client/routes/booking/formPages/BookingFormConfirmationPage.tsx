@@ -2,14 +2,18 @@
 
 import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useRef } from "react";
 import { FormContextLevel, PagePermission } from "@/components/src/types";
-import { PERMISSION_PATH } from "@/components/src/utils/permissions";
+import { canAccessWebCheckout, PERMISSION_PATH } from "@/components/src/utils/permissions";
 import { styled } from "@mui/system";
 import { useRouter, useParams } from "next/navigation";
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 import Loading from "../../components/Loading";
+import {
+  peekDashboardReturn,
+  staffBookingsPath,
+} from "../../components/bookingTable/dashboardView";
 
 const Centered = styled(Box)`
   position: relative;
@@ -34,11 +38,35 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isVIP = formContext === FormContextLevel.VIP;
   const isMod = formContext === FormContextLevel.MODIFICATION;
+  const redirected = useRef(false);
+  const tenantId = String(tenant ?? "");
+  const modificationReturn = isMod
+    ? peekDashboardReturn("modification", tenantId)
+    : null;
+  const returnToDashboard =
+    isMod && (modificationReturn != null || canAccessWebCheckout(pagePermission));
 
   const getModReturnPath = (): string => {
     const path = PERMISSION_PATH[pagePermission];
     return path ? `/${tenant}/${path}` : `/${tenant}`;
   };
+
+  useEffect(() => {
+    if (submitting !== "success" || !returnToDashboard || redirected.current) {
+      return;
+    }
+    redirected.current = true;
+    router.replace(
+      modificationReturn ?? staffBookingsPath(tenantId, pagePermission),
+    );
+  }, [
+    modificationReturn,
+    pagePermission,
+    returnToDashboard,
+    router,
+    submitting,
+    tenantId,
+  ]);
 
   if (submitting === "submitting") {
     return (
@@ -57,6 +85,14 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
           Submitting {isWalkIn ? "walk-in" : isVIP ? "VIP" : "your booking"}{" "}
           request...
         </Typography>
+      </Centered>
+    );
+  }
+
+  if (submitting === "success" && returnToDashboard) {
+    return (
+      <Centered>
+        <Loading />
       </Centered>
     );
   }
@@ -99,8 +135,9 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
                   : isWalkIn
                     ? `/${tenant}/pa`
                     : isMod
-                      ? getModReturnPath()
-                      : `/${tenant}`,
+                      ? (peekDashboardReturn("modification", tenantId) ??
+                        getModReturnPath())
+                      : (peekDashboardReturn("edit", tenantId) ?? `/${tenant}`),
               )
             }
             variant="text"
