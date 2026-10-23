@@ -29,6 +29,8 @@ import { Days } from "@/components/src/types";
 describe("updateOperationHours", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.clientSaveDataToFirestore.mockResolvedValue(undefined);
+    mocks.clientUpdateDataInFirestore.mockResolvedValue(undefined);
   });
 
   it("matches legacy numeric operation-hours roomId values by normalized string", async () => {
@@ -74,5 +76,16 @@ describe("updateOperationHours", () => {
         roomId: "202",
       },
     );
+  });
+
+  it("does not reject when creating operation hours fails", async () => {
+    mocks.clientFetchAllDataFromCollection.mockResolvedValue([]);
+    mocks.clientSaveDataToFirestore.mockRejectedValueOnce(
+      new Error("permission denied"),
+    );
+
+    await expect(
+      updateOperationHours(Days.Tuesday, 8, 16, false, 202),
+    ).resolves.toBeUndefined();
   });
 });

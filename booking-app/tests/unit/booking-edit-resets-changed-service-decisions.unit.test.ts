@@ -95,6 +95,16 @@ vi.mock("firebase-admin/firestore", () => ({
   },
 }));
 
+const banMocks = vi.hoisted(() => ({
+  anyRequesterIsBanned: vi.fn(async () => false),
+}));
+
+vi.mock("@/lib/bookingBan", () => ({
+  BANNED_FROM_BOOKING_MESSAGE: "You are banned from booking",
+  anyRequesterIsBanned: (...args: unknown[]) =>
+    banMocks.anyRequesterIsBanned(...args),
+}));
+
 vi.mock("@/app/api/bookings/shared", () => ({
   buildBookingContents: (...args: any[]) => args[0],
   extractTenantFromRequest: () => "mc",
@@ -159,8 +169,53 @@ const editEvents = () =>
   mockCallXStateTransitionAPI.mock.calls.filter(([, event]) => event === "edit");
 
 describe("Edit resets only the service decisions of changed services", () => {
+  it("rejects a banned requester before recreating the calendar event", async () => {
+    banMocks.anyRequesterIsBanned.mockImplementation(async (emails: unknown[]) =>
+      (emails as string[]).includes("user@nyu.edu"),
+    );
+
+    const res = await submit({});
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: "You are banned from booking",
+    });
+    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith([
+      "user@nyu.edu",
+      "user@nyu.edu",
+    ]);
+    expect(mockDeleteEvent).not.toHaveBeenCalled();
+    expect(mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects when modifiedBy is banned even if the booking email is not", async () => {
+    banMocks.anyRequesterIsBanned.mockResolvedValue(true);
+
+    const res = await PUT(
+      createRequest({
+        email: "guest@nyu.edu",
+        selectedRooms: [{ roomId: 202, calendarId: "cal-room-202" }],
+        allRooms: [],
+        bookingCalendarInfo: {
+          startStr: "2026-05-05T10:00:00.000Z",
+          endStr: "2026-05-05T11:00:00.000Z",
+        },
+        data: { title: "Original Meeting", department: "ITP" },
+        calendarEventId: "old-cal-123",
+        modifiedBy: "banned@nyu.edu",
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith([
+      "guest@nyu.edu",
+      "banned@nyu.edu",
+    ]);
+    expect(mockInsertEvent).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    banMocks.anyRequesterIsBanned.mockResolvedValue(false);
 
     mockInsertEvent.mockResolvedValue({ id: "new-cal-456" });
     mockBookingContentsToDescription.mockResolvedValue("<p>desc</p>");

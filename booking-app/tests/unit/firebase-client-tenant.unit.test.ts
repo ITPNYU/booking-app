@@ -112,4 +112,30 @@ describe("clientSaveDataToFirestore — request contract", () => {
 
     expect(lastBody().tenant).toBe("mc");
   });
+
+  it("rejects when the Firestore proxy write fails", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({ error: "permission denied" }),
+    });
+
+    await expect(
+      clientSaveDataToFirestore(TableNames.BANNED, { email: "a@nyu.edu" }),
+    ).rejects.toThrow(/403/);
+  });
+});
+
+describe("clientDeleteDataFromFirestore — failures", () => {
+  it("rejects when the Firestore proxy delete fails", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: "unavailable" }),
+    });
+
+    await expect(
+      clientDeleteDataFromFirestore(TableNames.BANNED, "ban-1"),
+    ).rejects.toThrow(/500/);
+  });
 });
