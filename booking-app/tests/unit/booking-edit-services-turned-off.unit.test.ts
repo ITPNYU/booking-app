@@ -62,13 +62,6 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
     _table: string,
     calendarEventId: string,
   ) => findBooking(calendarEventId),
-  // The edit route's ban check reads usersBanned through this helper.
-  serverFetchAllDataFromCollection: async () => [],
-}));
-
-vi.mock("@/lib/bookingBan", () => ({
-  BANNED_FROM_BOOKING_MESSAGE: "You are banned from booking",
-  anyRequesterIsBanned: async () => false,
 }));
 
 vi.mock("@/components/src/server/db", () => ({

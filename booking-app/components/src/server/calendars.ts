@@ -91,15 +91,6 @@ export const inviteUserToCalendarEvent = async (
       if (event) {
         const eventData = event.data;
         const attendees = event.data.attendees || [];
-        const normalizedGuest = guestEmail.trim().toLowerCase();
-        if (
-          attendees.some(
-            (attendee) =>
-              attendee.email?.trim().toLowerCase() === normalizedGuest,
-          )
-        ) {
-          continue;
-        }
         attendees.push({ email: guestEmail });
         await patchCalendarEvent(event, roomCalendarId, calendarEventId, {
           attendees,

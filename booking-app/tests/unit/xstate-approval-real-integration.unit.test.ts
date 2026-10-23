@@ -114,11 +114,9 @@ const mockExecuteXStateTransition = vi.fn();
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   logServerBookingChange: mockLogServerBookingChange,
   serverGetDataByCalendarEventId: mockServerGetDataByCalendarEventId,
-  serverGetDataByCalendarEventIdStrict: mockServerGetDataByCalendarEventId,
   serverFetchAllDataFromCollection: mockServerFetchAllDataFromCollection,
   serverUpdateDataByCalendarEventId: mockServerUpdateDataByCalendarEventId,
   serverUpdateInFirestore: mockServerUpdateInFirestore,
-  serverUpdateInFirestoreStrict: mockServerUpdateInFirestore,
   serverDeleteData: mockServerDeleteData,
   serverDeleteDocumentFields: mockServerDeleteDocumentFields,
   serverGetDocumentById: mockServerGetDocumentById,

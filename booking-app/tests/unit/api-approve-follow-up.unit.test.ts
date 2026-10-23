@@ -33,7 +33,6 @@ const mockUpdateInFirestore = vi.fn();
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverGetDataByCalendarEventId: vi.fn(async () => booking),
-  serverGetDataByCalendarEventIdStrict: vi.fn(async () => booking),
   serverGetDocumentById: vi.fn(async () => ({ resources: [] })),
   serverFetchAllDataFromCollection: vi.fn(async () => []),
   logServerBookingChange: vi.fn(async () => undefined),
@@ -41,8 +40,6 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverListResourceApproversByEmail: vi.fn(async () => []),
   serverResolveResourceApproverEmails: vi.fn(async () => []),
   serverUpdateInFirestore: (...args: unknown[]) =>
-    mockUpdateInFirestore(...args),
-  serverUpdateInFirestoreStrict: (...args: unknown[]) =>
     mockUpdateInFirestore(...args),
   serverDeleteData: vi.fn(),
   serverDeleteDocumentFields: vi.fn(),
