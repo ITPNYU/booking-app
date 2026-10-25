@@ -100,6 +100,9 @@ export type ActionDefinition = {
   action: () => any;
   optimisticNextStatus: BookingStatusLabel;
   confirmation?: boolean;
+  // Edit and modification leave the dashboard; reloading here races the
+  // navigation and is not the list the user comes back to.
+  skipReload?: boolean;
 };
 
 interface Props {
@@ -356,6 +359,7 @@ export default function useBookingActions({
       },
       optimisticNextStatus: status,
       confirmation: false,
+      skipReload: true,
     },
     [Actions.MODIFICATION]: {
       action: async () => {
@@ -366,6 +370,7 @@ export default function useBookingActions({
       },
       optimisticNextStatus: status,
       confirmation: false,
+      skipReload: true,
     },
   };
 

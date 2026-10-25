@@ -104,12 +104,25 @@ function readList(params: SearchParamSource, key: string): string[] {
   return params
     .getAll(key)
     .flatMap((value) => value.split(","))
-    .map((value) => value.trim())
+    .map((value) => {
+      const trimmed = value.trim();
+      try {
+        return decodeURIComponent(trimmed);
+      } catch {
+        return trimmed;
+      }
+    })
     .filter((value) => value.length > 0);
 }
 
 function writeList(params: URLSearchParams, key: string, values: string[]) {
-  if (values.length > 0) params.set(key, values.join(","));
+  if (values.length > 0) {
+    // Encode each value so a comma inside one room or service stays inside it.
+    params.set(
+      key,
+      values.map((value) => encodeURIComponent(value)).join(","),
+    );
+  }
 }
 
 function sameList(left: string[], right: string[]): boolean {
@@ -161,8 +174,10 @@ export function applyDashboardView(
 }
 
 /**
- * Update the address bar without a Next.js navigation. router.replace refetches
- * the page on every filter change.
+ * Update the address bar without a Next.js navigation. router.replace remounts
+ * the page. Passing a new history state does too: Next.js patches replaceState
+ * and treats any call that is not its own as a route restore, which refetches
+ * the dashboard. Reusing the current Next history state updates the URL only.
  */
 export function syncDashboardViewUrl(
   view: DashboardView,
@@ -173,9 +188,7 @@ export function syncDashboardViewUrl(
   if (dashboardViewsEqual(parseDashboardView(current, pageContext), view)) {
     return;
   }
-  const query = applyDashboardView(current, view, pageContext)
-    .toString()
-    .replace(/%2C/g, ",");
+  const query = applyDashboardView(current, view, pageContext).toString();
   const href = `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`;
   window.history.replaceState(window.history.state, "", href);
 }

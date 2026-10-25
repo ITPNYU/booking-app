@@ -94,13 +94,16 @@ export default function BookingActions(props: Props) {
   const doAction = async ({
     action,
     optimisticNextStatus,
+    skipReload,
   }: ActionDefinition) => {
     setUiLoading(true);
     setOptimisticStatus(optimisticNextStatus);
 
     try {
       await action();
-      await reload();
+      if (!skipReload) {
+        await reload();
+      }
     } catch (ex) {
       console.error(ex);
       if (ex instanceof ApprovedWithWarningError) {

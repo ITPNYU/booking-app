@@ -3,8 +3,14 @@ import { useParams, useRouter } from "next/navigation";
 import { SubmitHandler, UseFormHandleSubmit } from "react-hook-form";
 
 import { FormContextLevel, Inputs } from "../../../../types";
+import { canAccessWebCheckout } from "../../../../utils/permissions";
 import { getRequestOrigin } from "../../../../utils/serviceSections";
 import { BookingContext } from "../bookingProvider";
+import { DatabaseContext } from "../../components/Provider";
+import {
+  peekDashboardReturn,
+  staffBookingsPath,
+} from "../../components/bookingTable/dashboardView";
 import { buildBookingUrl } from "../utils/bookingUrlParser";
 import useCheckAutoApproval from "./useCheckAutoApproval";
 import useSubmitBooking from "./useSubmitBooking";
@@ -21,6 +27,7 @@ export default function useSubmitRequest(
   const { tenant } = useParams();
   const { bookingCalendarInfo, department, role, formData } =
     useContext(BookingContext);
+  const { pagePermission } = useContext(DatabaseContext);
   const registerEvent = useSubmitBooking(formContext);
 
   const { isWalkIn, isVIP, isMod } = getRequestOrigin(
@@ -71,13 +78,32 @@ export default function useSubmitRequest(
           ? "vip"
           : "book";
 
+    const tenantId = String(tenant ?? "");
     registerEvent(data, isAutoApproval, calendarEventId)
       .catch((error) => {
         console.error("Error submitting booking:", error);
+        return "error" as const;
       })
-      .finally(() => {
+      .then((outcome) => {
+        // A staff modification goes back to the dashboard it came from.
+        // Other requests still land on the confirmation page.
+        const modificationReturn =
+          outcome === "success" && isMod
+            ? peekDashboardReturn("modification", tenantId)
+            : null;
+        if (
+          outcome === "success" &&
+          isMod &&
+          (modificationReturn != null || canAccessWebCheckout(pagePermission))
+        ) {
+          router.replace(
+            modificationReturn ??
+              staffBookingsPath(tenantId, pagePermission),
+          );
+          return;
+        }
         router.push(
-          buildBookingUrl(String(tenant), confirmationFlow, "confirmation"),
+          buildBookingUrl(tenantId, confirmationFlow, "confirmation"),
         );
       });
   };

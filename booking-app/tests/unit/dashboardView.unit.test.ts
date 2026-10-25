@@ -71,6 +71,23 @@ describe("dashboard view params", () => {
     expect(parseDashboardView(params, PageContextLevel.ADMIN)).toEqual(view);
   });
 
+  it("keeps a comma that is part of one filter value", () => {
+    const view = {
+      ...defaultDashboardView(PageContextLevel.ADMIN),
+      rooms: ["202, Lab", "203"],
+    };
+    const params = applyDashboardView(
+      new URLSearchParams(),
+      view,
+      PageContextLevel.ADMIN,
+    );
+
+    expect(parseDashboardView(params, PageContextLevel.ADMIN).rooms).toEqual([
+      "202, Lab",
+      "203",
+    ]);
+  });
+
   it("still reads filters that were stored as repeated params", () => {
     const params = new URLSearchParams();
     params.append("room", "202");
@@ -112,10 +129,11 @@ describe("dashboard view params", () => {
 
     syncDashboardViewUrl(view, PageContextLevel.ADMIN);
 
+    const params = new URLSearchParams(window.location.search);
     expect(window.location.pathname).toBe("/mc/admin");
-    expect(window.location.search).toContain("room=202,203");
-    expect(window.location.search).toContain("q=jane");
-    expect(window.location.search).toContain("calendarEventId=evt-1");
+    expect(params.get("room")).toBe("202,203");
+    expect(params.get("q")).toBe("jane");
+    expect(params.get("calendarEventId")).toBe("evt-1");
     const search = window.location.search;
     syncDashboardViewUrl(view, PageContextLevel.ADMIN);
     expect(window.location.search).toBe(search);
