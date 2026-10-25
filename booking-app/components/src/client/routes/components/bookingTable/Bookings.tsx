@@ -46,11 +46,7 @@ import BookingTableFilters from "./BookingTableFilters";
 import EquipmentCartDisplay from "./EquipmentCartDisplay";
 import MoreInfoModal from "./MoreInfoModal";
 import StatusChip from "./StatusChip";
-import {
-  clearDashboardReturn,
-  parseDashboardView,
-  syncDashboardViewUrl,
-} from "./dashboardView";
+import { parseDashboardView, syncDashboardViewUrl } from "./dashboardView";
 import { DateRangeFilter } from "./hooks/getDateFilter";
 import useAllowedStatuses from "./hooks/useAllowedStatuses";
 import {
@@ -164,12 +160,6 @@ export const Bookings: React.FC<BookingsProps> = ({
     },
     [],
   );
-
-  // A finished edit or modification lands back here; drop the stored return
-  // once this dashboard is showing it.
-  useEffect(() => {
-    clearDashboardReturn();
-  }, []);
 
   // Keep search and filters in the URL so a refresh, or a return from an
   // action that leaves this page, restores the same view. history.replaceState

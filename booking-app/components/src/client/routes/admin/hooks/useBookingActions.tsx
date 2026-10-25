@@ -354,7 +354,7 @@ export default function useBookingActions({
       action: async () => {
         loadExistingBookingData(calendarEventId);
         reloadExistingCalendarEvents();
-        rememberDashboardReturn("edit");
+        rememberDashboardReturn("edit", calendarEventId);
         router.push(`/${tenant}/edit/${calendarEventId}`);
       },
       optimisticNextStatus: status,
@@ -365,7 +365,7 @@ export default function useBookingActions({
       action: async () => {
         loadExistingBookingData(calendarEventId);
         reloadExistingCalendarEvents();
-        rememberDashboardReturn("modification");
+        rememberDashboardReturn("modification", calendarEventId);
         router.push(`/${tenant}/modification/${calendarEventId}`);
       },
       optimisticNextStatus: status,

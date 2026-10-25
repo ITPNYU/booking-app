@@ -196,6 +196,7 @@ export function syncDashboardViewUrl(
 type StoredReturn = {
   flow: "modification" | "edit";
   href: string;
+  calendarEventId: string;
 };
 
 export function isSafeDashboardReturn(tenant: string, href: string): boolean {
@@ -216,30 +217,68 @@ export function isSafeDashboardReturn(tenant: string, href: string): boolean {
   return parts.length === 2 && DASHBOARD_SEGMENTS.has(parts[1]);
 }
 
-export function rememberDashboardReturn(flow: StoredReturn["flow"]): void {
+/**
+ * Store the current dashboard as the return for one booking's edit or
+ * modification. Each new edit or modification overwrites it, so it is not
+ * cleared when a dashboard mounts: Back to a dashboard and Forward into the
+ * form must still find it.
+ */
+export function rememberDashboardReturn(
+  flow: StoredReturn["flow"],
+  calendarEventId: string,
+): void {
   if (typeof window === "undefined") return;
   const href = `${window.location.pathname}${window.location.search}`;
   const tenant = window.location.pathname.split("/").filter(Boolean)[0] ?? "";
   if (!isSafeDashboardReturn(tenant, href)) return;
-  sessionStorage.setItem(RETURN_KEY, JSON.stringify({ flow, href }));
+  sessionStorage.setItem(
+    RETURN_KEY,
+    JSON.stringify({ flow, href, calendarEventId }),
+  );
+}
+
+function readStoredReturn(): StoredReturn | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(RETURN_KEY);
+    return raw ? (JSON.parse(raw) as StoredReturn) : null;
+  } catch {
+    return null;
+  }
 }
 
 export function peekDashboardReturn(
   flow: StoredReturn["flow"],
   tenant: string,
 ): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(RETURN_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredReturn;
-    if (parsed.flow !== flow || !isSafeDashboardReturn(tenant, parsed.href)) {
-      return null;
-    }
-    return parsed.href;
-  } catch {
+  const stored = readStoredReturn();
+  if (
+    !stored ||
+    stored.flow !== flow ||
+    !isSafeDashboardReturn(tenant, stored.href)
+  ) {
     return null;
   }
+  return stored.href;
+}
+
+/**
+ * The return for this booking's finished edit or modification. A return
+ * stored for another booking (a form opened from its URL instead of a
+ * dashboard) is dropped, so the confirmation page cannot pick it up either.
+ */
+export function claimDashboardReturn(
+  flow: StoredReturn["flow"],
+  tenant: string,
+  calendarEventId: string | undefined,
+): string | null {
+  const stored = readStoredReturn();
+  if (!stored) return null;
+  if (!calendarEventId || stored.calendarEventId !== calendarEventId) {
+    clearDashboardReturn();
+    return null;
+  }
+  return peekDashboardReturn(flow, tenant);
 }
 
 export function clearDashboardReturn(): void {

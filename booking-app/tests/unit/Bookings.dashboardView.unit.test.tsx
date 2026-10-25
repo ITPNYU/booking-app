@@ -1,6 +1,10 @@
 import { Bookings } from "@/components/src/client/routes/components/bookingTable/Bookings";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import {
+  peekDashboardReturn,
+  rememberDashboardReturn,
+} from "@/components/src/client/routes/components/bookingTable/dashboardView";
+import {
   SchemaContext,
   generateDefaultSchema,
 } from "@/components/src/client/routes/components/SchemaProvider";
@@ -51,31 +55,35 @@ vi.mock(
   }),
 );
 
+function renderBookings() {
+  return render(
+    <ThemeProvider theme={createTheme()}>
+      <DatabaseContext.Provider
+        value={
+          {
+            bookingsLoading: false,
+            setLastItem: vi.fn(),
+            fetchAllBookings: vi.fn(),
+            allBookings: [],
+            liaisonUsers: [],
+            userEmail: "admin@nyu.edu",
+            pagePermission: PagePermission.ADMIN,
+            roomSettings: [],
+            setFilters: vi.fn(),
+          } as any
+        }
+      >
+        <SchemaContext.Provider value={generateDefaultSchema("mc")}>
+          <Bookings pageContext={PageContextLevel.ADMIN} />
+        </SchemaContext.Provider>
+      </DatabaseContext.Provider>
+    </ThemeProvider>,
+  );
+}
+
 describe("Bookings restores the dashboard view from the url", () => {
   it("keeps the search and filters that were on the page", () => {
-    render(
-      <ThemeProvider theme={createTheme()}>
-        <DatabaseContext.Provider
-          value={
-            {
-              bookingsLoading: false,
-              setLastItem: vi.fn(),
-              fetchAllBookings: vi.fn(),
-              allBookings: [],
-              liaisonUsers: [],
-              userEmail: "admin@nyu.edu",
-              pagePermission: PagePermission.ADMIN,
-              roomSettings: [],
-              setFilters: vi.fn(),
-            } as any
-          }
-        >
-          <SchemaContext.Provider value={generateDefaultSchema("mc")}>
-            <Bookings pageContext={PageContextLevel.ADMIN} />
-          </SchemaContext.Provider>
-        </DatabaseContext.Provider>
-      </ThemeProvider>,
-    );
+    renderBookings();
 
     expect(screen.getByPlaceholderText("Search...")).toHaveValue("jane");
     expect(captured.current).toMatchObject({
@@ -87,5 +95,18 @@ describe("Bookings restores the dashboard view from the url", () => {
       selectedServices: ["Staffing"],
     });
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("keeps a pending modification's return when a dashboard mounts", () => {
+    window.history.pushState({}, "", "/mc/services?q=jane");
+    rememberDashboardReturn("modification", "evt1");
+    window.history.pushState({}, "", "/mc/admin");
+
+    renderBookings();
+
+    expect(peekDashboardReturn("modification", "mc")).toBe(
+      "/mc/services?q=jane",
+    );
+    sessionStorage.clear();
   });
 });

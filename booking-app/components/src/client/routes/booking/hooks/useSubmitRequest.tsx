@@ -8,7 +8,7 @@ import { getRequestOrigin } from "../../../../utils/serviceSections";
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 import {
-  peekDashboardReturn,
+  claimDashboardReturn,
   staffBookingsPath,
 } from "../../components/bookingTable/dashboardView";
 import { buildBookingUrl } from "../utils/bookingUrlParser";
@@ -89,10 +89,14 @@ export default function useSubmitRequest(
       })
       .then((outcome) => {
         // A staff modification goes back to the dashboard it came from.
-        // Other requests still land on the confirmation page.
+        // Other requests still land on the confirmation page; an edit's
+        // claimed return is read there by View Bookings.
+        if (outcome === "success" && isEdit) {
+          claimDashboardReturn("edit", tenantId, calendarEventId);
+        }
         const modificationReturn =
           outcome === "success" && isMod
-            ? peekDashboardReturn("modification", tenantId)
+            ? claimDashboardReturn("modification", tenantId, calendarEventId)
             : null;
         if (
           outcome === "success" &&

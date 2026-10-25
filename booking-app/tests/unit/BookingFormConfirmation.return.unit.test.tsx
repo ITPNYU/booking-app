@@ -47,7 +47,7 @@ describe("confirmation return after modification", () => {
   });
 
   it("sends staff back to the dashboard they modified from", async () => {
-    rememberDashboardReturn("modification");
+    rememberDashboardReturn("modification", "evt1");
 
     renderConfirmation(FormContextLevel.MODIFICATION, PagePermission.ADMIN);
 
@@ -69,7 +69,7 @@ describe("confirmation return after modification", () => {
   });
 
   it("does not send a new booking to a leftover edit dashboard", () => {
-    rememberDashboardReturn("edit");
+    rememberDashboardReturn("edit", "evt1");
 
     renderConfirmation(FormContextLevel.FULL_FORM, PagePermission.ADMIN);
     fireEvent.click(screen.getByRole("button", { name: "View Bookings" }));
@@ -78,7 +78,7 @@ describe("confirmation return after modification", () => {
   });
 
   it("sends an edit confirmation back to the dashboard it came from", () => {
-    rememberDashboardReturn("edit");
+    rememberDashboardReturn("edit", "evt1");
 
     renderConfirmation(FormContextLevel.EDIT, PagePermission.ADMIN);
     fireEvent.click(screen.getByRole("button", { name: "View Bookings" }));

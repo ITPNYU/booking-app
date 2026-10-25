@@ -82,7 +82,7 @@ describe("submit navigation", () => {
   });
 
   it("sends a new booking to the booking confirmation page", async () => {
-    rememberDashboardReturn("edit");
+    rememberDashboardReturn("edit", "evt1");
 
     await submit(FormContextLevel.FULL_FORM);
 
@@ -93,7 +93,7 @@ describe("submit navigation", () => {
   });
 
   it("sends a staff modification back to the stored dashboard", async () => {
-    rememberDashboardReturn("modification");
+    rememberDashboardReturn("modification", "evt1");
 
     await submit(FormContextLevel.MODIFICATION);
 
@@ -101,5 +101,25 @@ describe("submit navigation", () => {
       expect(replace).toHaveBeenCalledWith("/mc/admin?q=jane&range=Today"),
     );
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("ignores a dashboard stored for another booking", async () => {
+    rememberDashboardReturn("modification", "other-evt");
+
+    await submit(FormContextLevel.MODIFICATION);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/mc/admin"));
+    expect(sessionStorage.getItem("bookingDashboardReturnTo")).toBeNull();
+  });
+
+  it("drops an edit return stored for another booking", async () => {
+    rememberDashboardReturn("edit", "other-evt");
+
+    await submit(FormContextLevel.EDIT);
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/mc/edit/confirmation"),
+    );
+    expect(sessionStorage.getItem("bookingDashboardReturnTo")).toBeNull();
   });
 });

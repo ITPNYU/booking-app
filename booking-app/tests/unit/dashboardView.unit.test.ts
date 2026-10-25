@@ -155,7 +155,7 @@ describe("dashboard view params", () => {
 
   it("stores the current dashboard for a modification and ignores an edit read", () => {
     window.history.pushState({}, "", "/mc/services?q=jane&range=Today");
-    rememberDashboardReturn("modification");
+    rememberDashboardReturn("modification", "evt1");
 
     expect(peekDashboardReturn("modification", "mc")).toBe(
       "/mc/services?q=jane&range=Today",
