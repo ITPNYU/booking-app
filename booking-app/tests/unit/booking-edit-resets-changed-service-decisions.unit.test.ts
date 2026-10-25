@@ -179,10 +179,10 @@ describe("Edit resets only the service decisions of changed services", () => {
     expect(await res.json()).toEqual({
       error: "You are banned from booking",
     });
-    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith([
-      "user@nyu.edu",
-      "user@nyu.edu",
-    ]);
+    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith(
+      ["user@nyu.edu", "user@nyu.edu"],
+      "mc",
+    );
     expect(mockDeleteEvent).not.toHaveBeenCalled();
     expect(mockInsertEvent).not.toHaveBeenCalled();
   });
@@ -206,10 +206,10 @@ describe("Edit resets only the service decisions of changed services", () => {
     );
 
     expect(res.status).toBe(403);
-    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith([
-      "guest@nyu.edu",
-      "banned@nyu.edu",
-    ]);
+    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith(
+      ["guest@nyu.edu", "banned@nyu.edu"],
+      "mc",
+    );
     expect(mockInsertEvent).not.toHaveBeenCalled();
   });
 
