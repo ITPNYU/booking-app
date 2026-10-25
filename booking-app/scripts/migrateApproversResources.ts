@@ -164,14 +164,29 @@ async function migrateTenant(
 
   for (const [resourceId, resourceChanges] of changes) {
     const ref = target.doc(getApproversResourceDocumentId(resourceId));
-    const snapshot = await ref.get();
-    const current = toApproversResource(
-      resourceId,
-      snapshot.exists ? snapshot.data() : undefined,
-    );
-    const next = resourceChanges.reduce(applyApproverChange, current);
-    const before = countEmails(current);
-    const after = countEmails(next);
+    // Read, merge and write in one transaction, like /api/approversResources,
+    // so an approver an admin adds or removes in Settings while this runs is
+    // not overwritten by a stale copy of the doc.
+    const { before, after } = await db.runTransaction(async (tx) => {
+      const snapshot = await tx.get(ref);
+      const current = toApproversResource(
+        resourceId,
+        snapshot.exists ? snapshot.data() : undefined,
+      );
+      const next = resourceChanges.reduce(applyApproverChange, current);
+      const counts = { before: countEmails(current), after: countEmails(next) };
+      const changed =
+        counts.before.resource !== counts.after.resource ||
+        counts.before.service !== counts.after.service;
+      if (changed && !dryRun) {
+        tx.set(ref, {
+          ...next,
+          updatedAt: admin.firestore.Timestamp.now(),
+          updatedBy: "migrateApproversResources",
+        });
+      }
+      return counts;
+    });
     if (
       before.resource === after.resource &&
       before.service === after.service
@@ -183,13 +198,6 @@ async function migrateTenant(
       `  ✏️  ${resourceId}: resource approvers ${before.resource} → ${after.resource}, service approvers ${before.service} → ${after.service}`,
     );
     written += 1;
-    if (!dryRun) {
-      await ref.set({
-        ...next,
-        updatedAt: admin.firestore.Timestamp.now(),
-        updatedBy: "migrateApproversResources",
-      });
-    }
   }
 
   console.log(

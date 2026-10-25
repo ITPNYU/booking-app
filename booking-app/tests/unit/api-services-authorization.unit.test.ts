@@ -74,6 +74,17 @@ describe("POST /api/services authorization", () => {
     expect(mockExecute).not.toHaveBeenCalled();
   });
 
+  it("returns 400 for a body that isn't JSON", async () => {
+    const res = await POST({
+      json: async () => {
+        throw new SyntaxError("Unexpected end of JSON input");
+      },
+      headers: new Headers({ "x-tenant": "mc" }),
+    } as any);
+    expect(res.status).toBe(400);
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
   it("rejects an unknown tenant", async () => {
     const res = await POST(request(approveEquipment, "nope"));
     expect(res.status).toBe(400);

@@ -49,7 +49,13 @@ export async function POST(req: NextRequest) {
   }
 
   // The acting email comes from the session; a body `email` is ignored.
-  const { calendarEventId, serviceType, action, reason } = await req.json();
+  let body: Record<string, any>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const { calendarEventId, serviceType, action, reason } = body ?? {};
   const email = session.email;
 
   // Get tenant from x-tenant header, fallback to default tenant
