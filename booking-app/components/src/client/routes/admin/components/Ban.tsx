@@ -8,6 +8,7 @@ import {
   Typography,
 } from "@mui/material";
 import { formatInTimeZone } from "date-fns-tz";
+import { useParams } from "next/navigation";
 
 import {
   clientDeleteDataFromFirestore,
@@ -49,6 +50,8 @@ function formatBanInstant(value: unknown): string {
 
 export const BannedUsers = () => {
   const { bannedUsers, reloadBannedUsers } = useContext(DatabaseContext);
+  const params = useParams<{ tenant?: string }>();
+  const tenant = typeof params?.tenant === "string" ? params.tenant : undefined;
   const [permanentEmail, setPermanentEmail] = useState("");
   const [timedEmail, setTimedEmail] = useState("");
   const [startLocal, setStartLocal] = useState(initialStartLocal);
@@ -93,17 +96,20 @@ export const BannedUsers = () => {
       alert("This user has already been added");
       return false;
     }
-    // usersBanned is shared across tenants.
-    await clientSaveDataToFirestore(TableNames.BANNED, {
-      email: trimmed,
-      createdAt: wrapTimestamp(Date.now()),
-      ...(window
-        ? {
-            startsAt: wrapTimestamp(window.startsAt),
-            endsAt: wrapTimestamp(window.endsAt),
-          }
-        : {}),
-    });
+    await clientSaveDataToFirestore(
+      TableNames.BANNED,
+      {
+        email: trimmed,
+        createdAt: wrapTimestamp(Date.now()),
+        ...(window
+          ? {
+              startsAt: wrapTimestamp(window.startsAt),
+              endsAt: wrapTimestamp(window.endsAt),
+            }
+          : {}),
+      },
+      tenant,
+    );
     await reloadBannedUsers();
     return true;
   };
@@ -271,7 +277,7 @@ export const BannedUsers = () => {
                 row={row}
                 refresh={reloadBannedUsers}
                 removeRow={() =>
-                  clientDeleteDataFromFirestore(TableNames.BANNED, row.id)
+                  clientDeleteDataFromFirestore(TableNames.BANNED, row.id, tenant)
                 }
               />
             ))}

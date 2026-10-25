@@ -7,7 +7,7 @@ export enum TableNames {
   APPROVERS = "usersApprovers",
   /** One doc per resource (docId = resourceId): its resource and service approvers. */
   APPROVERS_RESOURCES = "usersApproversResources",
-  /** Shared across tenants. A ban blocks booking in every tenant. */
+  /** Per tenant, like preBanLogs. A ban blocks booking in that tenant only. */
   BANNED = "usersBanned",
   BOOKING = "bookings",
   BOOKING_TYPES = "bookingTypes",
@@ -36,7 +36,6 @@ export const getTenantCollectionName = (
   }
 
   // Collections that should be tenant-specific.
-  // usersBanned is omitted on purpose: bans are shared across tenants.
   const tenantSpecificCollections = [
     "bookings",
     "bookingLogs",
@@ -45,6 +44,7 @@ export const getTenantCollectionName = (
     "counters",
     "operationHours",
     "preBanLogs",
+    "usersBanned",
     "settings",
     "usersWhitelist",
     "usersApprovers",

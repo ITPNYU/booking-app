@@ -284,6 +284,31 @@ export type FormServicesConfig = {
   showStaffing: boolean;
 };
 
+export type FormAlertSeverity = "success" | "info" | "warning" | "error";
+
+/**
+ * Closed set of predicates the booking status bar knows how to evaluate.
+ * Unknown keys are ignored and the alert stays hidden.
+ */
+export type FormAlertWhen = {
+  autoApproval?: "eligible" | "ineligible";
+};
+
+/**
+ * In-app booking-form alert. `status` fills the single approval bar.
+ * `notice` stacks under it. Blockers (ban, overlap, limits) stay in code.
+ */
+export type FormAlert = {
+  id: string;
+  /** Omit to show for every origin. A missing key means show. */
+  showInOrigin?: ShowInOrigin;
+  /** All keys must match. Omit for an always-on notice. */
+  when?: FormAlertWhen;
+  slot: "status" | "notice";
+  severity: FormAlertSeverity;
+  message: string;
+};
+
 /** Duration-gated free-text field on the Details step (issue #1126). */
 export type ProductionScheduleConfig = {
   enabled: boolean;
@@ -301,6 +326,8 @@ export type FormConfig = {
   showNNumber: boolean;
   showSponsor: boolean;
   services: FormServicesConfig;
+  /** Omitted on older documents; code defaults preserve the previous banners. */
+  alerts?: FormAlert[];
   productionSchedule: ProductionScheduleConfig;
 };
 
@@ -481,6 +508,11 @@ export type SchemaContextType = {
   ccEmails?: {
     approved: { development: string; staging: string; production: string };
     canceled: { development: string; staging: string; production: string };
+    /**
+     * Gets a copy of the requester's decline email. Each value may list
+     * several addresses separated by commas or semicolons; empty sends none.
+     */
+    declined?: { development: string; staging: string; production: string };
   };
   emailNotifications: EmailNotifications;
 };
@@ -609,6 +641,33 @@ const defaultContextLabelsByTenantId = (tenantId?: string): ContextLabels => {
   };
 };
 
+export const defaultFormAlerts: FormAlert[] = [
+  {
+    id: "autoApprovalEligible",
+    slot: "status",
+    showInOrigin: { user: true, VIP: true, walkIn: true },
+    when: { autoApproval: "eligible" },
+    severity: "success",
+    message: "Yay! This request is eligible for automatic approval",
+  },
+  {
+    id: "needsApproval",
+    slot: "status",
+    showInOrigin: { user: true, VIP: true, walkIn: true },
+    when: { autoApproval: "ineligible" },
+    severity: "warning",
+    message: "This request will require approval.",
+  },
+  {
+    id: "setupBreakdown",
+    slot: "notice",
+    showInOrigin: { user: true, VIP: true, walkIn: true },
+    severity: "warning",
+    message:
+      "Please include all setup and breakdown time in your reservation request.",
+  },
+];
+
 const defaultTenantBranding = (tenantId?: string): TenantBranding => ({
   name: "",
   logo: "",
@@ -636,6 +695,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
       showSetup: true,
       showStaffing: true,
     },
+    alerts: defaultFormAlerts,
     productionSchedule: defaultProductionSchedule,
   },
   detailsModal: {
@@ -695,6 +755,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
   ccEmails: {
     approved: { development: "", staging: "", production: "" },
     canceled: { development: "", staging: "", production: "" },
+    declined: { development: "", staging: "", production: "" },
   },
   emailNotifications: {
     requestedUser: "",
