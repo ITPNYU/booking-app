@@ -534,7 +534,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (await requesterIsBanned(email)) {
+  if (await requesterIsBanned(email, tenant)) {
     return NextResponse.json(
       { error: BANNED_FROM_BOOKING_MESSAGE },
       { status: 403 },
