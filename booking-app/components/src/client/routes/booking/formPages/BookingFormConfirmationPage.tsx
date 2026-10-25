@@ -3,7 +3,7 @@
 import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
 import React, { useContext, useEffect, useRef } from "react";
-import { FormContextLevel, PagePermission } from "@/components/src/types";
+import { FormContextLevel } from "@/components/src/types";
 import { canAccessWebCheckout, PERMISSION_PATH } from "@/components/src/utils/permissions";
 import { styled } from "@mui/system";
 import { useRouter, useParams } from "next/navigation";
@@ -38,6 +38,7 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isVIP = formContext === FormContextLevel.VIP;
   const isMod = formContext === FormContextLevel.MODIFICATION;
+  const isEdit = formContext === FormContextLevel.EDIT;
   const redirected = useRef(false);
   const tenantId = String(tenant ?? "");
   const modificationReturn = isMod
@@ -137,7 +138,9 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
                     : isMod
                       ? (peekDashboardReturn("modification", tenantId) ??
                         getModReturnPath())
-                      : (peekDashboardReturn("edit", tenantId) ?? `/${tenant}`),
+                      : isEdit
+                        ? (peekDashboardReturn("edit", tenantId) ?? `/${tenant}`)
+                        : `/${tenant}`,
               )
             }
             variant="text"

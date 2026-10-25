@@ -4,7 +4,7 @@ import { BookingContext } from "@/components/src/client/routes/booking/bookingPr
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import { FormContextLevel, PagePermission } from "@/components/src/types";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const replace = vi.hoisted(() => vi.fn());
@@ -66,5 +66,23 @@ describe("confirmation return after modification", () => {
       screen.getByText("Yay! We've received your booking request"),
     ).toBeInTheDocument();
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("does not send a new booking to a leftover edit dashboard", () => {
+    rememberDashboardReturn("edit");
+
+    renderConfirmation(FormContextLevel.FULL_FORM, PagePermission.ADMIN);
+    fireEvent.click(screen.getByRole("button", { name: "View Bookings" }));
+
+    expect(push).toHaveBeenCalledWith("/mc");
+  });
+
+  it("sends an edit confirmation back to the dashboard it came from", () => {
+    rememberDashboardReturn("edit");
+
+    renderConfirmation(FormContextLevel.EDIT, PagePermission.ADMIN);
+    fireEvent.click(screen.getByRole("button", { name: "View Bookings" }));
+
+    expect(push).toHaveBeenCalledWith("/mc/services?q=jane&range=Today");
   });
 });
