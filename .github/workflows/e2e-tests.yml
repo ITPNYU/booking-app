@@ -12,7 +12,9 @@ permissions:
 jobs:
   e2e-tests-mc:
     name: MC E2E Tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
-    runs-on: ubuntu-latest
+    # Playwright 1.58 has no Chromium build for Ubuntu 26.04, and ubuntu-latest
+    # is moving to that image. Pin until @playwright/test is 1.61 or newer.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -67,7 +69,9 @@ jobs:
 
   e2e-tests-itp:
     name: ITP E2E Tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
-    runs-on: ubuntu-latest
+    # Playwright 1.58 has no Chromium build for Ubuntu 26.04, and ubuntu-latest
+    # is moving to that image. Pin until @playwright/test is 1.61 or newer.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
