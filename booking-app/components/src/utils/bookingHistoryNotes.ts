@@ -44,10 +44,41 @@ export function serviceHistoryDisplayName(serviceType: string): string {
   );
 }
 
+/** Longest note a user can attach to a status change. */
+export const MAX_ACTION_NOTE_LENGTH = 1000;
+
+/**
+ * The note a user typed for a status change, trimmed and capped at
+ * MAX_ACTION_NOTE_LENGTH, or undefined when there is none. Anything that
+ * isn't a string is ignored.
+ */
+export function normalizeActionNote(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, MAX_ACTION_NOTE_LENGTH) : undefined;
+}
+
+/**
+ * Adds the user's note to the history note the system writes for an action,
+ * as "<system note>: <user note>". Either part may be missing.
+ */
+export function withActionNote(
+  systemNote: string | undefined,
+  actionNote?: unknown,
+): string | undefined {
+  const typed = normalizeActionNote(actionNote);
+  if (!typed) return systemNote;
+  return systemNote ? `${systemNote}: ${typed}` : typed;
+}
+
+/**
+ * History note for a service decision. `note` is the reason for a decline,
+ * or the optional note for an approval or closeout.
+ */
 export function serviceHistoryNote(
   serviceType: string,
   action: "approve" | "decline" | "closeout",
-  reason?: string,
+  note?: string,
 ): string {
   const actionDisplayName =
     action === "approve"
@@ -56,10 +87,7 @@ export function serviceHistoryNote(
         ? "Declined"
         : "Closed Out";
   const base = `${serviceHistoryDisplayName(serviceType)} Service ${actionDisplayName}`;
-  if (action === "decline" && reason && String(reason).trim().length > 0) {
-    return `${base}: ${reason}`;
-  }
-  return base;
+  return withActionNote(base, note) ?? base;
 }
 
 export type HistoryLogNoteInput = {

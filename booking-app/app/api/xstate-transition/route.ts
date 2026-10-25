@@ -1,6 +1,7 @@
 import { DEFAULT_TENANT, TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { PagePermission } from "@/components/src/types";
+import { normalizeActionNote } from "@/components/src/utils/bookingHistoryNotes";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { authorizeBookingDecision } from "@/lib/api/bookingDecisionAuthz";
 import { requireSession, type SessionContext } from "@/lib/api/requireSession";
@@ -191,7 +192,8 @@ export async function POST(req: NextRequest) {
       eventType,
       tenant,
       actorEmail, // Authenticated operator for no-show history attribution
-      reason, // Pass reason for decline actions
+      // The reason for a decline, or the optional note for other actions
+      normalizeActionNote(reason),
       actorNetId, // Authenticated operator netId for no-show attribution
       toChangedServices(changedServices),
     );

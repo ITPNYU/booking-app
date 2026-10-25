@@ -2,6 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { Timestamp } from "firebase/firestore";
 import { useParams, useRouter } from "next/navigation";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as bookingActionClient from "@/components/src/client/bookingActionClient";
 import useBookingActions, {
   Actions,
 } from "../../components/src/client/routes/admin/hooks/useBookingActions";
@@ -93,7 +94,7 @@ const renderUseBookingActions = (
   pageContext: PageContextLevel,
   status: BookingStatusLabel,
   startDate: Timestamp,
-  reason: string = ""
+  note: string = ""
 ) => {
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <DatabaseContext.Provider value={mockDatabaseContext as any}>
@@ -110,7 +111,7 @@ const renderUseBookingActions = (
         pageContext,
         status,
         startDate,
-        reason,
+        note,
       }),
     { wrapper }
   );
@@ -503,18 +504,62 @@ describe("useBookingActions Hook", () => {
       });
     });
 
-    it("should have confirmation property for CANCEL and DECLINE actions", () => {
+    it("passes the dialog note to each status action", async () => {
       const { result } = renderUseBookingActions(
         "test-event",
         PageContextLevel.ADMIN,
         BookingStatusLabel.REQUESTED,
-        Timestamp.fromDate(new Date())
+        Timestamp.fromDate(new Date()),
+        "Called the requester first"
       );
 
       const { actions } = result.current;
+      await actions[Actions.CANCEL].action();
+      await actions[Actions.NO_SHOW].action();
+      await actions[Actions.CHECK_IN].action();
+      await actions[Actions.CHECK_OUT].action();
+      await actions[Actions.APPROVE].action();
+      await actions[Actions.DECLINE].action();
 
-      expect(actions[Actions.CANCEL]).toHaveProperty("confirmation", true);
-      expect(actions[Actions.DECLINE]).toHaveProperty("confirmation", true);
+      const note = "Called the requester first";
+      expect(bookingActionClient.cancel).toHaveBeenCalledWith(
+        "test-event",
+        "test@nyu.edu",
+        "test123",
+        "media-commons",
+        note
+      );
+      expect(bookingActionClient.noShow).toHaveBeenCalledWith(
+        "test-event",
+        "test@nyu.edu",
+        "test123",
+        "media-commons",
+        note
+      );
+      expect(bookingActionClient.checkin).toHaveBeenCalledWith(
+        "test-event",
+        "test@nyu.edu",
+        "media-commons",
+        note
+      );
+      expect(bookingActionClient.checkOut).toHaveBeenCalledWith(
+        "test-event",
+        "test@nyu.edu",
+        "media-commons",
+        note
+      );
+      expect(bookingActionClient.clientApproveBooking).toHaveBeenCalledWith(
+        "test-event",
+        "test@nyu.edu",
+        "media-commons",
+        note
+      );
+      expect(bookingActionClient.decline).toHaveBeenCalledWith(
+        "test-event",
+        "test@nyu.edu",
+        note,
+        "media-commons"
+      );
     });
   });
 

@@ -111,17 +111,14 @@ describe("BookingActions Component - Edit Logic", () => {
         [Actions.CANCEL]: {
           action: vi.fn(),
           optimisticNextStatus: BookingStatusLabel.CANCELED,
-          confirmation: true,
         },
         [Actions.EDIT]: {
           action: vi.fn(),
           optimisticNextStatus: BookingStatusLabel.UNKNOWN,
-          confirmation: false,
         },
         [Actions.DECLINE]: {
           action: vi.fn(),
           optimisticNextStatus: BookingStatusLabel.DECLINED,
-          confirmation: true,
         },
         [Actions.CHECK_IN]: {
           action: vi.fn(),

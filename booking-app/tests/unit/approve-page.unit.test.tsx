@@ -138,8 +138,30 @@ describe("approve page", () => {
       "evt-7073",
       "approver@nyu.edu",
       "itp",
+      undefined,
     );
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("sends the optional approval note with the approval", async () => {
+    mockClientApproveBooking.mockResolvedValue(undefined);
+
+    renderPage();
+    fireEvent.change(await screen.findByLabelText("Note (optional)"), {
+      target: { value: "  Confirmed with the department  " },
+    });
+    await clickApprove();
+
+    expect(
+      await screen.findByRole("button", { name: "Approved" }),
+    ).toBeDisabled();
+    expect(mockClientApproveBooking).toHaveBeenCalledWith(
+      "evt-7073",
+      "approver@nyu.edu",
+      "itp",
+      "Confirmed with the department",
+    );
+    expect(screen.getByLabelText("Note (optional)")).toBeDisabled();
   });
 
   it("tells a viewer who is not an approver for the booking", async () => {
