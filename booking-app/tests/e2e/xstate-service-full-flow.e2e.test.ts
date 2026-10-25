@@ -15,6 +15,7 @@ import {
   createTimestamp,
   registerMockBookingsFeed,
 } from "./helpers/xstate-mocks";
+import { confirmActionDialog } from "./helpers/test-utils";
 
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
@@ -522,6 +523,7 @@ test.describe("Full service approval flow (mocked Firestore)", () => {
     );
     await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
     await confirmButton.click();
+    await confirmActionDialog(page);
 
     await approveRequestPromise;
     await approveResponsePromise;
@@ -556,6 +558,7 @@ test.describe("Full service approval flow (mocked Firestore)", () => {
     );
     await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
     await confirmButton.click();
+    await confirmActionDialog(page);
 
     await approveRequestPromise;
     await approveResponsePromise;
@@ -635,6 +638,7 @@ test.describe("Full service approval flow (mocked Firestore)", () => {
       );
       await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
       await confirmButton.click();
+      await confirmActionDialog(page);
 
       const serviceRequest = await serviceRequestPromise;
       await serviceResponsePromise;
