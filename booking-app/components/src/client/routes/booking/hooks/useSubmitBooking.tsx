@@ -358,7 +358,9 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           // Refetch with those filters instead of replacing the list with
           // every future booking.
           if (isEdit || isModification) {
-            fetchAllBookings(false);
+            // The booking already succeeded. A failed refresh must not reject
+            // after that; fetchBookings logs and rethrows.
+            void Promise.resolve(fetchAllBookings(false)).catch(() => {});
           } else {
             reloadFutureBookings();
           }

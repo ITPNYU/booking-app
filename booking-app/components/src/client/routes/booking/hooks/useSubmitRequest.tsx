@@ -30,7 +30,7 @@ export default function useSubmitRequest(
   const { pagePermission } = useContext(DatabaseContext);
   const registerEvent = useSubmitBooking(formContext);
 
-  const { isWalkIn, isVIP, isMod } = getRequestOrigin(
+  const { isWalkIn, isVIP, isMod, isEdit } = getRequestOrigin(
     formContext,
     formData?.origin,
   );
@@ -69,14 +69,17 @@ export default function useSubmitRequest(
       formDataOtherSchool: formData?.otherSchool,
     });
 
-    // An edit lands on the flow's confirmation page; there is no edit/confirmation.
+    // Edit has its own confirmation page, so View Bookings can return to the
+    // dashboard the edit started from. A new booking stays on /book.
     const confirmationFlow = isMod
       ? "modification"
-      : isWalkIn
-        ? "walk-in"
-        : isVIP
-          ? "vip"
-          : "book";
+      : isEdit
+        ? "edit"
+        : isWalkIn
+          ? "walk-in"
+          : isVIP
+            ? "vip"
+            : "book";
 
     const tenantId = String(tenant ?? "");
     registerEvent(data, isAutoApproval, calendarEventId)
