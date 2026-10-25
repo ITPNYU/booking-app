@@ -69,7 +69,12 @@ export default function BookingActions(props: Props) {
   // reload drops the server-side search and the row the user just acted on
   // disappears from the result.
   const reload = async () => {
-    await fetchAllBookings(false);
+    try {
+      await fetchAllBookings(false);
+    } catch {
+      // The action already settled, and fetchBookings logs the error. A failed
+      // refresh must not revert the row or look like the action failed.
+    }
   };
 
   const onError = (error: unknown, severity: AlertColor = "error") => {

@@ -32,7 +32,10 @@ export default function EquipmentCheckoutToggle({ booking, status }: Props) {
           equipmentCheckedOut: newStatus,
         },
       );
-      await fetchAllBookings(false);
+      originalStatus.current = newStatus;
+      // The booking was already updated; a failed refresh must not flip the
+      // switch back as if the write failed.
+      await Promise.resolve(fetchAllBookings(false)).catch(() => {});
     } catch (ex) {
       console.error(ex);
       // Revert to the original status if there's an error

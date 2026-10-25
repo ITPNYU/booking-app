@@ -29,11 +29,11 @@ vi.mock(
 const fetchAllBookings = vi.fn();
 const setOptimisticStatus = vi.fn();
 
-const renderWithFailingApprove = (error: Error) => {
+const renderWithApprove = (action: () => Promise<void>) => {
   vi.mocked(useBookingActions).mockReturnValue({
     actions: {
       [Actions.FINAL_APPROVE]: {
-        action: vi.fn().mockRejectedValue(error),
+        action,
         optimisticNextStatus: BookingStatusLabel.APPROVED,
       },
       [Actions.PLACEHOLDER]: {
@@ -62,6 +62,9 @@ const renderWithFailingApprove = (error: Error) => {
     </ThemeProvider>,
   );
 };
+
+const renderWithFailingApprove = (error: Error) =>
+  renderWithApprove(vi.fn().mockRejectedValue(error));
 
 const runFinalApprove = async () => {
   const user = userEvent.setup();
@@ -103,5 +106,19 @@ describe("BookingActions when final approval only partly succeeds", () => {
     expect(alert).toHaveClass("MuiAlert-standardError");
     expect(setOptimisticStatus).toHaveBeenLastCalledWith(undefined);
     expect(fetchAllBookings).not.toHaveBeenCalled();
+  });
+
+  it("keeps the approved status when the follow-up refresh fails", async () => {
+    fetchAllBookings.mockRejectedValueOnce(new Error("Firestore unavailable"));
+    renderWithApprove(vi.fn().mockResolvedValue(undefined));
+
+    await runFinalApprove();
+
+    expect(fetchAllBookings).toHaveBeenCalledWith(false);
+    expect(setOptimisticStatus).toHaveBeenCalledWith(
+      BookingStatusLabel.APPROVED,
+    );
+    expect(setOptimisticStatus).not.toHaveBeenCalledWith(undefined);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
