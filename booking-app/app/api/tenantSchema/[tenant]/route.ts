@@ -17,6 +17,11 @@ import {
   TEMPLATE_SCHEMA_ID,
 } from "@/lib/tenant/resourceDefault";
 import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
+import {
+  formatSchemaIssues,
+  validateTemplateDocument,
+  validateTenantDocument,
+} from "@/lib/tenant/validateTenantSchema";
 
 async function writeSchemaDocument(
   tenant: string,
@@ -96,6 +101,14 @@ async function putTemplateDocument(request: NextRequest): Promise<NextResponse> 
   if (!resourceDefault) {
     return NextResponse.json(
       { error: "resourceDefault must be an object" },
+      { status: 400 },
+    );
+  }
+
+  const templateIssues = validateTemplateDocument({ resourceDefault });
+  if (templateIssues.length > 0) {
+    return NextResponse.json(
+      { error: `Invalid schema: ${formatSchemaIssues(templateIssues)}` },
       { status: 400 },
     );
   }
@@ -222,6 +235,14 @@ export async function PUT(
               : String(validationError)
           }`,
         },
+        { status: 400 },
+      );
+    }
+
+    const schemaIssues = validateTenantDocument(newSchema);
+    if (schemaIssues.length > 0) {
+      return NextResponse.json(
+        { error: `Invalid schema: ${formatSchemaIssues(schemaIssues)}` },
         { status: 400 },
       );
     }

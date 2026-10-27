@@ -1,0 +1,1360 @@
+{
+  "$id": "https://booking-app/tenant-schema.json",
+  "$ref": "#/definitions/SchemaContextType",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "Attestation": {
+      "properties": {
+        "html": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "html"
+      ],
+      "type": "object"
+    },
+    "BookingDetailRole": {
+      "description": "Staff roles that a booking detail feature can be scoped to.",
+      "enum": [
+        "PA",
+        "LIAISON",
+        "SERVICES",
+        "ADMIN",
+        "SUPER_ADMIN"
+      ],
+      "type": "string"
+    },
+    "ContextLabels": {
+      "properties": {
+        "admin": {
+          "type": "string"
+        },
+        "reviewer": {
+          "type": "string"
+        },
+        "services": {
+          "type": "string"
+        },
+        "user": {
+          "type": "string"
+        },
+        "worker": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "user",
+        "worker",
+        "reviewer",
+        "services",
+        "admin"
+      ],
+      "type": "object"
+    },
+    "DetailsModalConfig": {
+      "description": "Booking detail modal configuration (Firestore `tenantSchema.detailsModal`). Separate from `form`, which configures the request form.",
+      "properties": {
+        "memoEditRoles": {
+          "description": "Roles that can edit the Memo, scoped to page contexts the same way as `memoViewRoles`. `PUT /api/bookings/memo` enforces the same list.",
+          "items": {
+            "$ref": "#/definitions/BookingDetailRole"
+          },
+          "type": "array"
+        },
+        "memoViewRoles": {
+          "description": "Roles that can read the Memo. Roles in `memoEditRoles` can always read it too. A role also unlocks its own page context (PA page, Liaison page, Services page, Admin page; SUPER_ADMIN uses the Admin page). The Firestore read routes enforce the same list.",
+          "items": {
+            "$ref": "#/definitions/BookingDetailRole"
+          },
+          "type": "array"
+        },
+        "showMemo": {
+          "description": "Show the staff-only Memo section under WebCheckout, used to record e.g. work order confirmation numbers.",
+          "type": "boolean"
+        },
+        "showWebCheckout": {
+          "description": "Show the WebCheckout section and the cart number in the bookings table.",
+          "type": "boolean"
+        },
+        "webCheckoutEditRoles": {
+          "description": "Roles that can edit the cart number, scoped to page contexts the same way as `memoEditRoles`. `POST /api/updateWebcheckoutCart` enforces the same list.",
+          "items": {
+            "$ref": "#/definitions/BookingDetailRole"
+          },
+          "type": "array"
+        },
+        "webCheckoutViewRoles": {
+          "description": "Roles that can see the WebCheckout section. Roles in `webCheckoutEditRoles` can always see it too. Scoped to page contexts the same way as `memoViewRoles`. On My Bookings the requester still sees an assigned cart read-only while `showWebCheckout` is on.",
+          "items": {
+            "$ref": "#/definitions/BookingDetailRole"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "showWebCheckout",
+        "webCheckoutViewRoles",
+        "webCheckoutEditRoles",
+        "showMemo",
+        "memoViewRoles",
+        "memoEditRoles"
+      ],
+      "type": "object"
+    },
+    "EmailNotifications": {
+      "properties": {
+        "approvedUser": {
+          "type": "string"
+        },
+        "approvedVIP": {
+          "type": "string"
+        },
+        "approvedWalkIn": {
+          "type": "string"
+        },
+        "canceled": {
+          "type": "string"
+        },
+        "canceledLate": {
+          "type": "string"
+        },
+        "checkedIn": {
+          "type": "string"
+        },
+        "checkedOut": {
+          "type": "string"
+        },
+        "closed": {
+          "type": "string"
+        },
+        "declined": {
+          "type": "string"
+        },
+        "noShow": {
+          "type": "string"
+        },
+        "requestedNeedsApproval": {
+          "type": "string"
+        },
+        "requestedUser": {
+          "type": "string"
+        },
+        "reviewedNeedsApproval": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "requestedUser",
+        "requestedNeedsApproval",
+        "reviewedNeedsApproval",
+        "approvedWalkIn",
+        "approvedVIP",
+        "checkedOut",
+        "checkedIn",
+        "declined",
+        "canceled",
+        "canceledLate",
+        "noShow",
+        "closed",
+        "approvedUser"
+      ],
+      "type": "object"
+    },
+    "FormAlert": {
+      "description": "In-app booking-form alert. `status` fills the single approval bar. `notice` stacks under it. Blockers (ban, overlap, limits) stay in code.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/definitions/FormAlertSeverity"
+        },
+        "showInOrigin": {
+          "$ref": "#/definitions/ShowInOrigin",
+          "description": "Omit to show for every origin. A missing key means show."
+        },
+        "slot": {
+          "enum": [
+            "status",
+            "notice"
+          ],
+          "type": "string"
+        },
+        "when": {
+          "$ref": "#/definitions/FormAlertWhen",
+          "description": "All keys must match. Omit for an always-on notice."
+        }
+      },
+      "required": [
+        "id",
+        "slot",
+        "severity",
+        "message"
+      ],
+      "type": "object"
+    },
+    "FormAlertSeverity": {
+      "enum": [
+        "success",
+        "info",
+        "warning",
+        "error"
+      ],
+      "type": "string"
+    },
+    "FormAlertWhen": {
+      "description": "Closed set of predicates the booking status bar knows how to evaluate. Unknown keys are ignored and the alert stays hidden.",
+      "properties": {
+        "autoApproval": {
+          "enum": [
+            "eligible",
+            "ineligible"
+          ],
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "FormConfig": {
+      "properties": {
+        "alerts": {
+          "description": "Omitted on older documents; code defaults preserve the previous banners.",
+          "items": {
+            "$ref": "#/definitions/FormAlert"
+          },
+          "type": "array"
+        },
+        "productionSchedule": {
+          "$ref": "#/definitions/ProductionScheduleConfig"
+        },
+        "services": {
+          "$ref": "#/definitions/FormServicesConfig"
+        },
+        "showBookingType": {
+          "type": "boolean"
+        },
+        "showNNumber": {
+          "type": "boolean"
+        },
+        "showSponsor": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "showBookingType",
+        "showNNumber",
+        "showSponsor",
+        "services",
+        "productionSchedule"
+      ],
+      "type": "object"
+    },
+    "FormServicesConfig": {
+      "properties": {
+        "showCatering": {
+          "type": "boolean"
+        },
+        "showEquipment": {
+          "type": "boolean"
+        },
+        "showSecurity": {
+          "type": "boolean"
+        },
+        "showSetup": {
+          "type": "boolean"
+        },
+        "showStaffing": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "showCatering",
+        "showEquipment",
+        "showSecurity",
+        "showSetup",
+        "showStaffing"
+      ],
+      "type": "object"
+    },
+    "MappingsConfig": {
+      "properties": {
+        "program": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        },
+        "role": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        },
+        "school": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "program",
+        "role",
+        "school"
+      ],
+      "type": "object"
+    },
+    "OriginsConfig": {
+      "properties": {
+        "VIP": {
+          "type": "boolean"
+        },
+        "walkIn": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "VIP",
+        "walkIn"
+      ],
+      "type": "object"
+    },
+    "ProductionScheduleConfig": {
+      "description": "Duration-gated free-text field on the Details step (issue #1126).",
+      "properties": {
+        "calendarBannerMessage": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        },
+        "requiredAboveHours": {
+          "description": "Required when reservation length (hours) is strictly greater than this.",
+          "type": "number"
+        },
+        "templateLink": {
+          "type": "string"
+        },
+        "templateLinkText": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "enabled",
+        "requiredAboveHours",
+        "label",
+        "description",
+        "templateLink",
+        "templateLinkText",
+        "calendarBannerMessage"
+      ],
+      "type": "object"
+    },
+    "RequestLimits": {
+      "properties": {
+        "perDay": {
+          "properties": {
+            "admin": {
+              "type": "number"
+            },
+            "faculty": {
+              "type": "number"
+            },
+            "student": {
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "perMonth": {
+          "properties": {
+            "admin": {
+              "type": "number"
+            },
+            "faculty": {
+              "type": "number"
+            },
+            "student": {
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "perSemester": {
+          "properties": {
+            "admin": {
+              "type": "number"
+            },
+            "faculty": {
+              "type": "number"
+            },
+            "student": {
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "perWeek": {
+          "properties": {
+            "admin": {
+              "type": "number"
+            },
+            "faculty": {
+              "type": "number"
+            },
+            "student": {
+              "type": "number"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "Resource": {
+      "properties": {
+        "autoApproval": {
+          "properties": {
+            "conditions": {
+              "properties": {
+                "catering": {
+                  "type": "boolean"
+                },
+                "cleaning": {
+                  "type": "boolean"
+                },
+                "equipment": {
+                  "type": "boolean"
+                },
+                "furnishings": {
+                  "type": "boolean"
+                },
+                "security": {
+                  "type": "boolean"
+                },
+                "setup": {
+                  "type": "boolean"
+                },
+                "staffing": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "setup",
+                "equipment",
+                "staffing",
+                "catering",
+                "cleaning",
+                "security"
+              ],
+              "type": "object"
+            },
+            "maxHour": {
+              "properties": {
+                "admin": {
+                  "type": "number"
+                },
+                "faculty": {
+                  "type": "number"
+                },
+                "student": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "admin",
+                "faculty",
+                "student"
+              ],
+              "type": "object"
+            },
+            "minHour": {
+              "properties": {
+                "admin": {
+                  "type": "number"
+                },
+                "faculty": {
+                  "type": "number"
+                },
+                "student": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "admin",
+                "faculty",
+                "student"
+              ],
+              "type": "object"
+            },
+            "shouldAutoApprove": {
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "calendarId": {
+          "type": "string"
+        },
+        "calendarIdProd": {
+          "type": "string"
+        },
+        "capacity": {
+          "type": "number"
+        },
+        "isEquipment": {
+          "type": "boolean"
+        },
+        "isWalkIn": {
+          "type": "boolean"
+        },
+        "isWalkInCanBookTwo": {
+          "type": "boolean"
+        },
+        "maxHour": {
+          "properties": {
+            "admin": {
+              "type": "number"
+            },
+            "adminVIP": {
+              "type": "number"
+            },
+            "adminWalkIn": {
+              "type": "number"
+            },
+            "faculty": {
+              "type": "number"
+            },
+            "facultyVIP": {
+              "type": "number"
+            },
+            "facultyWalkIn": {
+              "type": "number"
+            },
+            "student": {
+              "type": "number"
+            },
+            "studentVIP": {
+              "type": "number"
+            },
+            "studentWalkIn": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "student",
+            "faculty",
+            "admin",
+            "studentWalkIn",
+            "facultyWalkIn",
+            "adminWalkIn",
+            "studentVIP",
+            "facultyVIP",
+            "adminVIP"
+          ],
+          "type": "object"
+        },
+        "minHour": {
+          "properties": {
+            "admin": {
+              "type": "number"
+            },
+            "adminVIP": {
+              "type": "number"
+            },
+            "adminWalkIn": {
+              "type": "number"
+            },
+            "faculty": {
+              "type": "number"
+            },
+            "facultyVIP": {
+              "type": "number"
+            },
+            "facultyWalkIn": {
+              "type": "number"
+            },
+            "student": {
+              "type": "number"
+            },
+            "studentVIP": {
+              "type": "number"
+            },
+            "studentWalkIn": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "student",
+            "faculty",
+            "admin",
+            "studentWalkIn",
+            "facultyWalkIn",
+            "adminWalkIn",
+            "studentVIP",
+            "facultyVIP",
+            "adminVIP"
+          ],
+          "type": "object"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parentResourceId": {
+          "description": "When set, this resource is an auxiliary (annex) space belonging to the parent resource. Annex resources are hidden from the top-level room list, cannot be booked standalone, and are offered as annex checkboxes under their parent; selecting one invites its calendar to the parent's event.",
+          "type": "string"
+        },
+        "requestLimits": {
+          "$ref": "#/definitions/RequestLimits",
+          "description": "Limit how many requests a user can make per period for this resource. Convention: `-1` (or missing) means “unlimited”.\n\nShape: each period has only `admin`, `faculty`, `student` — counts include all booking origins."
+        },
+        "resourceId": {
+          "type": "string"
+        },
+        "services": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ResourceServicesConfig"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ],
+          "description": "Consolidated service config; legacy string[] coerced on read"
+        },
+        "staffingSections": {
+          "items": {
+            "$ref": "#/definitions/StaffingSection"
+          },
+          "type": "array"
+        },
+        "staffingServices": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "training": {
+          "$ref": "#/definitions/ResourceTraining"
+        }
+      },
+      "required": [
+        "capacity",
+        "name",
+        "resourceId",
+        "isEquipment",
+        "calendarId",
+        "isWalkIn",
+        "isWalkInCanBookTwo",
+        "services"
+      ],
+      "type": "object"
+    },
+    "ResourceChartFieldConfig": {
+      "properties": {
+        "descriptionHtml": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "validation": {
+          "description": "Reserved for schema authors; forms always apply CHARTFIELD_REGEX when required.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ResourceFormOption": {
+      "properties": {
+        "calendarId": {
+          "description": "Optional Google Calendar ID for auxiliary spaces (filled when calendars exist).",
+          "type": "string"
+        },
+        "calendarIdProd": {
+          "description": "Production calendar ID for auxiliary spaces.",
+          "type": "string"
+        },
+        "chartField": {
+          "$ref": "#/definitions/ResourceChartFieldConfig"
+        },
+        "descriptionHtml": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "type": "object"
+    },
+    "ResourceFormSectionConfig": {
+      "description": "Service section config.\n- mode \"radio\" / \"select\": choice list via options (`select` normalizes to radio on migrate)\n- mode \"checkbox\": optional option checkboxes (not forced like radio)\n- mode \"static\": read-only HTML\n- mode \"hidden\": offered but not shown\n- omit mode + chartField (no options): yes/no switch\n- omit mode + description only (no options/chartField/toggle): treated as static on migrate\n- toggle: lock the yes/no switch (see ServiceToggle). For equipment, omitting   toggle keeps the legacy layout (details field always shown, no switch).\n- autoCloseout: when the booking reaches Service Closeout (after Cancel or   Check Out), an approved request for this service is closed out by the   system instead of waiting for a service user. Omitted/false keeps the   manual closeout. Any booked room with the flag set closes the service out.",
+      "properties": {
+        "autoCloseout": {
+          "type": "boolean"
+        },
+        "chartField": {
+          "$ref": "#/definitions/ResourceChartFieldConfig"
+        },
+        "defaultValue": {
+          "type": "string"
+        },
+        "descriptionHtml": {
+          "type": "string"
+        },
+        "detailsDescriptionHtml": {
+          "type": "string"
+        },
+        "detailsLabel": {
+          "type": "string"
+        },
+        "forceCleaning": {
+          "type": "boolean"
+        },
+        "hideForUser": {
+          "deprecated": "Prefer showInOrigin",
+          "type": "boolean"
+        },
+        "hideForVIP": {
+          "deprecated": "Prefer showInOrigin",
+          "type": "boolean"
+        },
+        "hideForWalkIn": {
+          "deprecated": "Prefer showInOrigin",
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "radio",
+            "select",
+            "checkbox",
+            "static",
+            "hidden"
+          ],
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/definitions/ResourceFormOption"
+          },
+          "type": "array"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "showDetailsField": {
+          "type": "boolean"
+        },
+        "showInOrigin": {
+          "$ref": "#/definitions/ShowInOrigin"
+        },
+        "studentLoungeCheckbox": {
+          "type": "boolean"
+        },
+        "toggle": {
+          "$ref": "#/definitions/ServiceToggle"
+        }
+      },
+      "type": "object"
+    },
+    "ResourceServicesConfig": {
+      "properties": {
+        "annex": {
+          "$ref": "#/definitions/ResourceFormSectionConfig"
+        },
+        "auxiliarySpace": {
+          "deprecated": "Prefer annex",
+          "properties": {
+            "autoCloseout": {
+              "type": "boolean"
+            },
+            "chartField": {
+              "$ref": "#/definitions/ResourceChartFieldConfig"
+            },
+            "defaultValue": {
+              "type": "string"
+            },
+            "descriptionHtml": {
+              "type": "string"
+            },
+            "detailsDescriptionHtml": {
+              "type": "string"
+            },
+            "detailsLabel": {
+              "type": "string"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "forceCleaning": {
+              "type": "boolean"
+            },
+            "hideForUser": {
+              "deprecated": "Prefer showInOrigin",
+              "type": "boolean"
+            },
+            "hideForVIP": {
+              "deprecated": "Prefer showInOrigin",
+              "type": "boolean"
+            },
+            "hideForWalkIn": {
+              "deprecated": "Prefer showInOrigin",
+              "type": "boolean"
+            },
+            "label": {
+              "type": "string"
+            },
+            "mode": {
+              "enum": [
+                "radio",
+                "select",
+                "checkbox",
+                "static",
+                "hidden"
+              ],
+              "type": "string"
+            },
+            "options": {
+              "items": {
+                "$ref": "#/definitions/ResourceFormOption"
+              },
+              "type": "array"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "showDetailsField": {
+              "type": "boolean"
+            },
+            "showInOrigin": {
+              "$ref": "#/definitions/ShowInOrigin"
+            },
+            "studentLoungeCheckbox": {
+              "type": "boolean"
+            },
+            "toggle": {
+              "$ref": "#/definitions/ServiceToggle"
+            }
+          },
+          "type": "object"
+        },
+        "catering": {
+          "$ref": "#/definitions/ResourceFormSectionConfig"
+        },
+        "cleaning": {
+          "$ref": "#/definitions/ResourceFormSectionConfig"
+        },
+        "equipment": {
+          "$ref": "#/definitions/ResourceFormSectionConfig"
+        },
+        "furnishings": {
+          "$ref": "#/definitions/ResourceFormSectionConfig"
+        },
+        "security": {
+          "$ref": "#/definitions/ResourceFormSectionConfig"
+        },
+        "setup": {
+          "$ref": "#/definitions/ResourceFormSectionConfig"
+        },
+        "staffing": {
+          "$ref": "#/definitions/ResourceStaffingConfig"
+        }
+      },
+      "type": "object"
+    },
+    "ResourceStaffingConfig": {
+      "properties": {
+        "autoCloseout": {
+          "description": "System closes out an approved staffing request (see ResourceFormSectionConfig).",
+          "type": "boolean"
+        },
+        "descriptionHtml": {
+          "type": "string"
+        },
+        "hideForUser": {
+          "type": "boolean"
+        },
+        "hideForVIP": {
+          "type": "boolean"
+        },
+        "hideForWalkIn": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        },
+        "mode": {
+          "deprecated": "Prefer omitting mode (switch) or sections",
+          "enum": [
+            "radio",
+            "static",
+            "hidden"
+          ],
+          "type": "string"
+        },
+        "sections": {
+          "additionalProperties": {
+            "$ref": "#/definitions/ResourceStaffingSectionConfig"
+          },
+          "type": "object"
+        },
+        "showInOrigin": {
+          "$ref": "#/definitions/ShowInOrigin"
+        },
+        "staffingOptions": {
+          "deprecated": "Prefer sections with options",
+          "items": {
+            "$ref": "#/definitions/ResourceStaffingServiceOption"
+          },
+          "type": "array"
+        },
+        "toggle": {
+          "$ref": "#/definitions/ServiceToggle",
+          "description": "Lock the staffing yes/no switch (see ServiceToggle)."
+        }
+      },
+      "type": "object"
+    },
+    "ResourceStaffingSectionConfig": {
+      "properties": {
+        "defaultValue": {
+          "type": "string"
+        },
+        "descriptionHtml": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "mode": {
+          "const": "radio",
+          "type": "string"
+        },
+        "name": {
+          "deprecated": "Prefer label",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/definitions/ResourceFormOption"
+          },
+          "type": "array"
+        },
+        "services": {
+          "deprecated": "Prefer options",
+          "items": {
+            "$ref": "#/definitions/ResourceStaffingServiceOption"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "label",
+        "mode",
+        "options"
+      ],
+      "type": "object"
+    },
+    "ResourceStaffingServiceOption": {
+      "properties": {
+        "defaultValue": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "label"
+      ],
+      "type": "object"
+    },
+    "ResourceTraining": {
+      "properties": {
+        "formId": {
+          "type": "string"
+        },
+        "infoUrl": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "SchemaContextType": {
+      "properties": {
+        "attestations": {
+          "items": {
+            "$ref": "#/definitions/Attestation"
+          },
+          "type": "array"
+        },
+        "autoCancel": {
+          "anyOf": [
+            {
+              "const": false,
+              "type": "boolean"
+            },
+            {
+              "properties": {
+                "conditions": {
+                  "properties": {
+                    "preApproved": {
+                      "type": "boolean"
+                    },
+                    "requested": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "requested",
+                    "preApproved"
+                  ],
+                  "type": "object"
+                },
+                "minutesPriorToStart": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "minutesPriorToStart",
+                "conditions"
+              ],
+              "type": "object"
+            }
+          ],
+          "description": "When enabled, automatically cancel requests within a time window prior to start time if they are still unapproved (Requested / Pre-approved depending on conditions).\n\nStored as `false` by default for backwards compatibility with older schemas."
+        },
+        "calendarConfig": {
+          "properties": {
+            "multipleResourceSelect": {
+              "type": "boolean"
+            },
+            "slotUnit": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "type": "object"
+            },
+            "startHour": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "timeSensitiveRequestWarning": {
+              "$ref": "#/definitions/TimeSensitiveRequestWarning"
+            }
+          },
+          "type": "object"
+        },
+        "ccEmails": {
+          "properties": {
+            "approved": {
+              "properties": {
+                "development": {
+                  "type": "string"
+                },
+                "production": {
+                  "type": "string"
+                },
+                "staging": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "development",
+                "staging",
+                "production"
+              ],
+              "type": "object"
+            },
+            "canceled": {
+              "properties": {
+                "development": {
+                  "type": "string"
+                },
+                "production": {
+                  "type": "string"
+                },
+                "staging": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "development",
+                "staging",
+                "production"
+              ],
+              "type": "object"
+            },
+            "declined": {
+              "description": "Gets a copy of the requester's decline email. Each value may list several addresses separated by commas or semicolons; empty sends none.",
+              "properties": {
+                "development": {
+                  "type": "string"
+                },
+                "production": {
+                  "type": "string"
+                },
+                "staging": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "development",
+                "staging",
+                "production"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "approved",
+            "canceled"
+          ],
+          "type": "object"
+        },
+        "declinedGracePeriod": {
+          "type": "number"
+        },
+        "detailsModal": {
+          "$ref": "#/definitions/DetailsModalConfig"
+        },
+        "emailNotifications": {
+          "$ref": "#/definitions/EmailNotifications"
+        },
+        "form": {
+          "$ref": "#/definitions/FormConfig"
+        },
+        "interimHighlightThresholdHours": {
+          "description": "Hours pending before interim column text is emphasized on the admin bookings dashboard (default 18)",
+          "type": "number"
+        },
+        "mappings": {
+          "$ref": "#/definitions/MappingsConfig"
+        },
+        "origins": {
+          "$ref": "#/definitions/OriginsConfig"
+        },
+        "policy": {
+          "type": "string"
+        },
+        "resourceName": {
+          "type": "string"
+        },
+        "resources": {
+          "items": {
+            "$ref": "#/definitions/Resource"
+          },
+          "type": "array"
+        },
+        "roles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "supportLiaison": {
+          "type": "boolean"
+        },
+        "supportPA": {
+          "type": "boolean"
+        },
+        "tenant": {
+          "$ref": "#/definitions/TenantBranding"
+        },
+        "tenantId": {
+          "description": "Tenant slug / document id (e.g. mc, itp)",
+          "type": "string"
+        },
+        "termConfig": {
+          "$ref": "#/definitions/TermConfig",
+          "description": "Term/semester configuration for \"perSemester\" request limits"
+        },
+        "training": {
+          "$ref": "#/definitions/TrainingConfig"
+        }
+      },
+      "required": [
+        "tenantId",
+        "tenant",
+        "policy",
+        "mappings",
+        "roles",
+        "form",
+        "detailsModal",
+        "attestations",
+        "resources",
+        "origins",
+        "resourceName",
+        "emailNotifications"
+      ],
+      "type": "object"
+    },
+    "ServiceToggle": {
+      "description": "Yes/No switch lock state for a service section.\n- \"on\": switch is locked to Yes; the service is always requested and its   dependent fields (chartfield, details) are always shown\n- \"off\": switch is locked to No; only the description is shown\n- \"optional\" (default when omitted): the user controls the switch Schema locks take precedence over dynamic locks (catering → cleaning, large-event security).",
+      "enum": [
+        "on",
+        "off",
+        "optional"
+      ],
+      "type": "string"
+    },
+    "ShowInOrigin": {
+      "properties": {
+        "VIP": {
+          "type": "boolean"
+        },
+        "user": {
+          "type": "boolean"
+        },
+        "walkIn": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "StaffingSection": {
+      "properties": {
+        "indexes": {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "indexes"
+      ],
+      "type": "object"
+    },
+    "TenantBranding": {
+      "properties": {
+        "contextLabels": {
+          "$ref": "#/definitions/ContextLabels"
+        },
+        "logo": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "nameForPolicy": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "logo",
+        "nameForPolicy",
+        "contextLabels"
+      ],
+      "type": "object"
+    },
+    "TermConfig": {
+      "properties": {
+        "fallTerm": {
+          "$ref": "#/definitions/TermRange"
+        },
+        "springTerm": {
+          "$ref": "#/definitions/TermRange"
+        },
+        "summerTerm": {
+          "$ref": "#/definitions/TermRange"
+        }
+      },
+      "required": [
+        "fallTerm",
+        "springTerm",
+        "summerTerm"
+      ],
+      "type": "object"
+    },
+    "TermRange": {
+      "items": {
+        "type": "number"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "type": "array"
+    },
+    "TimeSensitiveRequestWarning": {
+      "properties": {
+        "hours": {
+          "type": "number"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "policyLink": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "TrainingConfig": {
+      "properties": {
+        "formId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  }
+}

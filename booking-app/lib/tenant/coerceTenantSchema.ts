@@ -9,26 +9,20 @@ import {
   normalizeWebCheckoutRoles,
 } from "@/components/src/client/routes/components/schemaTypes";
 import { normalizeResourceServices } from "./migrateResourceServices";
+import {
+  formatSchemaIssue,
+  parseResourceId,
+  resourceIdentityIssues,
+} from "./resourceIdentity";
 
 function applyTenantResourceServices(resource: Resource): Resource {
   return normalizeResourceServices(resource);
 }
 
 function normalizeResourceId(value: unknown, field: string): string {
-  if (
-    (typeof value !== "string" && typeof value !== "number") ||
-    (typeof value === "number" && !Number.isFinite(value))
-  ) {
-    throw new Error(`${field} must be a string or finite number`);
-  }
-  const resourceId = String(value);
-  if (!resourceId.trim()) {
-    throw new Error(`${field} must be non-empty`);
-  }
-  if (resourceId.includes(",")) {
-    throw new Error(`${field} must not contain commas`);
-  }
-  return resourceId;
+  const parsed = parseResourceId(value, field);
+  if (!parsed.ok) throw new Error(formatSchemaIssue(parsed.issue));
+  return parsed.id;
 }
 
 function coerceResource(
@@ -62,17 +56,11 @@ function coerceResource(
 function coerceResources(
   resources: Array<Resource | Record<string, unknown>>,
 ): Resource[] {
-  const seen = new Set<string>();
-  return resources.map((resource, index) => {
-    const coerced = coerceResource(resource, index);
-    if (seen.has(coerced.resourceId)) {
-      throw new Error(
-        `resources has duplicate resourceId "${coerced.resourceId}"`,
-      );
-    }
-    seen.add(coerced.resourceId);
-    return coerced;
-  });
+  const issues = resourceIdentityIssues(resources);
+  if (issues.length > 0) {
+    throw new Error(formatSchemaIssue(issues[0]));
+  }
+  return resources.map((resource, index) => coerceResource(resource, index));
 }
 
 /**

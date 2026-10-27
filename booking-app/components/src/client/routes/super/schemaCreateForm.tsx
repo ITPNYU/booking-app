@@ -3,6 +3,10 @@
 import { buildNewTenantSchema } from "@/lib/tenant/buildNewTenantSchema";
 import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
 import {
+  formatSchemaIssues,
+  validateTenantDocument,
+} from "@/lib/tenant/validateTenantSchema";
+import {
   Alert,
   Box,
   Button,
@@ -44,7 +48,12 @@ function reviewedSchema(
       ? String((tenant as { name?: unknown }).name ?? "").trim()
       : "";
   if (!name) return { error: "Display name is required" };
-  return { schema: { ...schema, tenantId } };
+  const checkedSchema = { ...schema, tenantId };
+  const issues = validateTenantDocument(checkedSchema);
+  if (issues.length > 0) {
+    return { error: `Invalid schema: ${formatSchemaIssues(issues)}` };
+  }
+  return { schema: checkedSchema };
 }
 
 export default function SchemaCreateForm({

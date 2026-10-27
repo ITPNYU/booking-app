@@ -1,3 +1,5 @@
+import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
+import { plainResourceDefault } from "@/lib/tenant/resourceDefault";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -70,6 +72,16 @@ const mockSchema = {
   tenant: { name: "Media Commons", logo: "", nameForPolicy: "" },
   form: { services: { showEquipment: true } },
   resources: [{ name: "Room 1", resourceId: "1" }],
+};
+
+function roundTrip<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+const validSchema = roundTrip(generateDefaultSchema("mc"));
+const validResourceDefault = {
+  ...plainResourceDefault(),
+  name: "Default room",
 };
 
 const SUPER = { email: "admin@nyu.edu", netId: "admin" };
@@ -147,6 +159,19 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
     expect(data.error).toBe("Super admin permission required");
   });
 
+  it("returns 400 when the body fails the tenant schema", async () => {
+    const invalid = roundTrip(generateDefaultSchema("mc"));
+    (invalid.form as { showBookingType: unknown }).showBookingType = "yes";
+
+    const response = await PUT(createRequest("PUT", invalid), { params });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(400);
+    expect(data.error).toContain("Invalid schema");
+    expect(data.error).toContain("showBookingType");
+    expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when the body cannot be coerced (poison-save guard)", async () => {
     const poison = { resources: [{ resourceId: "a,b" }] };
 
@@ -164,7 +189,7 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
     mockFirestoreSet.mockResolvedValue(undefined);
     mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
 
-    const updatedSchema = { ...mockSchema, name: "Updated Name" };
+    const updatedSchema = { ...validSchema, name: "Updated Name" };
 
     const response = await PUT(createRequest("PUT", updatedSchema), { params });
     const { data, status } = await parseJson(response);
@@ -190,7 +215,7 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
     mockServerGetDocumentById.mockResolvedValue(null);
     mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
 
-    const response = await PUT(createRequest("PUT", mockSchema), { params });
+    const response = await PUT(createRequest("PUT", validSchema), { params });
     const { data, status } = await parseJson(response);
 
     expect(status).toBe(200);
@@ -216,7 +241,7 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
     mockServerGetDocumentById.mockResolvedValue(null);
     mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
 
-    const schemaWithWrongTenantId = { ...mockSchema, tenantId: "wrong" };
+    const schemaWithWrongTenantId = { ...validSchema, tenantId: "wrong" };
 
     const response = await PUT(createRequest("PUT", schemaWithWrongTenantId), {
       params,
@@ -264,9 +289,7 @@ describe("tenantSchema/_template resource default", () => {
     mockServerSaveDataToFirestoreWithId.mockRejectedValue(new Error("firestore down"));
 
     const response = await PUT(
-      createRequest("PUT", {
-        resourceDefault: { name: "Default room", resourceId: "" },
-      }),
+      createRequest("PUT", { resourceDefault: validResourceDefault }),
       { params: templateParams },
     );
     const { data, status } = await parseJson(response);
@@ -291,7 +314,7 @@ describe("tenantSchema/_template resource default", () => {
 
     const response = await PUT(
       createRequest("PUT", {
-        resourceDefault: { name: "Default room", resourceId: "" },
+        resourceDefault: validResourceDefault,
       }),
       { params: templateParams },
     );
@@ -303,7 +326,7 @@ describe("tenantSchema/_template resource default", () => {
       "tenantSchema",
       "_template",
       {
-        resourceDefault: { name: "Default room", resourceId: "" },
+        resourceDefault: validResourceDefault,
       },
     );
   });
@@ -317,7 +340,7 @@ describe("tenantSchema/_template resource default", () => {
         tenantId: "mc",
         policy: "<p>unrelated</p>",
         resources: [{ name: "Room", resourceId: "1" }],
-        resourceDefault: { name: "Default room", resourceId: "" },
+        resourceDefault: validResourceDefault,
       }),
       { params: templateParams },
     );
@@ -328,9 +351,23 @@ describe("tenantSchema/_template resource default", () => {
       "tenantSchema",
       "_template",
       {
-        resourceDefault: { name: "Default room", resourceId: "" },
+        resourceDefault: validResourceDefault,
       },
     );
+  });
+
+  it("rejects a template save that does not match the resource schema", async () => {
+    const response = await PUT(
+      createRequest("PUT", {
+        resourceDefault: { name: "Default room", resourceId: "" },
+      }),
+      { params: templateParams },
+    );
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(400);
+    expect(data.error).toContain("Invalid schema");
+    expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
   });
 
   it("rejects a template save that has no resourceDefault object", async () => {
@@ -396,7 +433,7 @@ describe("PUT /api/tenantSchema/[tenant] created slug", () => {
     mockServerGetDocumentById.mockResolvedValue({ tenantId: "studio" });
     mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
 
-    const response = await PUT(createRequest("PUT", mockSchema), {
+    const response = await PUT(createRequest("PUT", validSchema), {
       params: Promise.resolve({ tenant: "studio" }),
     });
     const { data, status } = await parseJson(response);

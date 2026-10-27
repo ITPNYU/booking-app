@@ -5,6 +5,10 @@ import admin from "@/lib/firebase/server/firebaseAdmin";
 import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 import { listTenantSchemaIds } from "@/lib/tenant/listTenantSchemaIds";
 import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
+import {
+  formatSchemaIssues,
+  validateTenantDocument,
+} from "@/lib/tenant/validateTenantSchema";
 
 function alreadyExists(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -78,6 +82,14 @@ export async function POST(request: NextRequest) {
               : String(validationError)
           }`,
         },
+        { status: 400 },
+      );
+    }
+
+    const schemaIssues = validateTenantDocument(schema);
+    if (schemaIssues.length > 0) {
+      return NextResponse.json(
+        { error: `Invalid schema: ${formatSchemaIssues(schemaIssues)}` },
         { status: 400 },
       );
     }

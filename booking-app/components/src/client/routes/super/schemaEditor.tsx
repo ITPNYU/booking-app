@@ -66,6 +66,12 @@ import SchemaResourceForm, {
 } from "./schemaResourceForm";
 import { SchemaValueFields } from "./schemaResourceFields";
 import SchemaCreateForm from "./schemaCreateForm";
+import {
+  validateSchemaSlice,
+  validateTemplateDocument,
+  validateTenantDocument,
+  type SchemaIssue,
+} from "@/lib/tenant/validateTenantSchema";
 
 const BUILTIN_SCHEMA_TARGETS = ["mc", "itp", TEMPLATE_SCHEMA_ID];
 
@@ -265,16 +271,51 @@ function toEditorText(value: unknown): string {
   return JSON.stringify(sortKeysDeep(value), null, 2);
 }
 
+function SchemaIssueAlert({
+  errors,
+  title,
+}: {
+  errors: SchemaIssue[];
+  title: string;
+}) {
+  if (errors.length === 0) return null;
+  const shown = errors.slice(0, 8);
+  return (
+    <Alert severity="error" sx={{ mb: 1 }}>
+      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        {title}
+      </Typography>
+      {shown.map((error, index) => (
+        <Typography
+          key={`${error.path}:${error.message}:${index}`}
+          variant="body2"
+          component="div"
+          sx={{ fontFamily: "monospace", fontSize: 12 }}
+        >
+          {error.path ? `${error.path}: ${error.message}` : error.message}
+        </Typography>
+      ))}
+      {errors.length > shown.length && (
+        <Typography variant="body2">
+          {errors.length - shown.length} more
+        </Typography>
+      )}
+    </Alert>
+  );
+}
+
 function JsonEditor({
   value,
   onChange,
   onParseErrorChange,
+  schemaErrors = [],
   minHeight = 500,
 }: {
   value: unknown;
   onChange: (value: unknown) => void;
   /** Reports whether the textarea currently holds text that does not parse. */
   onParseErrorChange?: (hasError: boolean) => void;
+  schemaErrors?: SchemaIssue[];
   minHeight?: number;
 }) {
   const [text, setText] = useState(() => toEditorText(value));
@@ -312,6 +353,9 @@ function JsonEditor({
           JSON Parse Error: {parseError}
         </Alert>
       )}
+      {!parseError && (
+        <SchemaIssueAlert errors={schemaErrors} title="Schema validation" />
+      )}
       <Box
         component="textarea"
         value={text}
@@ -327,7 +371,10 @@ function JsonEditor({
           fontSize: 13,
           lineHeight: 1.5,
           p: 1.5,
-          border: parseError ? "2px solid #d32f2f" : "1px solid #ccc",
+          border:
+            parseError || schemaErrors.length > 0
+              ? "2px solid #d32f2f"
+              : "1px solid #ccc",
           borderRadius: 1,
           resize: "vertical",
           tabSize: 2,
@@ -637,8 +684,16 @@ export default function SchemaEditor() {
       : { kind: "section", key: "resources" };
   }, [selected, schema]);
 
+  const templateEditor = isTemplateSchemaId(tenant);
+  const documentErrors = useMemo(() => {
+    if (!schema || hasParseError) return [];
+    return templateEditor
+      ? validateTemplateDocument(schema)
+      : validateTenantDocument(schema);
+  }, [schema, hasParseError, templateEditor]);
+
   const handleSaveClick = () => {
-    if (!schema || !original || hasParseError) return;
+    if (!schema || !original || hasParseError || documentErrors.length > 0) return;
     setDiffDialogOpen(true);
   };
 
@@ -760,6 +815,16 @@ export default function SchemaEditor() {
   const sliceValue = schema
     ? getSlice(schema, effectiveSelected, DEFAULTS)
     : undefined;
+  const sliceErrors = useMemo(() => {
+    if (sliceValue === undefined || hasParseError) return [];
+    return validateSchemaSlice(effectiveSelected, sliceValue, {
+      template: templateEditor,
+    });
+  }, [sliceValue, hasParseError, effectiveSelected, templateEditor]);
+  const otherDocumentErrors =
+    effectiveSelected.kind === "all" || sliceErrors.length > 0
+      ? []
+      : documentErrors;
   const currentResource =
     effectiveSelected.kind === "resource" && schema
       ? resourceLabels(schema)[effectiveSelected.index]
@@ -840,7 +905,7 @@ export default function SchemaEditor() {
             <Button
               variant="contained"
               onClick={handleSaveClick}
-              disabled={saving || hasParseError}
+              disabled={saving || hasParseError || documentErrors.length > 0}
             >
               Save
             </Button>
@@ -849,11 +914,17 @@ export default function SchemaEditor() {
             </Button>
             <Typography
               variant="body2"
-              color={hasParseError ? "error.main" : "warning.main"}
+              color={
+                hasParseError || documentErrors.length > 0
+                  ? "error.main"
+                  : "warning.main"
+              }
             >
               {hasParseError
                 ? "Fix the JSON syntax error in the editor to save"
-                : `${diffs.length} unsaved change${diffs.length === 1 ? "" : "s"}`}
+                : documentErrors.length > 0
+                  ? `Fix ${documentErrors.length} schema error${documentErrors.length === 1 ? "" : "s"} to save`
+                  : `${diffs.length} unsaved change${diffs.length === 1 ? "" : "s"}`}
             </Typography>
           </>
         )}
@@ -991,11 +1062,16 @@ export default function SchemaEditor() {
               </Box>
             )}
 
+            <SchemaIssueAlert
+              errors={otherDocumentErrors}
+              title="Schema validation elsewhere"
+            />
             <JsonEditor
               key={`${tenant}:${selectionId(effectiveSelected)}`}
               value={sliceValue}
               onChange={writeSlice}
               onParseErrorChange={setHasParseError}
+              schemaErrors={sliceErrors}
               minHeight={effectiveSelected.kind === "all" ? 600 : 400}
             />
           </Box>

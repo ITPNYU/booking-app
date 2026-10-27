@@ -23,7 +23,8 @@
     "migrate:tenant-resource-ids:dry-run": "node scripts/migrateTenantResourceIds.js --dry-run",
     "seed:mc-services": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/seedMcResourceServices.ts",
     "seed:mc-services:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/seedMcResourceServices.ts --dry-run",
-    "backup:tenant-schema": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/backupTenantSchemaToDisk.ts"
+    "backup:tenant-schema": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/backupTenantSchemaToDisk.ts",
+    "generate:tenant-schema": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/generateTenantSchemaJson.ts"
   },
   "dependencies": {
     "@emotion/styled": "^11.13.0",
@@ -43,6 +44,7 @@
     "@svgr/webpack": "^8.1.0",
     "@typescript-eslint/typescript-estree": "^7.16.0",
     "@xstate/react": "^6.0.0",
+    "ajv": "^8.20.0",
     "bootstrap": "^5.3.3",
     "date-fns": "^3.6.0",
     "date-fns-tz": "^3.1.3",
@@ -95,6 +97,7 @@
     "postcss": "^8",
     "prettier": "^3.3.3",
     "tailwindcss": "^3.4.1",
+    "ts-json-schema-generator": "^2.9.0",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.5.3",
