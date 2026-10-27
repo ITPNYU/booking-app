@@ -156,7 +156,7 @@ export async function PUT(request: NextRequest) {
 
   // Recreates the calendar event. Block when the guest or the signed-in
   // staff member is banned.
-  if (await anyRequesterIsBanned([email, modifiedBy])) {
+  if (await anyRequesterIsBanned([email, modifiedBy], tenant)) {
     return NextResponse.json(
       { error: BANNED_FROM_BOOKING_MESSAGE },
       { status: 403 },

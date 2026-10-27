@@ -3,6 +3,7 @@ import { BannedUsers } from "@/components/src/client/routes/admin/components/Ban
 import { addBanWindow } from "@/components/src/utils/banWindow";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { useParams } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -36,6 +37,7 @@ describe("BannedUsers", () => {
   beforeEach(() => {
     mocks.save.mockReset();
     mocks.save.mockResolvedValue(undefined);
+    vi.mocked(useParams).mockReturnValue({ tenant: "mc" });
     vi.spyOn(window, "alert").mockImplementation(() => {});
   });
 
@@ -98,6 +100,7 @@ describe("BannedUsers", () => {
         startsAt: { __ts: expect.any(Number) },
         endsAt: { __ts: expect.any(Number) },
       }),
+      "mc",
     );
     const saved = mocks.save.mock.calls[0][1] as {
       startsAt: { __ts: number };
