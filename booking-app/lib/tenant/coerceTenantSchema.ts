@@ -21,7 +21,7 @@ function applyTenantResourceServices(resource: Resource): Resource {
 
 function normalizeResourceId(value: unknown, field: string): string {
   const parsed = parseResourceId(value, field);
-  if (!parsed.ok) throw new Error(formatSchemaIssue(parsed.issue));
+  if ("issue" in parsed) throw new Error(formatSchemaIssue(parsed.issue));
   return parsed.id;
 }
 

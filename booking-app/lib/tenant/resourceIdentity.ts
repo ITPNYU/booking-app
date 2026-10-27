@@ -59,17 +59,17 @@ export function resourceRecordIssues(
 
   if (resourceId === undefined) {
     const parsed = parseResourceId(roomId, fieldPath(base, "roomId"));
-    if (!parsed.ok) return [parsed.issue];
+    if ("issue" in parsed) return [parsed.issue];
     canonical = parsed.id;
   } else {
     const parsed = parseResourceId(resourceId, fieldPath(base, "resourceId"));
-    if (!parsed.ok) return [parsed.issue];
+    if ("issue" in parsed) return [parsed.issue];
     canonical = parsed.id;
   }
 
   if (roomId !== undefined && resourceId !== undefined) {
     const parsedRoom = parseResourceId(roomId, fieldPath(base, "roomId"));
-    if (!parsedRoom.ok) return [parsedRoom.issue];
+    if ("issue" in parsedRoom) return [parsedRoom.issue];
     if (parsedRoom.id !== canonical) {
       return [
         {
