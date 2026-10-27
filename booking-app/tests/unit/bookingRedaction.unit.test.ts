@@ -147,17 +147,6 @@ describe("bookingRedaction", () => {
     expect(mocks.mockResolveCallerRole).not.toHaveBeenCalled();
   });
 
-  it("only asks for service assignments when SERVICES can see the memo", async () => {
-    mocks.mockGetCachedTenantSchema.mockResolvedValue(
-      schemaWith({ memoViewRoles: ["PA"], memoEditRoles: [] }),
-    );
-    mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
-    await redactBookingDocsForCaller(session, "mc", TableNames.BOOKING, docs());
-    expect(mocks.mockResolveCallerRole).toHaveBeenCalledWith(session, "mc", {
-      includeServiceAssignments: false,
-    });
-  });
-
   it.each([PagePermission.BOOKING, PagePermission.PA, PagePermission.LIAISON])(
     "strips memo from bookings for %s callers",
     async (role) => {
@@ -168,9 +157,7 @@ describe("bookingRedaction", () => {
         TableNames.BOOKING,
         docs(),
       );
-      expect(mocks.mockResolveCallerRole).toHaveBeenCalledWith(session, "mc", {
-        includeServiceAssignments: true,
-      });
+      expect(mocks.mockResolveCallerRole).toHaveBeenCalledWith(session, "mc");
       expect(out).toEqual([
         { id: "a", title: "One" },
         { id: "b", title: "Two" },

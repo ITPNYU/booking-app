@@ -41,12 +41,16 @@ export async function isServiceApprover(
 
 export type ResolveCallerRoleOptions = {
   /**
-   * Also look up per-resource service approver assignments. It costs one
-   * more query for a caller who would otherwise just book, so pass it only
-   * where SERVICES can change the decision; without it, someone who is only
-   * an assigned service approver resolves to BOOKING.
+   * Count service approvers (a `usersRights` service flag or an assignment
+   * on some resource) as SERVICES. Off by default: being a service approver
+   * gets you the Services page (from `/api/permissions`) and the right to
+   * decide that service on bookings for your rooms (checked per booking in
+   * `/api/services`), not the SERVICES role's tenant-wide powers such as
+   * modifying bookings, editing WebCheckout carts or reading memos. Pass it
+   * only where SERVICES gates data any approver may see. It can cost one
+   * more query.
    */
-  includeServiceAssignments?: boolean;
+  includeServiceApprovers?: boolean;
 };
 
 /**
@@ -59,7 +63,7 @@ export type ResolveCallerRoleOptions = {
 export async function resolveCallerRole(
   session: SessionContext,
   tenant: string | undefined,
-  { includeServiceAssignments = false }: ResolveCallerRoleOptions = {},
+  { includeServiceApprovers = false }: ResolveCallerRoleOptions = {},
 ): Promise<PagePermission> {
   const email = session.email;
   const db = admin.firestore();
@@ -107,12 +111,10 @@ export async function resolveCallerRole(
   if (userRights?.isWorker === true) return PagePermission.PA;
 
   // Last, so SERVICES is only ever added for someone who would otherwise
-  // just book; nobody loses the page they have today. The flag check is
-  // free; the assignment lookup is a query, so it only runs when asked for.
-  if (hasLegacyServiceApproverFlag(userRights)) return PagePermission.SERVICES;
+  // just book; nobody loses the role they have today.
   if (
-    includeServiceAssignments &&
-    (await isAssignedServiceApprover(email, tenant))
+    includeServiceApprovers &&
+    (await isServiceApprover(email, tenant, userRights))
   ) {
     return PagePermission.SERVICES;
   }
@@ -270,9 +272,7 @@ export async function authorizeWrite(
   if (policy.write === "anyNYU") {
     return { ok: true, role: PagePermission.BOOKING };
   }
-  const role = await resolveCallerRole(session, tenant, {
-    includeServiceAssignments: policy.write === "paOrAbove",
-  });
+  const role = await resolveCallerRole(session, tenant);
   if (!roleSatisfies(role, policy.write)) {
     return {
       ok: false,

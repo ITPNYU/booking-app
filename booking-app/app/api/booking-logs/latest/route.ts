@@ -51,8 +51,10 @@ export async function POST(req: NextRequest) {
       if (!session) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
+      // Booking logs are readable by any NYU user through
+      // /api/firestore/list, so service approvers may see these too.
       const role = await resolveCallerRole(session, tenant, {
-        includeServiceAssignments: true,
+        includeServiceApprovers: true,
       });
       if (role === PagePermission.BOOKING) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });

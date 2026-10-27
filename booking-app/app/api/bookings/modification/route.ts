@@ -115,9 +115,7 @@ export async function PUT(request: NextRequest) {
   }
 
   const tenant = extractTenantFromRequest(request);
-  const role = await resolveCallerRole(session, tenant, {
-    includeServiceAssignments: true,
-  });
+  const role = await resolveCallerRole(session, tenant);
   if (!canAccessWebCheckout(role)) {
     return NextResponse.json(
       { error: "Only PA, Services, or Admin can modify a booking" },

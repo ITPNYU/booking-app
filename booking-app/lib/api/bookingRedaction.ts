@@ -85,16 +85,8 @@ export async function redactBookingDocsForCaller<
   ) {
     return docs;
   }
-  const detailsModal = await getDetailsModalConfig(tenant);
-  const memoRoles = [
-    ...(detailsModal.memoViewRoles ?? []),
-    ...(detailsModal.memoEditRoles ?? []),
-  ];
-  const role = await resolveCallerRole(session, tenant, {
-    includeServiceAssignments:
-      detailsModal.showMemo === true && memoRoles.includes("SERVICES"),
-  });
-  if (canAccessMemo(detailsModal, role, "view")) {
+  const role = await resolveCallerRole(session, tenant);
+  if (await canReadStaffOnlyBookingFields(tenant, role)) {
     return docs;
   }
   return docs.map(stripStaffOnlyBookingFields);

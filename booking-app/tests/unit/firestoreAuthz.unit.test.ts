@@ -201,58 +201,62 @@ describe("authorizeRead", () => {
 });
 
 describe("resolveCallerRole for service approvers", () => {
-  it("gives a per-resource service approver SERVICES when the caller asks for assignments", async () => {
-    assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
-    await expect(
-      resolveCallerRole(session, "mc", { includeServiceAssignments: true }),
-    ).resolves.toBe(PagePermission.SERVICES);
-  });
+  const optIn = { includeServiceApprovers: true };
 
-  it("skips the assignment lookup unless the caller asks for it", async () => {
-    assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
-    await expect(resolveCallerRole(session, "mc")).resolves.toBe(
-      PagePermission.BOOKING,
-    );
-    expect(assignmentSnap).not.toHaveBeenCalled();
-  });
+  it.each([
+    [
+      "an assigned approver",
+      () => assignmentSnap.mockReturnValue([{ resourceId: "202" }]),
+    ],
+    [
+      "a usersRights flag holder",
+      () => usersRightsSnap.mockReturnValue([{ isFurnishings: true }]),
+    ],
+  ])(
+    "counts %s as SERVICES only when the caller opts in",
+    async (_label, arrange) => {
+      arrange();
+      await expect(resolveCallerRole(session, "mc", optIn)).resolves.toBe(
+        PagePermission.SERVICES,
+      );
+      await expect(resolveCallerRole(session, "mc")).resolves.toBe(
+        PagePermission.BOOKING,
+      );
+    },
+  );
 
-  it("lets an assigned service approver make paOrAbove writes", async () => {
-    assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
-    const decision = await authorizeWrite(session, "mc", "bookings");
-    expect(decision.ok).toBe(true);
-  });
-
-  it("doesn't look up assignments for reads or admin-only writes", async () => {
+  it("doesn't look up assignments unless the caller opts in", async () => {
+    await resolveCallerRole(session, "mc");
     await authorizeRead(session, "mc", "usersApproversResources");
-    await authorizeWrite(session, "mc", "usersRights");
+    await authorizeWrite(session, "mc", "bookings");
     expect(assignmentSnap).not.toHaveBeenCalled();
   });
 
-  it("gives a tenant-wide service flag holder the Services page", async () => {
-    usersRightsSnap.mockReturnValue([{ isFurnishings: true }]);
-    await expect(resolveCallerRole(session, "mc")).resolves.toBe(
-      PagePermission.SERVICES,
-    );
+  it("doesn't let a service approver make paOrAbove writes", async () => {
+    assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
+    usersRightsSnap.mockReturnValue([{ isCatering: true }]);
+    const decision = await authorizeWrite(session, "mc", "bookings");
+    expect(decision.ok).toBe(false);
   });
 
-  it("keeps a PA a PA, so nobody loses the page they have", async () => {
+  it("keeps a PA a PA, so nobody loses the role they have", async () => {
     usersRightsSnap.mockReturnValue([{ isWorker: true, isSetup: true }]);
     assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
-    await expect(
-      resolveCallerRole(session, "mc", { includeServiceAssignments: true }),
-    ).resolves.toBe(PagePermission.PA);
+    await expect(resolveCallerRole(session, "mc", optIn)).resolves.toBe(
+      PagePermission.PA,
+    );
   });
 
   it("keeps a liaison a liaison", async () => {
     approverSnap.mockReturnValue([{ level: 1 }]);
     assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
-    await expect(
-      resolveCallerRole(session, "mc", { includeServiceAssignments: true }),
-    ).resolves.toBe(PagePermission.LIAISON);
+    await expect(resolveCallerRole(session, "mc", optIn)).resolves.toBe(
+      PagePermission.LIAISON,
+    );
   });
 
   it("leaves everyone else booking", async () => {
-    await expect(resolveCallerRole(session, "mc")).resolves.toBe(
+    await expect(resolveCallerRole(session, "mc", optIn)).resolves.toBe(
       PagePermission.BOOKING,
     );
   });
