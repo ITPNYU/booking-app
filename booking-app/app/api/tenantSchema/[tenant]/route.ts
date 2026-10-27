@@ -44,7 +44,7 @@ async function writeSchemaDocument(
 
 async function backupSchemaDocument(
   tenant: string,
-  existingSchema: unknown,
+  existingSchema: Record<string, unknown>,
   reason: "edit" | "delete",
 ): Promise<void> {
   const db = admin.firestore();
@@ -57,7 +57,7 @@ async function backupSchemaDocument(
   await db
     .collection("tenantSchemaBackup")
     .doc(backupDocId)
-    .set(existingSchema, { merge: false });
+    .set(existingSchema as FirebaseFirestore.DocumentData, { merge: false });
 }
 
 async function getTemplateDocument(): Promise<NextResponse> {
