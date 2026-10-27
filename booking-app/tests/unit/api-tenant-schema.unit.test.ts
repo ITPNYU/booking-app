@@ -4,7 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 const mockServerGetDocumentById = vi.fn();
 const mockServerSaveDataToFirestoreWithId = vi.fn();
 const mockFirestoreSet = vi.fn();
-const mockFirestoreDoc = vi.fn(() => ({ set: mockFirestoreSet }));
+const mockFirestoreDelete = vi.fn();
+const mockFirestoreDoc = vi.fn(() => ({
+  set: mockFirestoreSet,
+  delete: mockFirestoreDelete,
+}));
 const mockFirestoreCollection = vi.fn(() => ({ doc: mockFirestoreDoc }));
 const mockRequireSession = vi.fn();
 const mockRequireSuperAdmin = vi.fn();
@@ -45,7 +49,7 @@ vi.mock("@/lib/api/requireSuperAdmin", () => ({
   requireSuperAdmin: (...args: any[]) => mockRequireSuperAdmin(...args),
 }));
 
-import { GET, POST, PUT } from "@/app/api/tenantSchema/[tenant]/route";
+import { DELETE, GET, POST, PUT } from "@/app/api/tenantSchema/[tenant]/route";
 
 const createRequest = (method: string, body?: any) =>
   new NextRequest("http://localhost:3000/api/tenantSchema/mc", {
@@ -385,4 +389,85 @@ describe("tenantSchema/_template resource default", () => {
     expect(status).toBe(404);
     expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
   });
+});
+
+describe("PUT /api/tenantSchema/[tenant] created slug", () => {
+  it("updates an existing created schema", async () => {
+    mockServerGetDocumentById.mockResolvedValue({ tenantId: "studio" });
+    mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
+
+    const response = await PUT(createRequest("PUT", mockSchema), {
+      params: Promise.resolve({ tenant: "studio" }),
+    });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalledWith(
+      "tenantSchema",
+      "studio",
+      expect.objectContaining({ tenantId: "studio" }),
+    );
+  });
+
+  it("does not create a schema that has not been posted yet", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+
+    const response = await PUT(createRequest("PUT", mockSchema), {
+      params: Promise.resolve({ tenant: "studio" }),
+    });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(404);
+    expect(data.error).toMatch(/not found/i);
+    expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE /api/tenantSchema/[tenant]", () => {
+  it("backs up and deletes a created schema", async () => {
+    mockServerGetDocumentById.mockResolvedValue({ tenantId: "studio", resources: [] });
+    mockFirestoreDelete.mockResolvedValue(undefined);
+
+    const response = await DELETE(createRequest("DELETE"), {
+      params: Promise.resolve({ tenant: "studio" }),
+    });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(data.backupCreated).toBe(true);
+    expect(mockFirestoreCollection).toHaveBeenCalledWith("tenantSchemaBackup");
+    expect(mockFirestoreDoc).toHaveBeenCalledWith(
+      expect.stringContaining("studio-backup-ui-delete-"),
+    );
+    expect(mockFirestoreDelete).toHaveBeenCalled();
+  });
+
+  it("returns 404 when the schema is already gone", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+
+    const response = await DELETE(createRequest("DELETE"), {
+      params: Promise.resolve({ tenant: "studio" }),
+    });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(404);
+    expect(data.error).toMatch(/not found/i);
+    expect(mockFirestoreDelete).not.toHaveBeenCalled();
+  });
+
+  it.each(["mc", "itp", "_template", "mediaCommons"])(
+    "refuses to delete %s",
+    async (tenant) => {
+      const response = await DELETE(createRequest("DELETE"), {
+        params: Promise.resolve({ tenant }),
+      });
+      const { data, status } = await parseJson(response);
+
+      expect(status).toBe(400);
+      expect(data.error).toMatch(/cannot delete/i);
+      expect(mockFirestoreDelete).not.toHaveBeenCalled();
+    },
+  );
 });
