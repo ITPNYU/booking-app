@@ -1,6 +1,7 @@
 import { useCallback, useContext } from "react";
 
 import { usePathname } from "next/navigation";
+import { timesOverlap } from "@/components/src/utils/timeOverlap";
 import { BookingContext } from "../bookingProvider";
 import {
   isOwnCalendarEvent,
@@ -35,19 +36,14 @@ export default function useCalculateOverlap() {
 
         const eventStart = new Date(event.start);
         const eventEnd = new Date(event.end);
-
-        if (
-          (eventStart >= bookingCalendarInfo.start &&
-            eventStart < bookingCalendarInfo.end) ||
-          (eventEnd > bookingCalendarInfo.start &&
-            eventEnd <= bookingCalendarInfo.end) ||
-          (eventStart <= bookingCalendarInfo.start &&
-            eventEnd >= bookingCalendarInfo.end)
-        ) {
-          console.log("overlap", event, bookingCalendarInfo);
-          return true;
-        }
-        return false;
+        const overlaps = timesOverlap(
+          eventStart,
+          eventEnd,
+          bookingCalendarInfo.start,
+          bookingCalendarInfo.end,
+        );
+        if (overlaps) console.log("overlap", event, bookingCalendarInfo);
+        return overlaps;
       })
       .some((x) => x);
   }, [bookingCalendarInfo, existingCalendarEvents, selectedRooms, pathname]);

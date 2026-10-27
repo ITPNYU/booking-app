@@ -1,5 +1,12 @@
 import { bookingCalendarStrToDate } from "@/components/src/client/utils/date";
 import { CALENDAR_HIDE_STATUS } from "@/components/src/policy";
+import { timesOverlap } from "@/components/src/utils/timeOverlap";
+import {
+  resolveAnnexCalendarIds,
+  resolveSelectedRoomCalendars,
+  roomCalendarResolutionError,
+  type ServiceResourceLike,
+} from "@/components/src/utils/resourceServicesUtils";
 import { getCalendarClient } from "@/lib/googleClient";
 import { NextResponse } from "next/server";
 
@@ -52,19 +59,6 @@ function isNotFound(error: unknown): boolean {
     (error as { response?: { status?: number }; code?: number })?.response
       ?.status ?? (error as { code?: number })?.code;
   return status === 404 || status === 410;
-}
-
-function timesOverlap(
-  eventStart: Date,
-  eventEnd: Date,
-  requestStart: Date,
-  requestEnd: Date,
-): boolean {
-  return (
-    (eventStart >= requestStart && eventStart < requestEnd) ||
-    (eventEnd > requestStart && eventEnd <= requestEnd) ||
-    (eventStart <= requestStart && eventEnd >= requestEnd)
-  );
 }
 
 function isHiddenStatus(summary: string): boolean {
@@ -288,4 +282,63 @@ export async function calendarOverlapResponse(params: {
     );
     return NextResponse.json({ error: UNAVAILABLE }, { status: 500 });
   }
+}
+
+/**
+ * Resolve schema calendar ids, then run the live conflict check.
+ * Client-supplied calendar ids are ignored. A room with no schema calendar
+ * returns 500 before Google is called. A taken slot returns 409.
+ */
+export async function prepareBookingCalendars<
+  T extends { roomId?: string | number | null },
+>(params: {
+  tenant?: string;
+  selectedRooms: T[] | null | undefined;
+  resources: ServiceResourceLike[] | null | undefined;
+  annexByRoom?: Record<string, string[]>;
+  bookingCalendarInfo:
+    | { startStr?: string; endStr?: string }
+    | null
+    | undefined;
+  sourceRooms?: RoomCalendar[] | null;
+  excludeCalendarEventId?: string;
+}): Promise<
+  | { response: NextResponse }
+  | {
+      rooms: Array<
+        Omit<T, "roomId" | "calendarId"> & {
+          roomId: string;
+          calendarId: string;
+        }
+      >;
+      annexCalendarIds: string[];
+    }
+> {
+  const resources = params.resources ?? [];
+  const resolved = resolveSelectedRoomCalendars(params.selectedRooms, resources);
+  const calendarError = roomCalendarResolutionError(resolved);
+  if (calendarError) {
+    return {
+      response: NextResponse.json(
+        { result: "error", message: calendarError },
+        { status: 500 },
+      ),
+    };
+  }
+
+  const annexCalendarIds = resolveAnnexCalendarIds(
+    params.annexByRoom,
+    resources,
+  );
+  const overlapResponse = await calendarOverlapResponse({
+    tenant: params.tenant,
+    rooms: resolved.rooms,
+    extraCalendarIds: annexCalendarIds,
+    sourceRooms: params.sourceRooms,
+    bookingCalendarInfo: params.bookingCalendarInfo,
+    excludeCalendarEventId: params.excludeCalendarEventId,
+    roomIds: resolved.rooms.map((room) => room.roomId),
+  });
+  if (overlapResponse) return { response: overlapResponse };
+  return { rooms: resolved.rooms, annexCalendarIds };
 }

@@ -26,11 +26,6 @@ import {
   formatOrigin,
   getSecondaryContactName,
 } from "@/components/src/utils/formatters";
-import {
-  resolveAnnexCalendarIds,
-  resolveSelectedRoomCalendars,
-  roomCalendarResolutionError,
-} from "@/components/src/utils/resourceServicesUtils";
 import { canRequestAuxiliarySpaces } from "@/components/src/utils/roleUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
@@ -65,11 +60,10 @@ import {
   BANNED_FROM_BOOKING_MESSAGE,
   requesterIsBanned,
 } from "@/lib/bookingBan";
-import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
-import { calendarOverlapResponse } from "./checkOverlap";
+import { prepareBookingCalendars } from "./checkOverlap";
 import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 import {
   extractTenantFromRequest,
@@ -122,38 +116,6 @@ function cleanObjectForFirestore(obj: any): any {
 
   return cleaned;
 }
-
-// Helper function to extract tenant from request
-
-// Helper function to get tenant-specific room information
-const getTenantRooms = async (tenant?: string) => {
-  try {
-    const schema = await serverGetDocumentById(
-      TableNames.TENANT_SCHEMA,
-      tenant || DEFAULT_TENANT,
-    );
-
-    if (!schema || !schema.resources) {
-      console.log("No schema or resources found for tenant:", tenant);
-      return [];
-    }
-
-    // Apply environment-based calendar ID selection
-    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(
-      schema.resources,
-    );
-
-    return resourcesWithCorrectCalendarIds.map((resource: any) => ({
-      roomId: String(resource.resourceId ?? resource.roomId),
-      name: resource.name,
-      capacity: resource.capacity?.toString(),
-      calendarId: resource.calendarId,
-    }));
-  } catch (error) {
-    console.error("Error fetching tenant rooms:", error);
-    return [];
-  }
-};
 
 // Helper functions for tenant-specific logic
 const getTenantFlags = (tenant: string) => ({
@@ -208,10 +170,6 @@ async function createBookingCalendarEvent(
 ) {
   const [room, ...otherRooms] = selectedRooms;
   const { calendarId } = room;
-
-  if (calendarId == null) {
-    throw Error(`calendarId not found for room ${room.roomId}`);
-  }
 
   const selectedRoomIds = selectedRooms.map(r => r.roomId);
   const otherRoomEmails = [
@@ -514,22 +472,15 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const annexCalendarIds = resolveAnnexCalendarIds(
-    data?.annexByRoom,
-    tenantResources,
-  );
-  const resolvedRooms = resolveSelectedRoomCalendars(
+  const prepared = await prepareBookingCalendars({
+    tenant,
     selectedRooms,
-    tenantResources,
-  );
-  const calendarError = roomCalendarResolutionError(resolvedRooms);
-  if (calendarError) {
-    return NextResponse.json(
-      { result: "error", message: calendarError },
-      { status: 500 },
-    );
-  }
-  const bookedRooms = resolvedRooms.rooms;
+    resources: tenantResources,
+    annexByRoom: data?.annexByRoom,
+    bookingCalendarInfo,
+  });
+  if ("response" in prepared) return prepared.response;
+  const { rooms: bookedRooms, annexCalendarIds } = prepared;
 
   // Get tenant-specific flags
   const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
@@ -565,15 +516,6 @@ export async function POST(request: NextRequest) {
       hireSecurity: data?.hireSecurity,
     },
   });
-
-  const overlapResponse = await calendarOverlapResponse({
-    tenant,
-    rooms: bookedRooms,
-    extraCalendarIds: annexCalendarIds,
-    bookingCalendarInfo,
-    roomIds: bookedRooms.map((room) => room.roomId),
-  });
-  if (overlapResponse) return overlapResponse;
 
   // Enforce per-resource request limits (per user email + role)
   try {

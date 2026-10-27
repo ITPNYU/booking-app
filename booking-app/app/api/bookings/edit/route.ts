@@ -22,11 +22,7 @@ import {
   BookingStatusLabel,
 } from "@/components/src/types";
 import { getSecondaryContactName } from "@/components/src/utils/formatters";
-import {
-  resolveAnnexCalendarIds,
-  resolveSelectedRoomCalendars,
-  roomCalendarResolutionError,
-} from "@/components/src/utils/resourceServicesUtils";
+import { roomsForIds } from "@/components/src/utils/resourceServicesUtils";
 import {
   getChangedServiceKeys,
   getServiceDecisions,
@@ -54,13 +50,9 @@ import {
 } from "@/lib/bookingBan";
 import { Timestamp } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
-import { calendarOverlapResponse } from "../checkOverlap";
+import { prepareBookingCalendars } from "../checkOverlap";
 import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
-import {
-  buildBookingContents,
-  extractTenantFromRequest,
-  getTenantRooms,
-} from "../shared";
+import { buildBookingContents, extractTenantFromRequest } from "../shared";
 
 /**
  * Media Commons services the edit turned on or off: their request fields
@@ -332,42 +324,23 @@ export async function PUT(request: NextRequest) {
     }
 
     // Get rooms
-    const tenantRooms = await getTenantRooms(tenant);
-    const oldRooms = tenantRooms.filter((room: any) =>
-      oldRoomIds.includes(`${room.roomId}`),
-    );
-
     const selectedRoomIds = selectedRooms
       .map((r: { roomId: string }) => r.roomId)
       .join(", ");
 
     const tenantResources = await serverGetTenantResources(tenant);
-    const annexCalendarIds = resolveAnnexCalendarIds(
-      data?.annexByRoom,
-      tenantResources,
-    );
-    const resolvedRooms = resolveSelectedRoomCalendars(
-      selectedRooms,
-      tenantResources,
-    );
-    const calendarError = roomCalendarResolutionError(resolvedRooms);
-    if (calendarError) {
-      return NextResponse.json(
-        { result: "error", message: calendarError },
-        { status: 500 },
-      );
-    }
-    const bookedRooms = resolvedRooms.rooms;
-    const overlapResponse = await calendarOverlapResponse({
+    const oldRooms = roomsForIds(tenantResources, oldRoomIds);
+    const prepared = await prepareBookingCalendars({
       tenant,
-      rooms: bookedRooms,
-      extraCalendarIds: annexCalendarIds,
+      selectedRooms,
+      resources: tenantResources,
+      annexByRoom: data?.annexByRoom,
       sourceRooms: oldRooms,
       bookingCalendarInfo,
       excludeCalendarEventId: calendarEventId,
-      roomIds: bookedRooms.map((room) => room.roomId),
     });
-    if (overlapResponse) return overlapResponse;
+    if ("response" in prepared) return prepared.response;
+    const { rooms: bookedRooms, annexCalendarIds } = prepared;
 
     console.log("✏️ EDIT: Deleting old calendar events");
     // Delete old calendar events
@@ -403,10 +376,6 @@ export async function PUT(request: NextRequest) {
     // Create calendar event
     const [room, ...otherRooms] = bookedRooms;
     const { calendarId } = room;
-
-    if (calendarId == null) {
-      throw Error(`calendarId not found for room ${room.roomId}`);
-    }
 
     const otherRoomEmails = [
       ...new Set([

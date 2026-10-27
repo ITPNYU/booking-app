@@ -43,12 +43,7 @@ import {
   requesterIsBanned,
 } from "@/lib/bookingBan";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
-import {
-  resolveAnnexCalendarIds,
-  resolveSelectedRoomCalendars,
-  roomCalendarResolutionError,
-} from "@/components/src/utils/resourceServicesUtils";
-import { calendarOverlapResponse } from "@/app/api/bookings/checkOverlap";
+import { prepareBookingCalendars } from "@/app/api/bookings/checkOverlap";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
 import {
   getProductionScheduleRequiredErrorMessage,
@@ -149,32 +144,15 @@ export async function POST(request: NextRequest) {
   }
 
   const tenantResources = await serverGetTenantResources(tenant);
-  // Calendar ids on the request are not authoritative. The event is written
-  // to the schema calendar for each roomId, so the conflict check must use
-  // those same ids.
-  const resolvedRooms = resolveSelectedRoomCalendars(
-    selectedRooms,
-    tenantResources,
-  );
-  const calendarError = roomCalendarResolutionError(resolvedRooms);
-  if (calendarError) {
-    return NextResponse.json(
-      { result: "error", message: calendarError },
-      { status: 500 },
-    );
-  }
-  const bookedRooms = resolvedRooms.rooms;
-  const overlapResponse = await calendarOverlapResponse({
+  const prepared = await prepareBookingCalendars({
     tenant,
-    rooms: bookedRooms,
-    extraCalendarIds: resolveAnnexCalendarIds(
-      data?.annexByRoom,
-      tenantResources,
-    ),
+    selectedRooms,
+    resources: tenantResources,
+    annexByRoom: data?.annexByRoom,
     bookingCalendarInfo,
-    roomIds: bookedRooms.map((room) => room.roomId),
   });
-  if (overlapResponse) return overlapResponse;
+  if ("response" in prepared) return prepared.response;
+  const { rooms: bookedRooms } = prepared;
 
   console.log("📥 BOOKING DIRECT API - Received data:", {
     origin,
@@ -251,7 +229,7 @@ export async function POST(request: NextRequest) {
     if (isMediaCommons(tenant)) {
       const servicesRequested = getMediaCommonsServices(
         data,
-        await serverGetTenantResources(tenant),
+        tenantResources,
       );
       const hasServices = Object.values(servicesRequested).some(Boolean);
 
@@ -380,7 +358,7 @@ export async function POST(request: NextRequest) {
 
       // Get services requested for Media Commons
       const servicesRequested = isMediaCommons(tenant)
-        ? getMediaCommonsServices(data, await serverGetTenantResources(tenant))
+        ? getMediaCommonsServices(data, tenantResources)
         : undefined;
 
       // Create XState actor with proper context

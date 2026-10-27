@@ -33,6 +33,29 @@ export function getServiceResourceId(room: ServiceResourceLike): string {
 }
 
 /**
+ * Schema rooms for an existing booking's room ids. Used to delete the old
+ * calendar event and to find guest copies of it. Includes rooms that have no
+ * calendar id so a delete is still attempted.
+ */
+export function roomsForIds(
+  resources: ServiceResourceLike[] | null | undefined,
+  roomIds: string[],
+): Array<{ roomId: string; calendarId: string }> {
+  const wanted = new Set(roomIds.map((id) => id.trim()).filter(Boolean));
+  if (!Array.isArray(resources) || wanted.size === 0) return [];
+  const rooms: Array<{ roomId: string; calendarId: string }> = [];
+  for (const resource of resources) {
+    const roomId = getServiceResourceId(resource).trim();
+    if (!wanted.has(roomId)) continue;
+    rooms.push({
+      roomId,
+      calendarId: resource.calendarId ? String(resource.calendarId) : "",
+    });
+  }
+  return rooms;
+}
+
+/**
  * True when the resource carries an object `services` config — including an
  * intentionally empty `{}` (no services offered). Such rooms are rendered by
  * the schema-driven form only; the legacy tenant-level switches must not

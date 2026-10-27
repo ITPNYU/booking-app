@@ -5,6 +5,7 @@ import {
   calendarOverlapResponse,
   checkOverlapWithClient,
   findOwnICalUID,
+  prepareBookingCalendars,
   type OverlapCalendarClient,
   type OverlapEvent,
 } from "@/app/api/bookings/checkOverlap";
@@ -244,6 +245,47 @@ describe("calendarOverlapResponse", () => {
     expect(response?.status).toBe(409);
     await expect(response?.json()).resolves.toEqual({
       error: "Time slot no longer available",
+    });
+  });
+
+  it("returns the schema error without calling Google when a room has no calendar", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const prepared = await prepareBookingCalendars({
+      tenant: "mc",
+      selectedRooms: [{ roomId: "202", calendarId: "client-cal" }],
+      resources: [{ resourceId: "other", calendarId: "other-cal" }],
+      bookingCalendarInfo: window,
+    });
+    error.mockRestore();
+    expect("response" in prepared).toBe(true);
+    if (!("response" in prepared)) return;
+    expect(prepared.response.status).toBe(500);
+    await expect(prepared.response.json()).resolves.toEqual({
+      result: "error",
+      message: "ROOM CALENDAR ID NOT FOUND",
+    });
+    expect(mocks.getCalendarClient).not.toHaveBeenCalled();
+  });
+
+  it("returns resolved rooms when the slot is free", async () => {
+    mocks.getCalendarClient.mockResolvedValue(client());
+    const prepared = await prepareBookingCalendars({
+      tenant: "mc",
+      selectedRooms: [{ roomId: "202", calendarId: "client-cal", name: "202" }],
+      resources: [
+        { resourceId: "202", calendarId: "server-cal" },
+        {
+          resourceId: "202GR",
+          parentResourceId: "202",
+          calendarId: "annex-cal",
+        },
+      ],
+      annexByRoom: { "202": ["202GR"] },
+      bookingCalendarInfo: window,
+    });
+    expect(prepared).toEqual({
+      rooms: [{ roomId: "202", calendarId: "server-cal", name: "202" }],
+      annexCalendarIds: ["annex-cal"],
     });
   });
 

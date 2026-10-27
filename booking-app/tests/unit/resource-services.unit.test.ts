@@ -18,6 +18,7 @@ import {
   resolveAnnexCalendarIds,
   resolveSelectedRoomCalendars,
   roomCalendarResolutionError,
+  roomsForIds,
   ROOM_CALENDAR_ID_NOT_FOUND,
   TENANT_RESOURCES_UNAVAILABLE,
 } from "@/components/src/utils/resourceServicesUtils";
@@ -685,6 +686,23 @@ describe("annex parent-child resources", () => {
     expect(mergeRoomIdsWithAnnex("202, 1201", undefined)).toBe("202, 1201");
     expect(mergeRoomIdsWithAnnex("202", { "202": ["202"] })).toBe("202");
     expect(mergeRoomIdsWithAnnex(undefined, undefined)).toBe("");
+  });
+
+  it("finds existing booking rooms on the schema resource list", () => {
+    expect(
+      roomsForIds(
+        [
+          { resourceId: "202", calendarId: "cal-202" },
+          { resourceId: "203", calendarId: "cal-203" },
+          { roomId: "204" },
+        ],
+        ["203", "204", "missing"],
+      ),
+    ).toEqual([
+      { roomId: "203", calendarId: "cal-203" },
+      { roomId: "204", calendarId: "" },
+    ]);
+    expect(roomsForIds([], ["202"])).toEqual([]);
   });
 
   it("uses the schema calendar id and ignores the client-supplied one", () => {
