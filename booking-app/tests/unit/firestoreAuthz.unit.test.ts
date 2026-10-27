@@ -201,11 +201,31 @@ describe("authorizeRead", () => {
 });
 
 describe("resolveCallerRole for service approvers", () => {
-  it("gives a per-resource service approver the Services page", async () => {
+  it("gives a per-resource service approver SERVICES when the caller asks for assignments", async () => {
+    assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
+    await expect(
+      resolveCallerRole(session, "mc", { includeServiceAssignments: true }),
+    ).resolves.toBe(PagePermission.SERVICES);
+  });
+
+  it("skips the assignment lookup unless the caller asks for it", async () => {
     assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
     await expect(resolveCallerRole(session, "mc")).resolves.toBe(
-      PagePermission.SERVICES,
+      PagePermission.BOOKING,
     );
+    expect(assignmentSnap).not.toHaveBeenCalled();
+  });
+
+  it("lets an assigned service approver make paOrAbove writes", async () => {
+    assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
+    const decision = await authorizeWrite(session, "mc", "bookings");
+    expect(decision.ok).toBe(true);
+  });
+
+  it("doesn't look up assignments for reads or admin-only writes", async () => {
+    await authorizeRead(session, "mc", "usersApproversResources");
+    await authorizeWrite(session, "mc", "usersRights");
+    expect(assignmentSnap).not.toHaveBeenCalled();
   });
 
   it("gives a tenant-wide service flag holder the Services page", async () => {
@@ -218,17 +238,17 @@ describe("resolveCallerRole for service approvers", () => {
   it("keeps a PA a PA, so nobody loses the page they have", async () => {
     usersRightsSnap.mockReturnValue([{ isWorker: true, isSetup: true }]);
     assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
-    await expect(resolveCallerRole(session, "mc")).resolves.toBe(
-      PagePermission.PA,
-    );
+    await expect(
+      resolveCallerRole(session, "mc", { includeServiceAssignments: true }),
+    ).resolves.toBe(PagePermission.PA);
   });
 
   it("keeps a liaison a liaison", async () => {
     approverSnap.mockReturnValue([{ level: 1 }]);
     assignmentSnap.mockReturnValue([{ resourceId: "202" }]);
-    await expect(resolveCallerRole(session, "mc")).resolves.toBe(
-      PagePermission.LIAISON,
-    );
+    await expect(
+      resolveCallerRole(session, "mc", { includeServiceAssignments: true }),
+    ).resolves.toBe(PagePermission.LIAISON);
   });
 
   it("leaves everyone else booking", async () => {

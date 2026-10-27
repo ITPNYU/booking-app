@@ -708,6 +708,7 @@ describe("UpdateWebcheckoutCart API Route", () => {
       expect(authMocks.resolveCallerRole).toHaveBeenCalledWith(
         { email: "admin@nyu.edu", netId: "admin" },
         "mc",
+        { includeServiceAssignments: true },
       );
     });
   });

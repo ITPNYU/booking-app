@@ -50,7 +50,9 @@ export async function POST(req: NextRequest) {
         { status: 403 },
       );
     }
-    const role = await resolveCallerRole(session, tenant);
+    const role = await resolveCallerRole(session, tenant, {
+      includeServiceAssignments: true,
+    });
     if (!canAccessWebCheckoutCart(detailsModal, role, "edit")) {
       return NextResponse.json(
         {

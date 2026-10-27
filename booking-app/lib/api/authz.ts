@@ -9,18 +9,11 @@ import { hasLegacyServiceApproverFlag } from "@/components/src/utils/approversRe
 import type { SessionContext } from "@/lib/api/requireSession";
 import { MAINTENANCE_MODE_SETTINGS_DOC_ID } from "@/lib/utils/maintenanceMode";
 
-/**
- * Whether the caller approves at least one service in the tenant: by a
- * tenant-wide `usersRights` flag or by an assignment on some resource. Both
- * reach the Services page. `/api/permissions` and `resolveCallerRole` share
- * this so the page the client shows and the role the server enforces agree.
- */
-export async function isServiceApprover(
+/** Whether `email` approves a service on some resource of the tenant. */
+export async function isAssignedServiceApprover(
   email: string,
   tenant: string,
-  userRights: Record<string, unknown> | null | undefined,
 ): Promise<boolean> {
-  if (hasLegacyServiceApproverFlag(userRights)) return true;
   const snapshot = await admin
     .firestore()
     .collection(getTenantCollectionName(TableNames.APPROVERS_RESOURCES, tenant))
@@ -29,6 +22,32 @@ export async function isServiceApprover(
     .get();
   return !snapshot.empty;
 }
+
+/**
+ * Whether the caller approves at least one service in the tenant: by a
+ * tenant-wide `usersRights` flag or by an assignment on some resource. Both
+ * reach the Services page; `/api/permissions` uses this to compute it.
+ */
+export async function isServiceApprover(
+  email: string,
+  tenant: string,
+  userRights: Record<string, unknown> | null | undefined,
+): Promise<boolean> {
+  return (
+    hasLegacyServiceApproverFlag(userRights) ||
+    isAssignedServiceApprover(email, tenant)
+  );
+}
+
+export type ResolveCallerRoleOptions = {
+  /**
+   * Also look up per-resource service approver assignments. It costs one
+   * more query for a caller who would otherwise just book, so pass it only
+   * where SERVICES can change the decision; without it, someone who is only
+   * an assigned service approver resolves to BOOKING.
+   */
+  includeServiceAssignments?: boolean;
+};
 
 /**
  * Resolve the caller's role for a given tenant by reading the same
@@ -40,6 +59,7 @@ export async function isServiceApprover(
 export async function resolveCallerRole(
   session: SessionContext,
   tenant: string | undefined,
+  { includeServiceAssignments = false }: ResolveCallerRoleOptions = {},
 ): Promise<PagePermission> {
   const email = session.email;
   const db = admin.firestore();
@@ -86,9 +106,14 @@ export async function resolveCallerRole(
 
   if (userRights?.isWorker === true) return PagePermission.PA;
 
-  // Last, so the Services page is only ever added for someone who would
-  // otherwise just book; nobody loses the page they have today.
-  if (await isServiceApprover(email, tenant, userRights)) {
+  // Last, so SERVICES is only ever added for someone who would otherwise
+  // just book; nobody loses the page they have today. The flag check is
+  // free; the assignment lookup is a query, so it only runs when asked for.
+  if (hasLegacyServiceApproverFlag(userRights)) return PagePermission.SERVICES;
+  if (
+    includeServiceAssignments &&
+    (await isAssignedServiceApprover(email, tenant))
+  ) {
     return PagePermission.SERVICES;
   }
 
@@ -245,7 +270,9 @@ export async function authorizeWrite(
   if (policy.write === "anyNYU") {
     return { ok: true, role: PagePermission.BOOKING };
   }
-  const role = await resolveCallerRole(session, tenant);
+  const role = await resolveCallerRole(session, tenant, {
+    includeServiceAssignments: policy.write === "paOrAbove",
+  });
   if (!roleSatisfies(role, policy.write)) {
     return {
       ok: false,

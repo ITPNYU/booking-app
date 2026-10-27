@@ -20,7 +20,9 @@ vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
 
 const schemaWith = (
-  detailsModal: Partial<ReturnType<typeof generateDefaultSchema>["detailsModal"]>,
+  detailsModal: Partial<
+    ReturnType<typeof generateDefaultSchema>["detailsModal"]
+  >,
 ) => {
   const base = generateDefaultSchema("mc");
   return {
@@ -133,6 +135,29 @@ describe("bookingRedaction", () => {
     expect(mocks.mockResolveCallerRole).not.toHaveBeenCalled();
   });
 
+  it("skips the role lookup when no booking has a staff-only field", async () => {
+    const input = [{ id: "b", title: "Two" }];
+    const out = await redactBookingDocsForCaller(
+      session,
+      "mc",
+      TableNames.BOOKING,
+      input,
+    );
+    expect(out).toBe(input);
+    expect(mocks.mockResolveCallerRole).not.toHaveBeenCalled();
+  });
+
+  it("only asks for service assignments when SERVICES can see the memo", async () => {
+    mocks.mockGetCachedTenantSchema.mockResolvedValue(
+      schemaWith({ memoViewRoles: ["PA"], memoEditRoles: [] }),
+    );
+    mocks.mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
+    await redactBookingDocsForCaller(session, "mc", TableNames.BOOKING, docs());
+    expect(mocks.mockResolveCallerRole).toHaveBeenCalledWith(session, "mc", {
+      includeServiceAssignments: false,
+    });
+  });
+
   it.each([PagePermission.BOOKING, PagePermission.PA, PagePermission.LIAISON])(
     "strips memo from bookings for %s callers",
     async (role) => {
@@ -143,7 +168,9 @@ describe("bookingRedaction", () => {
         TableNames.BOOKING,
         docs(),
       );
-      expect(mocks.mockResolveCallerRole).toHaveBeenCalledWith(session, "mc");
+      expect(mocks.mockResolveCallerRole).toHaveBeenCalledWith(session, "mc", {
+        includeServiceAssignments: true,
+      });
       expect(out).toEqual([
         { id: "a", title: "One" },
         { id: "b", title: "Two" },

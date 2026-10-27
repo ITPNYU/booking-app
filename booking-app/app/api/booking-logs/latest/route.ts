@@ -51,7 +51,9 @@ export async function POST(req: NextRequest) {
       if (!session) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      const role = await resolveCallerRole(session, tenant);
+      const role = await resolveCallerRole(session, tenant, {
+        includeServiceAssignments: true,
+      });
       if (role === PagePermission.BOOKING) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }

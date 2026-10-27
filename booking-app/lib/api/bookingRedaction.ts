@@ -79,8 +79,22 @@ export async function redactBookingDocsForCaller<
   if (collection !== TableNames.BOOKING || docs.length === 0) {
     return docs;
   }
-  const role = await resolveCallerRole(session, tenant);
-  if (await canReadStaffOnlyBookingFields(tenant, role)) {
+  // Nothing to strip, so whoever is asking gets the same docs.
+  if (
+    !docs.some((doc) => STAFF_ONLY_BOOKING_FIELDS.some((field) => field in doc))
+  ) {
+    return docs;
+  }
+  const detailsModal = await getDetailsModalConfig(tenant);
+  const memoRoles = [
+    ...(detailsModal.memoViewRoles ?? []),
+    ...(detailsModal.memoEditRoles ?? []),
+  ];
+  const role = await resolveCallerRole(session, tenant, {
+    includeServiceAssignments:
+      detailsModal.showMemo === true && memoRoles.includes("SERVICES"),
+  });
+  if (canAccessMemo(detailsModal, role, "view")) {
     return docs;
   }
   return docs.map(stripStaffOnlyBookingFields);

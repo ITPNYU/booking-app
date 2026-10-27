@@ -82,7 +82,9 @@ export async function PUT(req: NextRequest) {
       { status: 403 },
     );
   }
-  const role = await resolveCallerRole(session, tenant);
+  const role = await resolveCallerRole(session, tenant, {
+    includeServiceAssignments: true,
+  });
   if (!canAccessMemo(detailsModal, role, "edit")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

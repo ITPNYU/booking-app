@@ -161,6 +161,7 @@ describe("PUT /api/bookings/memo", () => {
     expect(mocks.mockResolveCallerRole).toHaveBeenCalledWith(
       { email: "admin@nyu.edu", netId: "admin" },
       "mc",
+      { includeServiceAssignments: true },
     );
     expect(mocks.mockCollection).toHaveBeenCalledWith("mc-bookings");
     expect(mocks.mockWhere).toHaveBeenCalledWith(
@@ -245,6 +246,7 @@ describe("PUT /api/bookings/memo", () => {
     expect(mocks.mockResolveCallerRole).toHaveBeenCalledWith(
       expect.anything(),
       "itp",
+      { includeServiceAssignments: true },
     );
   });
 
