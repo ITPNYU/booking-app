@@ -561,7 +561,11 @@ export async function POST(request: NextRequest) {
           error: error.message,
         },
       );
-      // Fallback to traditional logging
+      // Fallback history records APPROVED. VIP bookings with services may
+      // still be holding the provisional PRE_APPROVED status from before
+      // XState ran; keep the in-memory status, calendar title, response,
+      // and approval emails aligned with that APPROVED log.
+      bookingStatus = BookingStatusLabel.APPROVED;
       await logServerBookingChange({
         bookingId: doc.id,
         status: BookingStatusLabel.REQUESTED,
@@ -580,6 +584,42 @@ export async function POST(request: NextRequest) {
         note: `${requestedBy} for ${email} as ${type} booking`,
         tenant,
       });
+
+      try {
+        const calendarResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "x-tenant": tenant || DEFAULT_TENANT,
+            },
+            body: JSON.stringify({
+              calendarEventId,
+              newValues: { statusPrefix: bookingStatus },
+            }),
+          },
+        );
+
+        if (!calendarResponse.ok) {
+          console.error(
+            `🚨 CALENDAR UPDATE FAILED [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              status: calendarResponse.status,
+              statusText: calendarResponse.statusText,
+            },
+          );
+        }
+      } catch (calendarError) {
+        console.error(
+          `🚨 CALENDAR UPDATE ERROR [${tenant?.toUpperCase()}]:`,
+          {
+            calendarEventId,
+            error: calendarError.message,
+          },
+        );
+      }
     }
   } else {
     // Traditional logging for non-XState bookings
