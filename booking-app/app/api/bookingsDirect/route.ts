@@ -290,6 +290,9 @@ export async function POST(request: NextRequest) {
 
   // Initialize XState for tenants that use XState
   if (shouldInitializeXState && calendarEventId) {
+    let loggedCreation = false;
+    let loggedResolvedStatus = false;
+    let notifiedServiceApprovers = false;
     try {
       const { executeXStateTransition } =
         await import("@/lib/stateMachines/xstateUtilsV5");
@@ -304,6 +307,7 @@ export async function POST(request: NextRequest) {
         note: `${requestedBy} for ${email} as ${type} booking`,
         tenant,
       });
+      loggedCreation = true;
 
       // Initialize XState for booking using machine evaluation (like regular bookings)
       // This will properly handle auto-approval logic for walk-ins
@@ -405,6 +409,7 @@ export async function POST(request: NextRequest) {
           note: "",
           tenant,
         });
+        loggedResolvedStatus = true;
 
         console.log(`📋 APPROVED HISTORY LOGGED [${tenant?.toUpperCase()}]:`, {
           calendarEventId,
@@ -463,6 +468,7 @@ export async function POST(request: NextRequest) {
           requestNumber: sequentialId,
           tenant,
         });
+        loggedResolvedStatus = true;
 
         console.log(
           `📋 VIP PRE-APPROVED HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
@@ -485,6 +491,7 @@ export async function POST(request: NextRequest) {
             calendarEventId,
             tenant,
           );
+          notifiedServiceApprovers = true;
         } catch (notificationError) {
           console.error(
             `🚨 SERVICE APPROVER NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,
@@ -561,64 +568,55 @@ export async function POST(request: NextRequest) {
           error: error.message,
         },
       );
-      // Fallback history records APPROVED. VIP bookings with services may
-      // still be holding the provisional PRE_APPROVED status from before
-      // XState ran; keep the in-memory status, calendar title, response,
-      // and approval emails aligned with that APPROVED log.
-      bookingStatus = BookingStatusLabel.APPROVED;
-      await logServerBookingChange({
-        bookingId: doc.id,
-        status: BookingStatusLabel.REQUESTED,
-        changedBy: requestedBy,
-        requestNumber: sequentialId,
-        calendarEventId,
-        note: `${requestedBy} for ${email} as ${type} booking`,
-        tenant,
-      });
-      await logServerBookingChange({
-        bookingId: doc.id,
-        status: BookingStatusLabel.APPROVED,
-        changedBy: requestedBy,
-        requestNumber: sequentialId,
-        calendarEventId,
-        note: `${requestedBy} for ${email} as ${type} booking`,
-        tenant,
-      });
+      // Keep the status decided before XState ran. VIP bookings with
+      // services stay PRE_APPROVED so a setup failure does not invite the
+      // guest or send an approval email. Walk-ins stay APPROVED.
+      if (!loggedCreation) {
+        await logServerBookingChange({
+          bookingId: doc.id,
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: requestedBy,
+          requestNumber: sequentialId,
+          calendarEventId,
+          note: `${requestedBy} for ${email} as ${type} booking`,
+          tenant,
+        });
+      }
+      if (!loggedResolvedStatus) {
+        await logServerBookingChange({
+          bookingId: doc.id,
+          status: bookingStatus,
+          changedBy: requestedBy,
+          requestNumber: sequentialId,
+          calendarEventId,
+          note: `${requestedBy} for ${email} as ${type} booking`,
+          tenant,
+        });
+      }
 
-      try {
-        const calendarResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_BASE_URL}/api/calendarEvents`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              "x-tenant": tenant || DEFAULT_TENANT,
-            },
-            body: JSON.stringify({
-              calendarEventId,
-              newValues: { statusPrefix: bookingStatus },
-            }),
-          },
-        );
-
-        if (!calendarResponse.ok) {
+      if (
+        bookingStatus === BookingStatusLabel.PRE_APPROVED &&
+        !notifiedServiceApprovers &&
+        isMediaCommons(tenant) &&
+        tenant
+      ) {
+        try {
+          await notifyServiceApproversForRequestedServices(
+            calendarEventId,
+            tenant,
+          );
+        } catch (notificationError) {
           console.error(
-            `🚨 CALENDAR UPDATE FAILED [${tenant?.toUpperCase()}]:`,
+            `🚨 SERVICE APPROVER NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,
             {
               calendarEventId,
-              status: calendarResponse.status,
-              statusText: calendarResponse.statusText,
+              error:
+                notificationError instanceof Error
+                  ? notificationError.message
+                  : String(notificationError),
             },
           );
         }
-      } catch (calendarError) {
-        console.error(
-          `🚨 CALENDAR UPDATE ERROR [${tenant?.toUpperCase()}]:`,
-          {
-            calendarEventId,
-            error: calendarError.message,
-          },
-        );
       }
     }
   } else {

@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   serverSendBookingDetailEmail: vi.fn(),
   getTenantEmailConfig: vi.fn(),
   serverGetTenantResources: vi.fn(),
+  notifyServiceApproversForRequestedServices: vi.fn(),
 }));
 
 vi.mock("@/lib/maintenanceModeServer", () => ({
@@ -45,7 +46,8 @@ vi.mock("@/components/src/server/admin", () => ({
 
 vi.mock("@/components/src/server/serviceApproverNotifications", () => ({
   isServicesRequestState: vi.fn(() => false),
-  notifyServiceApproversForRequestedServices: vi.fn(),
+  notifyServiceApproversForRequestedServices: (...args: unknown[]) =>
+    mocks.notifyServiceApproversForRequestedServices(...args),
 }));
 
 vi.mock("@/components/src/server/calendars", () => ({
@@ -83,7 +85,13 @@ vi.mock("firebase-admin/firestore", () => ({
 
 import { POST as POSTBookingsDirect } from "@/app/api/bookingsDirect/route";
 
-const createVipWithServicesRequest = () =>
+const createDirectRequest = ({
+  origin,
+  type,
+}: {
+  origin: BookingOrigin;
+  type: string;
+}) =>
   new NextRequest("http://localhost:3000/api/bookingsDirect", {
     method: "POST",
     headers: new Headers({
@@ -93,8 +101,8 @@ const createVipWithServicesRequest = () =>
     body: JSON.stringify({
       email: "guest@nyu.edu",
       requestedBy: "liaison@nyu.edu",
-      origin: BookingOrigin.VIP,
-      type: "vip",
+      origin,
+      type,
       selectedRooms: [{ roomId: "101", calendarId: "room-cal" }],
       bookingCalendarInfo: {
         startStr: "2026-11-01T10:00:00-04:00",
@@ -127,6 +135,9 @@ describe("POST /api/bookingsDirect XState fallback", () => {
         approvedWalkIn: "Your walk-in reservation is approved.",
       },
     });
+    mocks.notifyServiceApproversForRequestedServices.mockResolvedValue(
+      undefined,
+    );
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -137,15 +148,17 @@ describe("POST /api/bookingsDirect XState fallback", () => {
     );
   });
 
-  it("reports APPROVED when XState init fails for a VIP booking with services", async () => {
-    const response = await POSTBookingsDirect(createVipWithServicesRequest());
+  it("keeps a VIP booking with services pre-approved when XState init fails", async () => {
+    const response = await POSTBookingsDirect(
+      createDirectRequest({ origin: BookingOrigin.VIP, type: "vip" }),
+    );
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
       result: "success",
       requestNumber: 42,
-      status: BookingStatusLabel.APPROVED,
+      status: BookingStatusLabel.PRE_APPROVED,
     });
 
     const loggedStatuses = mocks.logServerBookingChange.mock.calls.map(
@@ -153,24 +166,42 @@ describe("POST /api/bookingsDirect XState fallback", () => {
     );
     expect(loggedStatuses).toEqual([
       BookingStatusLabel.REQUESTED,
-      BookingStatusLabel.APPROVED,
+      BookingStatusLabel.PRE_APPROVED,
     ]);
+    expect(mocks.insertEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: expect.stringContaining("[PRE-APPROVED]"),
+      }),
+    );
+    expect(
+      vi
+        .mocked(fetch)
+        .mock.calls.some(call => String(call[0]).includes("/api/inviteUser")),
+    ).toBe(false);
+    expect(mocks.serverSendBookingDetailEmail).not.toHaveBeenCalled();
+    expect(
+      mocks.notifyServiceApproversForRequestedServices,
+    ).toHaveBeenCalledWith("event-1", "mc");
+  });
 
-    const calendarUpdate = vi
-      .mocked(fetch)
-      .mock.calls.find(call => String(call[0]).includes("/api/calendarEvents"));
-    expect(calendarUpdate).toBeTruthy();
-    expect(JSON.parse(String(calendarUpdate?.[1]?.body))).toEqual({
-      calendarEventId: "event-1",
-      newValues: { statusPrefix: BookingStatusLabel.APPROVED },
-    });
+  it("still approves a walk-in when XState init fails", async () => {
+    const response = await POSTBookingsDirect(
+      createDirectRequest({
+        origin: BookingOrigin.WALK_IN,
+        type: "walk-in",
+      }),
+    );
+    const body = await response.json();
 
+    expect(body.status).toBe(BookingStatusLabel.APPROVED);
     expect(mocks.serverSendBookingDetailEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        calendarEventId: "event-1",
         targetEmail: "guest@nyu.edu",
         status: BookingStatusLabel.APPROVED,
       }),
     );
+    expect(
+      mocks.notifyServiceApproversForRequestedServices,
+    ).not.toHaveBeenCalled();
   });
 });
