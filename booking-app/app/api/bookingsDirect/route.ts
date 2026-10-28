@@ -293,6 +293,7 @@ export async function POST(request: NextRequest) {
     let loggedCreation = false;
     let loggedResolvedStatus = false;
     let notifiedServiceApprovers = false;
+    let persistedMachineState = false;
     try {
       const { executeXStateTransition } =
         await import("@/lib/stateMachines/xstateUtilsV5");
@@ -456,6 +457,7 @@ export async function POST(request: NextRequest) {
         updateData,
         tenant,
       );
+      persistedMachineState = true;
 
       // Log PRE_APPROVED status change for bookings with services
       // This is done outside XState processing as requested
@@ -592,6 +594,49 @@ export async function POST(request: NextRequest) {
           note: `${requestedBy} for ${email} as ${type} booking`,
           tenant,
         });
+      }
+
+      // Status readers (tables, auto-cancel) use xstateData, then legacy
+      // approval timestamps. This fallback has neither, so they would see
+      // REQUESTED. A synthetic snapshot would also block the restore path
+      // that rebuilds a real machine from those timestamps.
+      if (!persistedMachineState) {
+        const approvalMarker =
+          bookingStatus === BookingStatusLabel.PRE_APPROVED
+            ? {
+                firstApprovedAt: Timestamp.now(),
+                firstApprovedBy: requestedBy,
+              }
+            : bookingStatus === BookingStatusLabel.APPROVED
+              ? {
+                  finalApprovedAt: Timestamp.now(),
+                  finalApprovedBy: requestedBy,
+                }
+              : null;
+        if (approvalMarker) {
+          try {
+            const { serverUpdateDataByCalendarEventId } =
+              await import("@/components/src/server/admin");
+            await serverUpdateDataByCalendarEventId(
+              TableNames.BOOKING,
+              calendarEventId,
+              approvalMarker,
+              tenant,
+            );
+          } catch (updateError) {
+            console.error(
+              `🚨 FALLBACK STATUS MARKER FAILED [${tenant?.toUpperCase()}]:`,
+              {
+                calendarEventId,
+                bookingStatus,
+                error:
+                  updateError instanceof Error
+                    ? updateError.message
+                    : String(updateError),
+              },
+            );
+          }
+        }
       }
 
       if (

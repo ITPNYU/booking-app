@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BookingOrigin, BookingStatusLabel } from "@/components/src/types";
+import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
 
 const mocks = vi.hoisted(() => ({
   getMaintenanceModeSettings: vi.fn(),
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   getTenantEmailConfig: vi.fn(),
   serverGetTenantResources: vi.fn(),
   notifyServiceApproversForRequestedServices: vi.fn(),
+  serverUpdateDataByCalendarEventId: vi.fn(),
 }));
 
 vi.mock("@/lib/maintenanceModeServer", () => ({
@@ -42,6 +44,8 @@ vi.mock("@/components/src/server/admin", () => ({
     mocks.serverGetRoomCalendarId(...args),
   serverSendBookingDetailEmail: (...args: unknown[]) =>
     mocks.serverSendBookingDetailEmail(...args),
+  serverUpdateDataByCalendarEventId: (...args: unknown[]) =>
+    mocks.serverUpdateDataByCalendarEventId(...args),
 }));
 
 vi.mock("@/components/src/server/serviceApproverNotifications", () => ({
@@ -138,6 +142,7 @@ describe("POST /api/bookingsDirect XState fallback", () => {
     mocks.notifyServiceApproversForRequestedServices.mockResolvedValue(
       undefined,
     );
+    mocks.serverUpdateDataByCalendarEventId.mockResolvedValue(undefined);
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -182,6 +187,21 @@ describe("POST /api/bookingsDirect XState fallback", () => {
     expect(
       mocks.notifyServiceApproversForRequestedServices,
     ).toHaveBeenCalledWith("event-1", "mc");
+    expect(mocks.serverUpdateDataByCalendarEventId).toHaveBeenCalledWith(
+      expect.anything(),
+      "event-1",
+      expect.objectContaining({
+        firstApprovedAt: expect.anything(),
+        firstApprovedBy: "liaison@nyu.edu",
+      }),
+      "mc",
+    );
+    const marker = mocks.serverUpdateDataByCalendarEventId.mock.calls[0][2];
+    expect(marker).not.toHaveProperty("finalApprovedAt");
+    expect(marker).not.toHaveProperty("xstateData");
+    expect(getStatusFromXState(marker, "mc")).toBe(
+      BookingStatusLabel.PRE_APPROVED,
+    );
   });
 
   it("still approves a walk-in when XState init fails", async () => {
@@ -203,5 +223,16 @@ describe("POST /api/bookingsDirect XState fallback", () => {
     expect(
       mocks.notifyServiceApproversForRequestedServices,
     ).not.toHaveBeenCalled();
+    expect(mocks.serverUpdateDataByCalendarEventId).toHaveBeenCalledWith(
+      expect.anything(),
+      "event-1",
+      expect.objectContaining({
+        finalApprovedAt: expect.anything(),
+        finalApprovedBy: "liaison@nyu.edu",
+      }),
+      "mc",
+    );
+    const marker = mocks.serverUpdateDataByCalendarEventId.mock.calls[0][2];
+    expect(getStatusFromXState(marker, "mc")).toBe(BookingStatusLabel.APPROVED);
   });
 });
