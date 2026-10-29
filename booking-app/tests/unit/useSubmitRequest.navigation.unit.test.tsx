@@ -2,7 +2,12 @@ import { DatabaseContext } from "@/components/src/client/routes/components/Provi
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
 import { rememberDashboardReturn } from "@/components/src/client/routes/components/bookingTable/dashboardView";
 import useSubmitRequest from "@/components/src/client/routes/booking/hooks/useSubmitRequest";
-import { FormContextLevel, Inputs, PagePermission } from "@/components/src/types";
+import {
+  BookingOrigin,
+  FormContextLevel,
+  Inputs,
+  PagePermission,
+} from "@/components/src/types";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useParams, useRouter } from "next/navigation";
@@ -22,31 +27,33 @@ vi.mock(
   }),
 );
 
-function wrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <DatabaseContext.Provider
-      value={{ pagePermission: PagePermission.ADMIN } as any}
-    >
-      <BookingContext.Provider
-        value={
-          {
-            bookingCalendarInfo: { start: new Date() },
-            department: undefined,
-            role: undefined,
-            formData: undefined,
-          } as any
-        }
+function wrapper(origin?: BookingOrigin) {
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    return (
+      <DatabaseContext.Provider
+        value={{ pagePermission: PagePermission.ADMIN } as any}
       >
-        {children}
-      </BookingContext.Provider>
-    </DatabaseContext.Provider>
-  );
+        <BookingContext.Provider
+          value={
+            {
+              bookingCalendarInfo: { start: new Date() },
+              department: undefined,
+              role: undefined,
+              formData: origin == null ? undefined : { origin },
+            } as any
+          }
+        >
+          {children}
+        </BookingContext.Provider>
+      </DatabaseContext.Provider>
+    );
+  };
 }
 
-async function submit(formContext: FormContextLevel) {
+async function submit(formContext: FormContextLevel, origin?: BookingOrigin) {
   const { result } = renderHook(
     () => useSubmitRequest(formContext, "evt1"),
-    { wrapper },
+    { wrapper: wrapper(origin) },
   );
   const handleSubmit = (onValid: (data: Inputs) => void) => () => {
     onValid({} as Inputs);
@@ -77,6 +84,15 @@ describe("submit navigation", () => {
 
     await waitFor(() =>
       expect(push).toHaveBeenCalledWith("/mc/edit/confirmation"),
+    );
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("sends an edit of a declined VIP booking to the VIP confirmation page", async () => {
+    await submit(FormContextLevel.EDIT, BookingOrigin.VIP);
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/mc/vip/confirmation"),
     );
     expect(replace).not.toHaveBeenCalled();
   });

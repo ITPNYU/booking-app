@@ -63,16 +63,17 @@ export default function useSubmitRequest(
       formDataOtherSchool: formData?.otherSchool,
     });
 
-    // Edit has its own confirmation page, so View Bookings can return to the
-    // dashboard the edit started from. A new booking stays on /book.
+    // A declined VIP booking is edited under the EDIT context, but it is still
+    // a VIP request, so it confirms on the VIP page. Other edits use /edit,
+    // where View Bookings can return to the dashboard the edit started from.
     const confirmationFlow = isMod
       ? "modification"
-      : isEdit
-        ? "edit"
-        : isWalkIn
-          ? "walk-in"
-          : isVIP
-            ? "vip"
+      : isWalkIn
+        ? "walk-in"
+        : isVIP
+          ? "vip"
+          : isEdit
+            ? "edit"
             : "book";
 
     const tenantId = String(tenant ?? "");
