@@ -77,6 +77,70 @@ const extractTenantFromRequest = (request: NextRequest): string | undefined => {
   return undefined;
 };
 
+/**
+ * Rebuild the Media Commons snapshot the success path would have saved.
+ * Service approvers only see a booking when this snapshot is in
+ * "Services Request". Returns null when the machine does not land there.
+ */
+async function buildMediaCommonsServicesRequestSnapshot(input: {
+  tenant: string;
+  selectedRooms: unknown;
+  formData: any;
+  bookingCalendarInfo: unknown;
+  isWalkIn: boolean;
+  calendarEventId: string;
+  email: string;
+  isVip: boolean;
+  role: unknown;
+}): Promise<{
+  machineId: string;
+  lastTransition: string;
+  snapshot: { value: unknown; context: Record<string, unknown> };
+} | null> {
+  const { createActor } = await import("xstate");
+  const { mcBookingMachine } =
+    await import("@/lib/stateMachines/mcBookingMachine");
+  const servicesRequested = getMediaCommonsServices(
+    input.formData,
+    await serverGetTenantResources(input.tenant),
+  );
+  const actor = createActor(mcBookingMachine, {
+    input: {
+      tenant: input.tenant,
+      selectedRooms: input.selectedRooms,
+      formData: input.formData,
+      bookingCalendarInfo: input.bookingCalendarInfo,
+      isWalkIn: input.isWalkIn,
+      calendarEventId: input.calendarEventId,
+      email: input.email,
+      isVip: input.isVip,
+      role: input.role,
+      servicesRequested,
+    },
+  });
+  try {
+    actor.start();
+    const currentState = actor.getSnapshot();
+    const value = currentState.value;
+    if (!value || typeof value !== "object" || !value["Services Request"]) {
+      return null;
+    }
+    const context = JSON.parse(
+      JSON.stringify(currentState.context ?? {}),
+    ) as Record<string, unknown>;
+    return {
+      machineId: mcBookingMachine.id,
+      lastTransition: new Date().toISOString(),
+      snapshot: {
+        value: JSON.parse(JSON.stringify(value)),
+        context,
+      },
+    };
+  } finally {
+    actor.stop();
+  }
+}
+
 export async function POST(request: NextRequest) {
   const {
     email,
@@ -294,6 +358,7 @@ export async function POST(request: NextRequest) {
     let loggedResolvedStatus = false;
     let notifiedServiceApprovers = false;
     let persistedMachineState = false;
+    let builtXStateData: any = null;
     try {
       const { executeXStateTransition } =
         await import("@/lib/stateMachines/xstateUtilsV5");
@@ -372,6 +437,7 @@ export async function POST(request: NextRequest) {
         ...currentState,
         context: cleanContext,
       });
+      builtXStateData = xstateData;
 
       const initialState = xstateData.snapshot?.value;
 
@@ -596,16 +662,49 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Status readers (tables, auto-cancel) use xstateData, then legacy
-      // approval timestamps. This fallback has neither, so they would see
-      // REQUESTED. A synthetic snapshot would also block the restore path
-      // that rebuilds a real machine from those timestamps.
+      // Status readers use xstateData, then legacy approval timestamps.
+      // The Services page only lists a booking whose snapshot is in
+      // "Services Request", so a VIP booking with services also needs that
+      // snapshot. Walk-ins stay on the approval timestamp alone.
       if (!persistedMachineState) {
+        let xstateData = builtXStateData;
+        if (
+          !xstateData &&
+          bookingStatus === BookingStatusLabel.PRE_APPROVED &&
+          isMediaCommons(tenant) &&
+          calendarEventId
+        ) {
+          try {
+            xstateData = await buildMediaCommonsServicesRequestSnapshot({
+              tenant,
+              selectedRooms,
+              formData: data,
+              bookingCalendarInfo,
+              isWalkIn: origin === BookingOrigin.WALK_IN,
+              calendarEventId,
+              email,
+              isVip: origin === BookingOrigin.VIP,
+              role: data?.role,
+            });
+          } catch (snapshotError) {
+            console.error(
+              `🚨 SERVICES REQUEST SNAPSHOT FAILED [${tenant?.toUpperCase()}]:`,
+              {
+                calendarEventId,
+                error:
+                  snapshotError instanceof Error
+                    ? snapshotError.message
+                    : String(snapshotError),
+              },
+            );
+          }
+        }
         const approvalMarker =
           bookingStatus === BookingStatusLabel.PRE_APPROVED
             ? {
                 firstApprovedAt: Timestamp.now(),
                 firstApprovedBy: requestedBy,
+                ...(xstateData ? { xstateData } : {}),
               }
             : bookingStatus === BookingStatusLabel.APPROVED
               ? {

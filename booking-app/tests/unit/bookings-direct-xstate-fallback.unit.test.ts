@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BookingOrigin, BookingStatusLabel } from "@/components/src/types";
 import { getStatusFromXState } from "@/components/src/utils/statusFromXState";
+import { createXStateChecker } from "@/components/src/utils/xstateQueries";
 
 const mocks = vi.hoisted(() => ({
   getMaintenanceModeSettings: vi.fn(),
@@ -199,7 +200,11 @@ describe("POST /api/bookingsDirect XState fallback", () => {
     );
     const marker = mocks.serverUpdateDataByCalendarEventId.mock.calls[0][2];
     expect(marker).not.toHaveProperty("finalApprovedAt");
-    expect(marker).not.toHaveProperty("xstateData");
+    expect(marker.xstateData.snapshot.value["Services Request"]).toBeTruthy();
+    expect(marker.xstateData.snapshot.context.servicesRequested.staff).toBe(
+      true,
+    );
+    expect(createXStateChecker(marker).isInServicesRequest()).toBe(true);
     expect(getStatusFromXState(marker, "mc")).toBe(
       BookingStatusLabel.PRE_APPROVED,
     );
@@ -234,6 +239,7 @@ describe("POST /api/bookingsDirect XState fallback", () => {
       "mc",
     );
     const marker = mocks.serverUpdateDataByCalendarEventId.mock.calls[0][2];
+    expect(marker).not.toHaveProperty("xstateData");
     expect(getStatusFromXState(marker, "mc")).toBe(BookingStatusLabel.APPROVED);
   });
 });
