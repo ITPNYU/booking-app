@@ -66,6 +66,7 @@ vi.mock("@/components/src/server/emails", () => ({
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   logServerBookingChange: (...args: unknown[]) =>
     mocks.logServerBookingChange(...args),
+  serverFetchAllDataFromCollection: vi.fn(async () => []),
   serverGetDocumentById: vi.fn(),
   serverGetFinalApproverEmail: (...args: unknown[]) =>
     mocks.serverGetFinalApproverEmail(...args),
