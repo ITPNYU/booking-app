@@ -13,6 +13,7 @@ import {
   Timestamp,
 } from "../../lib/firebase/stubs/firebaseFirestoreStub";
 import { registerBookingMocks } from "./helpers/mock-routes";
+import { confirmActionDialog } from "./helpers/test-utils";
 
 const jsonHeaders = { "content-type": "application/json" };
 
@@ -837,6 +838,7 @@ test.describe("Liaison first approval flow (mocked Firestore)", () => {
     );
     await confirmApproveButton.waitFor({ state: "visible", timeout: 5_000 });
     await confirmApproveButton.click();
+    await confirmActionDialog(page);
     await approveResponse;
 
     await page.evaluate(async () => {

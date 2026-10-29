@@ -7,6 +7,7 @@ import {
 import { updateCalendarEvent } from "@/components/src/server/calendars";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
+import { normalizeActionNote } from "@/components/src/utils/bookingHistoryNotes";
 import {
   logServerBookingChange,
   serverGetDataByCalendarEventId,
@@ -147,6 +148,7 @@ export async function POST(req: NextRequest) {
         status: BookingStatusLabel.CHECKED_IN,
         changedBy: email,
         requestNumber: bookingDoc.requestNumber,
+        note: normalizeActionNote(requestBody.note),
         tenant,
       });
 

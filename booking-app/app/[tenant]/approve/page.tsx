@@ -14,6 +14,7 @@ import getBookingStatus from "@/components/src/client/routes/hooks/getBookingSta
 import { formatDate, formatTimeAmPm } from "@/components/src/client/utils/date";
 import { TableNames } from "@/components/src/policy";
 import { Booking, BookingStatusLabel } from "@/components/src/types";
+import { MAX_ACTION_NOTE_LENGTH } from "@/components/src/utils/bookingHistoryNotes";
 import { canAccessAdmin } from "@/components/src/utils/permissions";
 import { clientGetDataByCalendarEventId } from "@/lib/firebase/firebase";
 import { timestampToDate } from "@/lib/utils/timestampWire";
@@ -54,6 +55,8 @@ const ApprovePageContent: React.FC = () => {
   const [declining, setDeclining] = useState(false);
   const [declined, setDeclined] = useState(false);
   const [reason, setReason] = useState("");
+  // Optional note recorded with the approval in the booking history.
+  const [approvalNote, setApprovalNote] = useState("");
   const [notApprover, setNotApprover] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -98,7 +101,12 @@ const ApprovePageContent: React.FC = () => {
       setError(null);
       setWarning(null);
       try {
-        await clientApproveBooking(paramCalendarEventId, userEmail, tenant);
+        await clientApproveBooking(
+          paramCalendarEventId,
+          userEmail,
+          tenant,
+          approvalNote.trim() || undefined,
+        );
         setApproved(true);
       } catch (err) {
         if (err instanceof ApprovedWithWarningError) {
@@ -198,6 +206,19 @@ const ApprovePageContent: React.FC = () => {
       </div>
       {APPROVABLE_STATUSES.has(status) ? (
         <div>
+          <TextField
+            label="Note (optional)"
+            helperText="Appears in the booking history with your approval."
+            variant="outlined"
+            fullWidth
+            multiline
+            rows={2}
+            value={approvalNote}
+            onChange={e => setApprovalNote(e.target.value)}
+            disabled={busy || done}
+            inputProps={{ maxLength: MAX_ACTION_NOTE_LENGTH }}
+            style={{ marginTop: 8, marginBottom: 16 }}
+          />
           <Button
             onClick={() => handleApprove()}
             disabled={busy || done}

@@ -13,6 +13,7 @@ import type { SchemaContextType } from "../client/routes/components/SchemaProvid
 import { DEFAULT_TENANT } from "../constants/tenants";
 import { formatHistoryDateTime } from "../client/utils/date";
 import { getSecondaryContactName } from "../utils/formatters";
+import { withActionNote } from "../utils/bookingHistoryNotes";
 import {
   compareTimestampsAscending,
   timestampToDate,
@@ -442,6 +443,8 @@ export const processCancelBooking = async (
   email: string,
   netId: string,
   tenant?: string,
+  /** Optional note from the person canceling, added to the history entry. */
+  actionNote?: string,
 ): Promise<void> => {
   // Import server-side functions and admin SDK
   const {
@@ -497,11 +500,13 @@ export const processCancelBooking = async (
   const isAutomaticTransition = hasNoShowLog || hasDeclinedLog;
 
   const changedBy = isAutomaticTransition ? "System" : email;
+  // An automatic cancel follows a no-show or decline that already has its
+  // own history entry, which is where that action's note was recorded.
   const note = hasNoShowLog
     ? "Canceled due to no show"
     : hasDeclinedLog
       ? "Canceled due to decline"
-      : "";
+      : (withActionNote("", actionNote) ?? "");
 
   console.log(
     "🔍 CANCEL PROCESSING CHECK [%s]:",

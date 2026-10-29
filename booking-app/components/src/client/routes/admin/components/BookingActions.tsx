@@ -15,14 +15,51 @@ import useBookingActions, {
   Actions,
 } from "../hooks/useBookingActions";
 
+import ActionNoteDialog from "../../components/ActionNoteDialog";
 import AlertToast from "../../components/AlertToast";
-import ConfirmDialog from "../../components/ConfirmDialog";
-import DeclineReasonDialog from "../../components/DeclineReasonDialog";
 import Loading from "../../components/Loading";
 import { DatabaseContext } from "../../components/Provider";
 import shouldDisableCheckIn from "../hooks/shouldDisableCheckIn";
 
 const DEFAULT_ERROR_MESSAGE = "Failed to perform action on booking";
+
+const LATE_CANCEL_WARNING =
+  "Are you sure? This action can't be undone. This will be counted as a Late Cancelation if canceled less than 24 hours before the reservation start time.";
+
+const OPTIONAL_NOTE_MESSAGE =
+  "You can add a note. It will appear in the booking history.";
+
+// Edit and Modification open another page. Send to Equipment goes through
+// /api/equipment, which takes no note, and Equipment Approve does nothing.
+const ACTIONS_WITHOUT_NOTE = new Set<Actions>([
+  Actions.EDIT,
+  Actions.MODIFICATION,
+  Actions.SEND_TO_EQUIPMENT,
+  Actions.EQUIPMENT_APPROVE,
+]);
+
+const isDeclineAction = (action: Actions) =>
+  action === Actions.DECLINE ||
+  (typeof action === "string" && action.startsWith("Decline "));
+
+/** Title, message and whether a note is required for an action's dialog. */
+const noteDialogFor = (action: Actions) => {
+  if (isDeclineAction(action)) {
+    return {
+      title: action === Actions.DECLINE ? "Decline Booking" : action,
+      message: "Please give a reason for declining this request.",
+      required: true,
+    };
+  }
+  if (action === Actions.CANCEL) {
+    return {
+      title: "Cancel Booking",
+      message: `${LATE_CANCEL_WARNING} ${OPTIONAL_NOTE_MESSAGE}`,
+      required: false,
+    };
+  }
+  return { title: action, message: OPTIONAL_NOTE_MESSAGE, required: false };
+};
 
 interface Props {
   calendarEventId: string;
@@ -50,14 +87,14 @@ export default function BookingActions(props: Props) {
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState(DEFAULT_ERROR_MESSAGE);
   const [toastSeverity, setToastSeverity] = useState<AlertColor>("error");
-  const [reason, setReason] = useState<string>();
+  const [note, setNote] = useState("");
 
   const { actions, updateActions, options } = useBookingActions({
     status,
     calendarEventId,
     pageContext,
     startDate,
-    reason,
+    note,
   });
 
   const onFocus = () => {
@@ -112,65 +149,37 @@ export default function BookingActions(props: Props) {
       }
     } finally {
       setSelectedAction(Actions.PLACEHOLDER);
+      setNote("");
       setUiLoading(false);
     }
   };
 
   const onAction = useMemo(() => {
-    if (selectedAction === Actions.DECLINE) {
-      return (
-        <DeclineReasonDialog
-          callback={handleDialogChoice}
-          value={reason}
-          setValue={setReason}
-        >
-          <IconButton color={"primary"} aria-label="Confirm decline">
-            <Check />
-          </IconButton>
-        </DeclineReasonDialog>
-      );
-    }
-
-    // For service declines (e.g., "Decline Staff", "Decline Equipment", etc.),
-    // also collect a reason using the same dialog component
     if (
-      typeof selectedAction === "string" &&
-      selectedAction.startsWith("Decline ")
+      selectedAction !== Actions.PLACEHOLDER &&
+      !ACTIONS_WITHOUT_NOTE.has(selectedAction)
     ) {
+      const { title, message, required } = noteDialogFor(selectedAction);
       return (
-        <DeclineReasonDialog
+        <ActionNoteDialog
+          title={title}
+          message={message}
+          required={required}
           callback={handleDialogChoice}
-          value={reason}
-          setValue={setReason}
+          value={note}
+          setValue={setNote}
         >
           <IconButton
             color={"primary"}
-            aria-label={`Confirm ${selectedAction}`}
+            aria-label={
+              selectedAction === Actions.DECLINE
+                ? "Confirm decline"
+                : `Confirm ${selectedAction}`
+            }
           >
             <Check />
           </IconButton>
-        </DeclineReasonDialog>
-      );
-    }
-
-    // Check if action exists and has confirmation property
-    if (
-      "confirmation" in actions[selectedAction] &&
-      actions[selectedAction].confirmation === true
-    ) {
-      return (
-        <ConfirmDialog
-          message="Are you sure? This action can't be undone. This will be counted as a Late Cancelation if canceled less than 24 hours before the reservation start time."
-          callback={handleDialogChoice}
-        >
-          <IconButton
-            disabled={selectedAction === Actions.PLACEHOLDER}
-            color={"primary"}
-            aria-label={`Confirm ${selectedAction}`}
-          >
-            <Check />
-          </IconButton>
-        </ConfirmDialog>
+        </ActionNoteDialog>
       );
     }
 
@@ -186,7 +195,7 @@ export default function BookingActions(props: Props) {
         <Check />
       </IconButton>
     );
-  }, [selectedAction, reason]);
+  }, [selectedAction, note]);
 
   const disabledActions = useMemo(() => {
     const shouldDisable = shouldDisableCheckIn({

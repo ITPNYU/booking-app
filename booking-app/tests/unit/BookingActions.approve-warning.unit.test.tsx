@@ -68,6 +68,8 @@ const runFinalApprove = async () => {
   await user.click(screen.getByRole("combobox"));
   await user.click(screen.getByRole("option", { name: "2nd Approve" }));
   await user.click(screen.getByRole("button", { name: "Confirm 2nd Approve" }));
+  // The note is optional, so the dialog can be confirmed without one.
+  await user.click(await screen.findByRole("button", { name: "Ok" }));
 };
 
 describe("BookingActions when final approval only partly succeeds", () => {

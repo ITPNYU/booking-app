@@ -240,3 +240,16 @@ export async function fillBookingForm(
     }
   }
 }
+
+/**
+ * Confirm the dialog a booking action opens after its check button is
+ * clicked. Every status change asks for a note (optional except for
+ * declines); `note` is typed in before confirming when given.
+ */
+export async function confirmActionDialog(page: Page, note?: string) {
+  const dialog = page.getByRole("dialog");
+  if (note) {
+    await dialog.getByRole("textbox").fill(note);
+  }
+  await dialog.getByRole("button", { name: "Ok" }).click();
+}

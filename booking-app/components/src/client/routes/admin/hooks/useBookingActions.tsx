@@ -98,7 +98,6 @@ export type ActionDefinition = {
   // TODO: Fix this type
   action: () => any;
   optimisticNextStatus: BookingStatusLabel;
-  confirmation?: boolean;
 };
 
 interface Props {
@@ -106,7 +105,8 @@ interface Props {
   pageContext: PageContextLevel;
   status: BookingStatusLabel;
   startDate: Timestamp;
-  reason: string;
+  /** What the user typed in the action dialog: the reason for a decline, or an optional note for any other action. */
+  note: string;
 }
 
 export default function useBookingActions({
@@ -114,7 +114,7 @@ export default function useBookingActions({
   pageContext,
   status,
   startDate,
-  reason,
+  note,
 }: Props) {
   const [date, setDate] = useState(new Date());
   const router = useRouter();
@@ -266,26 +266,25 @@ export default function useBookingActions({
   const baseActions = {
     [Actions.CANCEL]: {
       action: async () => {
-        await cancel(calendarEventId, userEmail, netId, tenant as string);
+        await cancel(calendarEventId, userEmail, netId, tenant as string, note);
       },
       optimisticNextStatus: BookingStatusLabel.CANCELED,
-      confirmation: true,
     },
     [Actions.NO_SHOW]: {
       action: async () => {
-        await noShow(calendarEventId, userEmail, netId, tenant as string);
+        await noShow(calendarEventId, userEmail, netId, tenant as string, note);
       },
       optimisticNextStatus: BookingStatusLabel.NO_SHOW,
     },
     [Actions.CHECK_IN]: {
       action: async () => {
-        await checkin(calendarEventId, userEmail, tenant as string);
+        await checkin(calendarEventId, userEmail, tenant as string, note);
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_IN,
     },
     [Actions.CHECK_OUT]: {
       action: async () => {
-        await checkOut(calendarEventId, userEmail, tenant as string);
+        await checkOut(calendarEventId, userEmail, tenant as string, note);
       },
       optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
     },
@@ -295,6 +294,7 @@ export default function useBookingActions({
           calendarEventId,
           userEmail,
           tenant as string,
+          note,
         );
       },
       optimisticNextStatus: BookingStatusLabel.APPROVED,
@@ -305,6 +305,7 @@ export default function useBookingActions({
           calendarEventId,
           userEmail,
           tenant as string,
+          note,
         );
         const data = await fetchBookingData();
         if (data && updateBookingInList)
@@ -320,6 +321,7 @@ export default function useBookingActions({
           calendarEventId,
           userEmail,
           tenant as string,
+          note,
         );
         const data = await fetchBookingData();
         if (data && updateBookingInList)
@@ -341,10 +343,9 @@ export default function useBookingActions({
     },
     [Actions.DECLINE]: {
       action: async () => {
-        await decline(calendarEventId, userEmail, reason, tenant as string);
+        await decline(calendarEventId, userEmail, note, tenant as string);
       },
       optimisticNextStatus: BookingStatusLabel.DECLINED,
-      confirmation: true,
     },
     [Actions.EDIT]: {
       action: async () => {
@@ -353,7 +354,6 @@ export default function useBookingActions({
         router.push(`/${tenant}/edit/${calendarEventId}`);
       },
       optimisticNextStatus: status,
-      confirmation: false,
     },
     [Actions.MODIFICATION]: {
       action: async () => {
@@ -362,7 +362,6 @@ export default function useBookingActions({
         router.push(`/${tenant}/modification/${calendarEventId}`);
       },
       optimisticNextStatus: status,
-      confirmation: false,
     },
   };
 
@@ -675,6 +674,7 @@ export default function useBookingActions({
   const executeServiceAction = async (
     serviceType: keyof typeof serviceRequests,
     action: "approve" | "decline" | "closeout",
+    // The decline reason, or the optional note for an approval or closeout
     reason?: string,
   ) => {
     // Check if service is actually requested (for approve and closeout actions)
@@ -766,7 +766,7 @@ export default function useBookingActions({
       const approveAction =
         `APPROVE_${serviceType.toUpperCase()}_SERVICE` as Actions;
       serviceActions[approveAction] = {
-        action: () => executeServiceAction(serviceType, "approve"),
+        action: () => executeServiceAction(serviceType, "approve", note),
         optimisticNextStatus: BookingStatusLabel.PENDING,
       };
 
@@ -778,17 +778,16 @@ export default function useBookingActions({
           executeServiceAction(
             serviceType,
             "decline",
-            reason || `${capitalizedType} service declined`,
+            note || `${capitalizedType} service declined`,
           ),
         optimisticNextStatus: BookingStatusLabel.PENDING,
-        confirmation: true,
       };
 
       // Closeout actions
       const closeoutAction =
         `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as Actions;
       serviceActions[closeoutAction] = {
-        action: () => executeServiceAction(serviceType, "closeout"),
+        action: () => executeServiceAction(serviceType, "closeout", note),
         optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
       };
     });
@@ -810,7 +809,7 @@ export default function useBookingActions({
           `APPROVE_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
         ];
       serviceActions[approveActionKey] = {
-        action: () => executeServiceAction(serviceType, "approve"),
+        action: () => executeServiceAction(serviceType, "approve", note),
         optimisticNextStatus: BookingStatusLabel.PENDING,
       };
 
@@ -824,10 +823,9 @@ export default function useBookingActions({
           executeServiceAction(
             serviceType,
             "decline",
-            reason || `${capitalizedType} service declined`,
+            note || `${capitalizedType} service declined`,
           ),
         optimisticNextStatus: BookingStatusLabel.PENDING,
-        confirmation: true,
       };
 
       // Closeout actions - use the enum value directly as key for proper enum-based matching
@@ -836,7 +834,7 @@ export default function useBookingActions({
           `CLOSEOUT_${serviceType.toUpperCase()}_SERVICE` as keyof typeof Actions
         ];
       serviceActions[closeoutActionKey] = {
-        action: () => executeServiceAction(serviceType, "closeout"),
+        action: () => executeServiceAction(serviceType, "closeout", note),
         optimisticNextStatus: BookingStatusLabel.CHECKED_OUT,
       };
     });

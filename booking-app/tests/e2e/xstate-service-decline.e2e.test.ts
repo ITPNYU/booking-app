@@ -17,6 +17,7 @@ import {
   serializeBookingRecord,
   registerDefinePropertyInterceptor,
 } from "./helpers/xstate-mocks";
+import { confirmActionDialog } from "./helpers/test-utils";
 
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
@@ -926,6 +927,7 @@ test.describe("Service decline flows (mocked Firestore)", () => {
     );
     await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
     await confirmButton.click();
+    await confirmActionDialog(page);
 
     const approveRequest = await requestPromise;
     await responsePromise;

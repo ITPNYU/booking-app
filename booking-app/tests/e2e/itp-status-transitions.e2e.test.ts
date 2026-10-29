@@ -9,7 +9,10 @@ import {
   setDoc,
 } from "../../lib/firebase/stubs/firebaseFirestoreStub";
 import { registerItpBookingMocks } from "./helpers/itp-mock-routes";
-import { applyMockOverrides } from "./helpers/test-utils";
+import {
+  applyMockOverrides,
+  confirmActionDialog,
+} from "./helpers/test-utils";
 import {
   createTimestamp,
   registerMockBookingsFeed,
@@ -249,7 +252,6 @@ async function selectActionAndAssert(
   expectedEventType: string,
   transitionRequestPromise: Promise<any>,
   transitionResponsePromise: Promise<any>,
-  opts: { hasDialog?: boolean } = {},
 ) {
   await bookingRow.locator('[role="combobox"]').click();
   await page.getByRole("option", { name: actionName }).click();
@@ -260,10 +262,7 @@ async function selectActionAndAssert(
   await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
   await confirmButton.click();
 
-  if (opts.hasDialog) {
-    const cancelDialog = page.getByRole("dialog");
-    await cancelDialog.getByRole("button", { name: "Ok" }).click();
-  }
+  await confirmActionDialog(page);
 
   const transitionRequest = await transitionRequestPromise;
   await transitionResponsePromise;
@@ -385,7 +384,6 @@ test.describe("ITP Status Transitions", () => {
     await selectActionAndAssert(
       page, bookingRow, "Cancel", "cancel",
       transitionRequestPromise, transitionResponsePromise,
-      { hasDialog: true },
     );
   });
 });

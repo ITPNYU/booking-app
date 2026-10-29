@@ -4,7 +4,10 @@ import {
   DEPARTMENTAL_LIAISON_APPROVED_NOTE,
   firstApprovalHistoryNote,
   resolvePreApprovedHistoryNotes,
+  MAX_ACTION_NOTE_LENGTH,
+  normalizeActionNote,
   serviceHistoryNote,
+  withActionNote,
 } from "@/components/src/utils/bookingHistoryNotes";
 import { describe, expect, it } from "vitest";
 
@@ -131,6 +134,48 @@ describe("bookingHistoryNotes", () => {
     );
     expect(serviceHistoryNote("projection", "approve")).toBe(
       "Projection Service Approved",
+    );
+  });
+});
+
+describe("action notes", () => {
+  it("trims a typed note and treats a blank or non-string one as missing", () => {
+    expect(normalizeActionNote("  Called the requester  ")).toBe(
+      "Called the requester",
+    );
+    expect(normalizeActionNote("   ")).toBeUndefined();
+    expect(normalizeActionNote(undefined)).toBeUndefined();
+    expect(normalizeActionNote(42)).toBeUndefined();
+    expect(normalizeActionNote({ note: "x" })).toBeUndefined();
+  });
+
+  it("caps a typed note at MAX_ACTION_NOTE_LENGTH", () => {
+    expect(normalizeActionNote("a".repeat(MAX_ACTION_NOTE_LENGTH + 50))).toBe(
+      "a".repeat(MAX_ACTION_NOTE_LENGTH),
+    );
+  });
+
+  it("adds the typed note after the system note", () => {
+    expect(withActionNote("Admin Policy Approved", " Budget ok ")).toBe(
+      "Admin Policy Approved: Budget ok",
+    );
+    expect(withActionNote(undefined, "Budget ok")).toBe("Budget ok");
+    expect(withActionNote("", "Budget ok")).toBe("Budget ok");
+    expect(withActionNote("Admin Policy Approved", "  ")).toBe(
+      "Admin Policy Approved",
+    );
+    expect(withActionNote(undefined, undefined)).toBeUndefined();
+  });
+
+  it("adds a note to service approvals and closeouts, not only declines", () => {
+    expect(serviceHistoryNote("catering", "approve", "Menu confirmed")).toBe(
+      "Catering Service Approved: Menu confirmed",
+    );
+    expect(serviceHistoryNote("staff", "closeout", "Tech left at 6pm")).toBe(
+      "Staffing Service Closed Out: Tech left at 6pm",
+    );
+    expect(serviceHistoryNote("staff", "decline", "  ")).toBe(
+      "Staffing Service Declined",
     );
   });
 });
