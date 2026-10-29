@@ -108,8 +108,20 @@ describe("submit navigation", () => {
 
     await submit(FormContextLevel.MODIFICATION);
 
-    await waitFor(() => expect(replace).toHaveBeenCalledWith("/mc/admin"));
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/mc/modification/confirmation"),
+    );
+    expect(replace).not.toHaveBeenCalled();
     expect(sessionStorage.getItem("bookingDashboardReturnTo")).toBeNull();
+  });
+
+  it("sends a modification with no stored dashboard to confirmation", async () => {
+    await submit(FormContextLevel.MODIFICATION);
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/mc/modification/confirmation"),
+    );
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("drops an edit return stored for another booking", async () => {

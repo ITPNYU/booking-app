@@ -4,16 +4,13 @@ import { Box, Button, Typography, useTheme } from "@mui/material";
 import { Error, Event } from "@mui/icons-material";
 import React, { useContext, useEffect, useRef } from "react";
 import { FormContextLevel } from "@/components/src/types";
-import { canAccessWebCheckout, PERMISSION_PATH } from "@/components/src/utils/permissions";
+import { PERMISSION_PATH } from "@/components/src/utils/permissions";
 import { styled } from "@mui/system";
 import { useRouter, useParams } from "next/navigation";
 import { BookingContext } from "../bookingProvider";
 import { DatabaseContext } from "../../components/Provider";
 import Loading from "../../components/Loading";
-import {
-  peekDashboardReturn,
-  staffBookingsPath,
-} from "../../components/bookingTable/dashboardView";
+import { peekDashboardReturn } from "../../components/bookingTable/dashboardView";
 
 const Centered = styled(Box)`
   position: relative;
@@ -44,8 +41,6 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
   const modificationReturn = isMod
     ? peekDashboardReturn("modification", tenantId)
     : null;
-  const returnToDashboard =
-    isMod && (modificationReturn != null || canAccessWebCheckout(pagePermission));
 
   const getModReturnPath = (): string => {
     const path = PERMISSION_PATH[pagePermission];
@@ -53,21 +48,16 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
   };
 
   useEffect(() => {
-    if (submitting !== "success" || !returnToDashboard || redirected.current) {
+    if (
+      submitting !== "success" ||
+      modificationReturn == null ||
+      redirected.current
+    ) {
       return;
     }
     redirected.current = true;
-    router.replace(
-      modificationReturn ?? staffBookingsPath(tenantId, pagePermission),
-    );
-  }, [
-    modificationReturn,
-    pagePermission,
-    returnToDashboard,
-    router,
-    submitting,
-    tenantId,
-  ]);
+    router.replace(modificationReturn);
+  }, [modificationReturn, router, submitting]);
 
   if (submitting === "submitting") {
     return (
@@ -90,7 +80,7 @@ export default function BookingFormConfirmationPage({ formContext }: Props) {
     );
   }
 
-  if (submitting === "success" && returnToDashboard) {
+  if (submitting === "success" && modificationReturn != null) {
     return (
       <Centered>
         <Loading />

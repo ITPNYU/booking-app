@@ -1,9 +1,5 @@
 import { SERVICE_ORDER } from "@/components/src/client/utils/serviceOrder";
-import {
-  BookingStatusLabel,
-  PageContextLevel,
-  PagePermission,
-} from "@/components/src/types";
+import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import { DateRangeFilter } from "./hooks/getDateFilter";
 
 const RETURN_KEY = "bookingDashboardReturnTo";
@@ -284,23 +280,4 @@ export function claimDashboardReturn(
 export function clearDashboardReturn(): void {
   if (typeof window === "undefined") return;
   sessionStorage.removeItem(RETURN_KEY);
-}
-
-export function staffBookingsPath(
-  tenant: string,
-  permission: PagePermission,
-): string {
-  switch (permission) {
-    case PagePermission.PA:
-      return `/${tenant}/pa`;
-    case PagePermission.LIAISON:
-      return `/${tenant}/liaison`;
-    case PagePermission.SERVICES:
-      return `/${tenant}/services`;
-    case PagePermission.ADMIN:
-    case PagePermission.SUPER_ADMIN:
-      return `/${tenant}/admin`;
-    default:
-      return `/${tenant}/my-bookings`;
-  }
 }

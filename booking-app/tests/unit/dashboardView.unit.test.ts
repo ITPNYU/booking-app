@@ -1,4 +1,4 @@
-import { BookingStatusLabel, PageContextLevel, PagePermission } from "@/components/src/types";
+import { BookingStatusLabel, PageContextLevel } from "@/components/src/types";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   applyDashboardView,
@@ -9,7 +9,6 @@ import {
   parseDashboardView,
   peekDashboardReturn,
   rememberDashboardReturn,
-  staffBookingsPath,
   syncDashboardViewUrl,
 } from "@/components/src/client/routes/components/bookingTable/dashboardView";
 
@@ -162,14 +161,5 @@ describe("dashboard view params", () => {
     );
     expect(peekDashboardReturn("edit", "mc")).toBeNull();
     expect(peekDashboardReturn("modification", "other")).toBeNull();
-  });
-
-  it("sends a super admin back to the admin bookings table", () => {
-    expect(staffBookingsPath("mc", PagePermission.SUPER_ADMIN)).toBe(
-      "/mc/admin",
-    );
-    expect(staffBookingsPath("mc", PagePermission.SERVICES)).toBe(
-      "/mc/services",
-    );
   });
 });

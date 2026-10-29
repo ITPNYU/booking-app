@@ -3,14 +3,9 @@ import { useParams, useRouter } from "next/navigation";
 import { SubmitHandler, UseFormHandleSubmit } from "react-hook-form";
 
 import { FormContextLevel, Inputs } from "../../../../types";
-import { canAccessWebCheckout } from "../../../../utils/permissions";
 import { getRequestOrigin } from "../../../../utils/serviceSections";
 import { BookingContext } from "../bookingProvider";
-import { DatabaseContext } from "../../components/Provider";
-import {
-  claimDashboardReturn,
-  staffBookingsPath,
-} from "../../components/bookingTable/dashboardView";
+import { claimDashboardReturn } from "../../components/bookingTable/dashboardView";
 import { buildBookingUrl } from "../utils/bookingUrlParser";
 import useCheckAutoApproval from "./useCheckAutoApproval";
 import useSubmitBooking from "./useSubmitBooking";
@@ -27,7 +22,6 @@ export default function useSubmitRequest(
   const { tenant } = useParams();
   const { bookingCalendarInfo, department, role, formData } =
     useContext(BookingContext);
-  const { pagePermission } = useContext(DatabaseContext);
   const registerEvent = useSubmitBooking(formContext);
 
   const { isWalkIn, isVIP, isMod, isEdit } = getRequestOrigin(
@@ -94,19 +88,14 @@ export default function useSubmitRequest(
         if (outcome === "success" && isEdit) {
           claimDashboardReturn("edit", tenantId, calendarEventId);
         }
+        // Only a modification that started from a dashboard skips confirmation.
+        // A modification opened some other way still shows the confirmation page.
         const modificationReturn =
           outcome === "success" && isMod
             ? claimDashboardReturn("modification", tenantId, calendarEventId)
             : null;
-        if (
-          outcome === "success" &&
-          isMod &&
-          (modificationReturn != null || canAccessWebCheckout(pagePermission))
-        ) {
-          router.replace(
-            modificationReturn ??
-              staffBookingsPath(tenantId, pagePermission),
-          );
+        if (outcome === "success" && isMod && modificationReturn != null) {
+          router.replace(modificationReturn);
           return;
         }
         router.push(

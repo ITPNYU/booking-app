@@ -59,6 +59,15 @@ describe("confirmation return after modification", () => {
     );
   });
 
+  it("shows the received message when a modification has no stored dashboard", () => {
+    renderConfirmation(FormContextLevel.MODIFICATION, PagePermission.ADMIN);
+
+    expect(
+      screen.getByText("Yay! We've received your booking request"),
+    ).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("still shows the received message for a new booking", () => {
     renderConfirmation(FormContextLevel.FULL_FORM, PagePermission.BOOKING);
 
