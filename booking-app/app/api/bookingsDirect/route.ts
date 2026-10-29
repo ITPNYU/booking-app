@@ -81,6 +81,70 @@ const extractTenantFromRequest = (request: NextRequest): string | undefined => {
   return undefined;
 };
 
+/**
+ * Rebuild the Media Commons snapshot the success path would have saved.
+ * Service approvers only see a booking when this snapshot is in
+ * "Services Request". Returns null when the machine does not land there.
+ */
+async function buildMediaCommonsServicesRequestSnapshot(input: {
+  tenant: string;
+  selectedRooms: unknown;
+  formData: any;
+  bookingCalendarInfo: unknown;
+  isWalkIn: boolean;
+  calendarEventId: string;
+  email: string;
+  isVip: boolean;
+  role: unknown;
+}): Promise<{
+  machineId: string;
+  lastTransition: string;
+  snapshot: { value: unknown; context: Record<string, unknown> };
+} | null> {
+  const { createActor } = await import("xstate");
+  const { mcBookingMachine } =
+    await import("@/lib/stateMachines/mcBookingMachine");
+  const servicesRequested = getMediaCommonsServices(
+    input.formData,
+    await serverGetTenantResources(input.tenant),
+  );
+  const actor = createActor(mcBookingMachine, {
+    input: {
+      tenant: input.tenant,
+      selectedRooms: input.selectedRooms,
+      formData: input.formData,
+      bookingCalendarInfo: input.bookingCalendarInfo,
+      isWalkIn: input.isWalkIn,
+      calendarEventId: input.calendarEventId,
+      email: input.email,
+      isVip: input.isVip,
+      role: input.role,
+      servicesRequested,
+    },
+  });
+  try {
+    actor.start();
+    const currentState = actor.getSnapshot();
+    const value = currentState.value;
+    if (!value || typeof value !== "object" || !value["Services Request"]) {
+      return null;
+    }
+    const context = JSON.parse(
+      JSON.stringify(currentState.context ?? {}),
+    ) as Record<string, unknown>;
+    return {
+      machineId: mcBookingMachine.id,
+      lastTransition: new Date().toISOString(),
+      snapshot: {
+        value: JSON.parse(JSON.stringify(value)),
+        context,
+      },
+    };
+  } finally {
+    actor.stop();
+  }
+}
+
 export async function POST(request: NextRequest) {
   const {
     email,
@@ -314,6 +378,11 @@ export async function POST(request: NextRequest) {
 
   // Initialize XState for tenants that use XState
   if (shouldInitializeXState && calendarEventId) {
+    let loggedCreation = false;
+    let loggedResolvedStatus = false;
+    let notifiedServiceApprovers = false;
+    let persistedMachineState = false;
+    let builtXStateData: any = null;
     try {
       const { executeXStateTransition } =
         await import("@/lib/stateMachines/xstateUtilsV5");
@@ -328,6 +397,7 @@ export async function POST(request: NextRequest) {
         note: `${requestedBy} for ${email} as ${type} booking`,
         tenant,
       });
+      loggedCreation = true;
 
       // Initialize XState for booking using machine evaluation (like regular bookings)
       // This will properly handle auto-approval logic for walk-ins
@@ -391,6 +461,7 @@ export async function POST(request: NextRequest) {
         ...currentState,
         context: cleanContext,
       });
+      builtXStateData = xstateData;
 
       const initialState = xstateData.snapshot?.value;
 
@@ -429,6 +500,7 @@ export async function POST(request: NextRequest) {
           note: "",
           tenant,
         });
+        loggedResolvedStatus = true;
 
         console.log(`📋 APPROVED HISTORY LOGGED [${tenant?.toUpperCase()}]:`, {
           calendarEventId,
@@ -475,6 +547,7 @@ export async function POST(request: NextRequest) {
         updateData,
         tenant,
       );
+      persistedMachineState = true;
 
       // Log PRE_APPROVED status change for bookings with services
       // This is done outside XState processing as requested
@@ -487,6 +560,7 @@ export async function POST(request: NextRequest) {
           requestNumber: sequentialId,
           tenant,
         });
+        loggedResolvedStatus = true;
 
         console.log(
           `📋 VIP PRE-APPROVED HISTORY LOGGED [${tenant?.toUpperCase()}]:`,
@@ -509,6 +583,7 @@ export async function POST(request: NextRequest) {
             calendarEventId,
             tenant,
           );
+          notifiedServiceApprovers = true;
         } catch (notificationError) {
           console.error(
             `🚨 SERVICE APPROVER NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,
@@ -585,25 +660,132 @@ export async function POST(request: NextRequest) {
           error: error.message,
         },
       );
-      // Fallback to traditional logging
-      await logServerBookingChange({
-        bookingId: doc.id,
-        status: BookingStatusLabel.REQUESTED,
-        changedBy: requestedBy,
-        requestNumber: sequentialId,
-        calendarEventId,
-        note: `${requestedBy} for ${email} as ${type} booking`,
-        tenant,
-      });
-      await logServerBookingChange({
-        bookingId: doc.id,
-        status: BookingStatusLabel.APPROVED,
-        changedBy: requestedBy,
-        requestNumber: sequentialId,
-        calendarEventId,
-        note: `${requestedBy} for ${email} as ${type} booking`,
-        tenant,
-      });
+      // Keep the status decided before XState ran. VIP bookings with
+      // services stay PRE_APPROVED so a setup failure does not invite the
+      // guest or send an approval email. Walk-ins stay APPROVED.
+      if (!loggedCreation) {
+        await logServerBookingChange({
+          bookingId: doc.id,
+          status: BookingStatusLabel.REQUESTED,
+          changedBy: requestedBy,
+          requestNumber: sequentialId,
+          calendarEventId,
+          note: `${requestedBy} for ${email} as ${type} booking`,
+          tenant,
+        });
+      }
+      if (!loggedResolvedStatus) {
+        await logServerBookingChange({
+          bookingId: doc.id,
+          status: bookingStatus,
+          changedBy: requestedBy,
+          requestNumber: sequentialId,
+          calendarEventId,
+          note: `${requestedBy} for ${email} as ${type} booking`,
+          tenant,
+        });
+      }
+
+      // Status readers use xstateData, then legacy approval timestamps.
+      // The Services page only lists a booking whose snapshot is in
+      // "Services Request", so a VIP booking with services also needs that
+      // snapshot. Walk-ins stay on the approval timestamp alone.
+      if (!persistedMachineState) {
+        let xstateData = builtXStateData;
+        if (
+          !xstateData &&
+          bookingStatus === BookingStatusLabel.PRE_APPROVED &&
+          isMediaCommons(tenant) &&
+          calendarEventId
+        ) {
+          try {
+            xstateData = await buildMediaCommonsServicesRequestSnapshot({
+              tenant,
+              selectedRooms,
+              formData: data,
+              bookingCalendarInfo,
+              isWalkIn: origin === BookingOrigin.WALK_IN,
+              calendarEventId,
+              email,
+              isVip: origin === BookingOrigin.VIP,
+              role: data?.role,
+            });
+          } catch (snapshotError) {
+            console.error(
+              `🚨 SERVICES REQUEST SNAPSHOT FAILED [${tenant?.toUpperCase()}]:`,
+              {
+                calendarEventId,
+                error:
+                  snapshotError instanceof Error
+                    ? snapshotError.message
+                    : String(snapshotError),
+              },
+            );
+          }
+        }
+        const approvalMarker =
+          bookingStatus === BookingStatusLabel.PRE_APPROVED
+            ? {
+                firstApprovedAt: Timestamp.now(),
+                firstApprovedBy: requestedBy,
+                ...(xstateData ? { xstateData } : {}),
+              }
+            : bookingStatus === BookingStatusLabel.APPROVED
+              ? {
+                  finalApprovedAt: Timestamp.now(),
+                  finalApprovedBy: requestedBy,
+                }
+              : null;
+        if (approvalMarker) {
+          try {
+            const { serverUpdateDataByCalendarEventId } =
+              await import("@/components/src/server/admin");
+            await serverUpdateDataByCalendarEventId(
+              TableNames.BOOKING,
+              calendarEventId,
+              approvalMarker,
+              tenant,
+            );
+          } catch (updateError) {
+            console.error(
+              `🚨 FALLBACK STATUS MARKER FAILED [${tenant?.toUpperCase()}]:`,
+              {
+                calendarEventId,
+                bookingStatus,
+                error:
+                  updateError instanceof Error
+                    ? updateError.message
+                    : String(updateError),
+              },
+            );
+          }
+        }
+      }
+
+      if (
+        bookingStatus === BookingStatusLabel.PRE_APPROVED &&
+        !notifiedServiceApprovers &&
+        isMediaCommons(tenant) &&
+        tenant
+      ) {
+        try {
+          await notifyServiceApproversForRequestedServices(
+            calendarEventId,
+            tenant,
+          );
+        } catch (notificationError) {
+          console.error(
+            `🚨 SERVICE APPROVER NOTIFICATION FAILED [${tenant?.toUpperCase()}]:`,
+            {
+              calendarEventId,
+              error:
+                notificationError instanceof Error
+                  ? notificationError.message
+                  : String(notificationError),
+            },
+          );
+        }
+      }
     }
   } else {
     // Traditional logging for non-XState bookings
@@ -776,7 +958,12 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(
-    { result: "success", calendarEventId: calendarId },
+    {
+      result: "success",
+      calendarEventId: calendarId,
+      requestNumber: sequentialId,
+      status: bookingStatus,
+    },
     { status: 200 },
   );
 }
