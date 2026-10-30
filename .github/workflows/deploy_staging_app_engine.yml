@@ -104,12 +104,18 @@ jobs:
         run: |
           cd booking-app
           gcloud app deploy app.staging.yaml --project=${{ secrets.GCP_PROJECT_ID }} --quiet
+      # Keep the newest two versions and remove the rest.
+      # Sort by createTime: `--sort-by=~version` sorts by the whole Version
+      # object, so any config change (instance_class, max_instances, ...)
+      # reorders the list and the step tried to delete the version it had
+      # just deployed. `traffic_split=0` makes sure a serving version is never
+      # a deletion candidate regardless of ordering.
       - name: Delete old versions
         run: |
-          CURRENT_VERSION=$(gcloud app versions list --service=staging --sort-by=~version --limit=1 --format="value(version.id)")
+          CURRENT_VERSION=$(gcloud app versions list --service=staging --sort-by=~version.createTime --limit=1 --format="value(version.id)")
           echo "Current version: $CURRENT_VERSION"
 
-          VERSIONS_TO_DELETE=$(gcloud app versions list --service=staging --sort-by=~version --format="value(version.id)" | tail -n +3)
+          VERSIONS_TO_DELETE=$(gcloud app versions list --service=staging --sort-by=~version.createTime --filter="traffic_split=0" --format="value(version.id)" | tail -n +2)
 
           if [ -n "$VERSIONS_TO_DELETE" ]; then
             echo "Deleting old versions: $VERSIONS_TO_DELETE"

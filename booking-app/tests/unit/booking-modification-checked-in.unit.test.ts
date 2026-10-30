@@ -199,10 +199,10 @@ describe("Checked In booking modification", () => {
     expect(await res.json()).toEqual({
       error: "You are banned from booking",
     });
-    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith([
-      "user@nyu.edu",
-      "pa@nyu.edu",
-    ]);
+    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith(
+      ["user@nyu.edu", "pa@nyu.edu"],
+      "mc",
+    );
     expect(mockDeleteEvent).not.toHaveBeenCalled();
     expect(mockInsertEvent).not.toHaveBeenCalled();
   });
