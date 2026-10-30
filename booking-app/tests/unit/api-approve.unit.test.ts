@@ -307,6 +307,28 @@ describe("POST /api/approve", () => {
     expect(mockExecute).not.toHaveBeenCalled();
   });
 
+  it("denies a non-admin resource approver before the first approval", async () => {
+    mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-db-id",
+      roomId: "room-1",
+    } as any);
+    mockServerListResourceApproversByEmail.mockResolvedValue([
+      { resourceId: "room-1", email: sessionEmail },
+    ] as any);
+
+    const response = await POST(
+      createRequest({ id: bookingId, email: bodyEmail }) as any,
+    );
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 403,
+      data: { error: "You are not authorized to approve this booking" },
+    });
+    expect(mockServerListResourceApproversByEmail).not.toHaveBeenCalled();
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
   it("allows the tenant final approver to final approve", async () => {
     mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
     mockServerGetDataByCalendarEventId.mockResolvedValue({

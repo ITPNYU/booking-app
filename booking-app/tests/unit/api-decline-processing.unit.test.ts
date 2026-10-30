@@ -13,6 +13,16 @@ const mocks = vi.hoisted(() => ({
   serverGetDataByCalendarEventId: vi.fn(),
   serverGetDocumentById: vi.fn(),
   timestampNow: vi.fn(() => ({ seconds: 1, nanoseconds: 0 })),
+  requireSession: vi.fn(),
+  authorizeBookingDecision: vi.fn(),
+}));
+
+vi.mock("@/lib/api/requireSession", () => ({
+  requireSession: mocks.requireSession,
+}));
+
+vi.mock("@/lib/api/bookingDecisionAuthz", () => ({
+  authorizeBookingDecision: mocks.authorizeBookingDecision,
 }));
 
 vi.mock("@/components/src/server/admin", () => ({
@@ -89,6 +99,11 @@ describe("POST /api/decline-processing", () => {
     );
     mocks.serverSendBookingDetailEmail.mockResolvedValue({ ok: true });
     mocks.serverBookingContents.mockResolvedValue({});
+    mocks.requireSession.mockResolvedValue({
+      email: "admin@nyu.edu",
+      netId: "admin",
+    });
+    mocks.authorizeBookingDecision.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -199,5 +214,61 @@ describe("POST /api/decline-processing", () => {
       "second@nyu.edu",
     ]);
     expect(mocks.updateCalendarEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an unauthenticated decline before reading the booking", async () => {
+    mocks.requireSession.mockResolvedValue(null);
+
+    const response = await POST(declineRequest());
+
+    expect(response.status).toBe(401);
+    expect(mocks.serverGetDataByCalendarEventId).not.toHaveBeenCalled();
+    expect(mocks.serverUpdateDataByCalendarEventId).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 without declining when the user is not an approver", async () => {
+    mocks.authorizeBookingDecision.mockResolvedValue(false);
+
+    const response = await POST(declineRequest());
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "You are not authorized to decline this booking",
+    });
+    expect(mocks.authorizeBookingDecision).toHaveBeenCalledWith(
+      "admin@nyu.edu",
+      "mc",
+      expect.objectContaining({ id: "booking-7780" }),
+      "decline",
+    );
+    expect(mocks.serverUpdateDataByCalendarEventId).not.toHaveBeenCalled();
+    expect(sentEmails()).toHaveLength(0);
+    expect(mocks.updateCalendarEvent).not.toHaveBeenCalled();
+  });
+
+  it("records the session user, not the email in the request body", async () => {
+    mocks.requireSession.mockResolvedValue({
+      email: "approver@nyu.edu",
+      netId: "approver",
+    });
+
+    await POST(
+      createRequest({
+        calendarEventId: "calendar-7780",
+        email: "someone-else@nyu.edu",
+        reason: "No staff available",
+        tenant: "mc",
+      }),
+    );
+
+    expect(mocks.serverUpdateDataByCalendarEventId).toHaveBeenCalledWith(
+      "bookings",
+      "calendar-7780",
+      expect.objectContaining({ declinedBy: "approver@nyu.edu" }),
+      "mc",
+    );
+    expect(mocks.logServerBookingChange).toHaveBeenCalledWith(
+      expect.objectContaining({ changedBy: "approver@nyu.edu" }),
+    );
   });
 });
