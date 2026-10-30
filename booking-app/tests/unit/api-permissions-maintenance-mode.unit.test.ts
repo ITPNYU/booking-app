@@ -9,6 +9,9 @@ const mocks = vi.hoisted(() => {
   const mockCollection = vi.fn(() => ({
     doc: (...args: unknown[]) => mockDoc(...args),
     get: (...args: unknown[]) => mockGetCollection(...args),
+    where: () => ({
+      limit: () => ({ get: async () => ({ empty: true, docs: [] }) }),
+    }),
   }));
 
   return {

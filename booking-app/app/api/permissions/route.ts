@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { requireSession } from "@/lib/api/requireSession";
+import { isServiceApprover } from "@/lib/api/authz";
 import {
   ApproverLevel,
   TableNames,
@@ -164,6 +165,17 @@ export async function GET(req: NextRequest) {
       pagePermission = PagePermission.LIAISON;
     } else if (paUsers.some((u: any) => u.email === email)) {
       pagePermission = PagePermission.PA;
+    } else if (
+      tenant &&
+      (await isServiceApprover(
+        email,
+        tenant,
+        userRightsRecords.find((r: any) => r.email === email),
+      ))
+    ) {
+      // Same precedence as resolveCallerRole: only added for someone who
+      // would otherwise just book.
+      pagePermission = PagePermission.SERVICES;
     }
 
     let siteBanner =

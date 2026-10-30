@@ -79,7 +79,7 @@ describe("WebCheckout API Route", () => {
 
   const createMockRequest = (cartNumber: string) => {
     return new NextRequest(
-      `http://localhost/api/webcheckout/cart/${cartNumber}`
+      `http://localhost/api/webcheckout/cart/${cartNumber}`,
     );
   };
 
@@ -161,7 +161,7 @@ describe("WebCheckout API Route", () => {
 
       expect(response.status).toBe(401);
       expect(data.error).toBe(
-        "WebCheckout authentication failed - no session token"
+        "WebCheckout authentication failed - no session token",
       );
     });
   });
@@ -573,7 +573,7 @@ describe("WebCheckout API Route", () => {
 
       expect(response.status).toBe(401);
       expect(data.error).toBe(
-        "WebCheckout session is invalid or expired even after re-authentication"
+        "WebCheckout session is invalid or expired even after re-authentication",
       );
     });
 
@@ -622,7 +622,7 @@ describe("WebCheckout API Route", () => {
 
       expect(response.status).toBe(401);
       expect(data.error).toBe(
-        "WebCheckout session is invalid or expired even after re-authentication"
+        "WebCheckout session is invalid or expired even after re-authentication",
       );
     });
   });

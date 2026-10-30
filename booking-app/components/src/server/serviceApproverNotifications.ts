@@ -4,66 +4,27 @@ import { serverBookingContents } from "@/components/src/server/admin";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import { getServiceDecisions } from "@/components/src/utils/serviceDecisions";
+import type { ApproverService } from "@/components/src/utils/approversResources";
 import { getMediaCommonsServices } from "@/components/src/utils/tenantUtils";
-import {
-  serverFetchAllDataFromCollection,
-  serverGetDataByCalendarEventId,
-} from "@/lib/firebase/server/adminDb";
+import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import { serverResolveServiceApproverEmails } from "@/lib/firebase/server/serviceApprovers";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 
-const SERVICE_APPROVER_CONFIG = {
-  setup: {
-    flagField: "isSetup",
-    subjectStatus: "SETUP REQUESTED",
-    displayName: "setup",
-  },
-  equipment: {
-    flagField: "isEquipment",
-    subjectStatus: "EQUIPMENT REQUESTED",
-    displayName: "equipment",
-  },
-  staff: {
-    flagField: "isStaffing",
-    subjectStatus: "STAFFING REQUESTED",
-    displayName: "staffing",
-  },
-  catering: {
-    flagField: "isCatering",
-    subjectStatus: "CATERING REQUESTED",
-    displayName: "catering",
-  },
-  cleaning: {
-    flagField: "isCleaning",
-    subjectStatus: "CLEANUP REQUESTED",
-    displayName: "cleanup",
-  },
-  security: {
-    flagField: "isSecurity",
-    subjectStatus: "SECURITY REQUESTED",
-    displayName: "security",
-  },
+const SERVICE_APPROVER_CONFIG: Record<
+  ApproverService,
+  { subjectStatus: string; displayName: string }
+> = {
+  setup: { subjectStatus: "SETUP REQUESTED", displayName: "setup" },
+  equipment: { subjectStatus: "EQUIPMENT REQUESTED", displayName: "equipment" },
+  staff: { subjectStatus: "STAFFING REQUESTED", displayName: "staffing" },
+  catering: { subjectStatus: "CATERING REQUESTED", displayName: "catering" },
+  cleaning: { subjectStatus: "CLEANUP REQUESTED", displayName: "cleanup" },
+  security: { subjectStatus: "SECURITY REQUESTED", displayName: "security" },
   furnishings: {
-    flagField: "isFurnishings",
-    // Furnishings used to be folded into setup; until an isFurnishings
-    // approver exists in a tenant, keep routing these to setup approvers.
-    fallbackFlagField: "isSetup",
     subjectStatus: "FURNISHINGS REQUESTED",
     displayName: "furnishings",
   },
-} as const;
-
-const recipientsWithFlag = (
-  usersRights: Array<Record<string, unknown>>,
-  flagField: string,
-): string[] =>
-  Array.from(
-    new Set(
-      usersRights
-        .filter((record) => record[flagField] === true)
-        .map((record) => record.email as string)
-        .filter(Boolean),
-    ),
-  );
+};
 
 export const isServicesRequestState = (newState: any): boolean =>
   !!(
@@ -94,61 +55,58 @@ export const notifyServiceApproversForRequestedServices = async (
   // A resubmitted edit keeps the decisions of unchanged services (ADR-0001);
   // those land straight in their final state and need no approver.
   const decisions = getServiceDecisions(booking);
-  const usersRights = await serverFetchAllDataFromCollection<any>(
-    TableNames.USERS_RIGHTS,
-    [],
-    tenant,
-  );
   const bookingContents = await serverBookingContents(calendarEventId, tenant);
   const emailConfig = await getTenantEmailConfig(tenant);
   const schemaName = emailConfig.schemaName;
 
-  const emailJobs = Object.entries(SERVICE_APPROVER_CONFIG).flatMap(
-    ([serviceKey, config]) => {
-      if (!servicesRequested[serviceKey as keyof typeof servicesRequested]) {
-        return [];
-      }
-      if (
-        typeof decisions[serviceKey as keyof typeof decisions] === "boolean"
-      ) {
-        return [];
-      }
-
-      let recipients = recipientsWithFlag(usersRights, config.flagField);
-      if (recipients.length === 0 && "fallbackFlagField" in config) {
-        recipients = recipientsWithFlag(usersRights, config.fallbackFlagField);
-      }
-
-      if (recipients.length === 0) {
-        return [];
-      }
-
-      return recipients.map((recipient) =>
-        fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-tenant": tenant || DEFAULT_TENANT,
-          },
-          body: JSON.stringify({
-            templateName: "booking_detail",
-            contents: {
-              ...bookingContents,
-              headerMessage: `A ${config.displayName} service approval is required for this request.`,
-            },
-            targetEmail: recipient,
-            status: BookingStatusLabel.PRE_APPROVED,
-            subjectStatusOverride: config.subjectStatus,
-            eventTitle: bookingContents.title || "",
-            requestNumber: bookingContents.requestNumber,
-            bodyMessage: "",
-            replyTo: bookingContents.email,
-            schemaName,
-          }),
-        }),
-      );
-    },
+  const pendingServices = (
+    Object.keys(SERVICE_APPROVER_CONFIG) as ApproverService[]
+  ).filter(
+    (service) =>
+      servicesRequested[service] && typeof decisions[service] !== "boolean",
   );
+  const recipientsByService = await Promise.all(
+    pendingServices.map(
+      async (service) =>
+        [
+          service,
+          await serverResolveServiceApproverEmails(
+            booking.roomId,
+            service,
+            tenant,
+            "notify",
+          ),
+        ] as const,
+    ),
+  );
+
+  const emailJobs = recipientsByService.flatMap(([service, recipients]) => {
+    const config = SERVICE_APPROVER_CONFIG[service];
+    return recipients.map((recipient) =>
+      fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant": tenant || DEFAULT_TENANT,
+        },
+        body: JSON.stringify({
+          templateName: "booking_detail",
+          contents: {
+            ...bookingContents,
+            headerMessage: `A ${config.displayName} service approval is required for this request.`,
+          },
+          targetEmail: recipient,
+          status: BookingStatusLabel.PRE_APPROVED,
+          subjectStatusOverride: config.subjectStatus,
+          eventTitle: bookingContents.title || "",
+          requestNumber: bookingContents.requestNumber,
+          bodyMessage: "",
+          replyTo: bookingContents.email,
+          schemaName,
+        }),
+      }),
+    );
+  });
 
   await Promise.all(emailJobs);
 };
