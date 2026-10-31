@@ -110,8 +110,8 @@ export default function DetailsInput({
       if (attendance <= 0) {
         return "Expected attendance must be >= 1";
       }
-      // Only validate capacity if rooms are selected and have valid capacity
-      if (maxCapacity > 0) {
+      // Staff modifying a reservation may record attendance above room capacity.
+      if (!isMod && maxCapacity > 0) {
         return (
           attendance <= maxCapacity ||
           `Expected attendance exceeds maximum capacity of ${maxCapacity}`
@@ -119,7 +119,7 @@ export default function DetailsInput({
       }
       return true;
     },
-    [maxCapacity],
+    [isMod, maxCapacity],
   );
 
   // Add a state to store sponsor API data
