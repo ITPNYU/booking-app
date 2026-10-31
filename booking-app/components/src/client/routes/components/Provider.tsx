@@ -403,11 +403,14 @@ export const DatabaseProvider = ({
       // LIMIT applies to bounded date ranges only; `fetchAllBookings` fetches
       // the open-ended "All Future" range whole so the client-side status
       // chips see every future booking.
+      // A fresh fetch must ignore the cursor. `lastItem` is the end of the
+      // previous result; startAfter that cursor replaces the table with only
+      // the rows past the last one already shown.
       const bookingsResponse: Booking[] = await fetchAllBookings(
         pagePermission,
         LIMIT,
         filters,
-        lastItem,
+        clicked ? lastItem : null,
         tenant,
       );
 

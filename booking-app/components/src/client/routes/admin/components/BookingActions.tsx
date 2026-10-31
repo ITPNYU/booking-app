@@ -46,7 +46,7 @@ export default function BookingActions(props: Props) {
   const [selectedAction, setSelectedAction] = useState<Actions>(
     Actions.PLACEHOLDER,
   );
-  const { reloadFutureBookings, allBookings } = useContext(DatabaseContext);
+  const { fetchAllBookings, allBookings } = useContext(DatabaseContext);
   const [showError, setShowError] = useState(false);
   const [errorMessage, setErrorMessage] = useState(DEFAULT_ERROR_MESSAGE);
   const [toastSeverity, setToastSeverity] = useState<AlertColor>("error");
@@ -65,8 +65,16 @@ export default function BookingActions(props: Props) {
     onSelect();
   };
 
+  // Refetch with the dashboard's current search and date range. A full future
+  // reload drops the server-side search and the row the user just acted on
+  // disappears from the result.
   const reload = async () => {
-    reloadFutureBookings();
+    try {
+      await fetchAllBookings(false);
+    } catch {
+      // The action already settled, and fetchBookings logs the error. A failed
+      // refresh must not revert the row or look like the action failed.
+    }
   };
 
   const onError = (error: unknown, severity: AlertColor = "error") => {
@@ -91,13 +99,16 @@ export default function BookingActions(props: Props) {
   const doAction = async ({
     action,
     optimisticNextStatus,
+    skipReload,
   }: ActionDefinition) => {
     setUiLoading(true);
     setOptimisticStatus(optimisticNextStatus);
 
     try {
       await action();
-      await reload();
+      if (!skipReload) {
+        await reload();
+      }
     } catch (ex) {
       console.error(ex);
       if (ex instanceof ApprovedWithWarningError) {

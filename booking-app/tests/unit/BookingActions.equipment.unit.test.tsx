@@ -59,6 +59,7 @@ const mockDatabaseContext = {
   bookingsLoading: false,
   allBookings: [],
   reloadFutureBookings: vi.fn(),
+  fetchAllBookings: vi.fn(),
 };
 
 const mockSchemaContext = generateDefaultSchema("mc");

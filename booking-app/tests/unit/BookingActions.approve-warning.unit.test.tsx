@@ -26,14 +26,14 @@ vi.mock(
   }),
 );
 
-const reloadFutureBookings = vi.fn();
+const fetchAllBookings = vi.fn();
 const setOptimisticStatus = vi.fn();
 
-const renderWithFailingApprove = (error: Error) => {
+const renderWithApprove = (action: () => Promise<void>) => {
   vi.mocked(useBookingActions).mockReturnValue({
     actions: {
       [Actions.FINAL_APPROVE]: {
-        action: vi.fn().mockRejectedValue(error),
+        action,
         optimisticNextStatus: BookingStatusLabel.APPROVED,
       },
       [Actions.PLACEHOLDER]: {
@@ -48,7 +48,7 @@ const renderWithFailingApprove = (error: Error) => {
   render(
     <ThemeProvider theme={createTheme()}>
       <DatabaseContext.Provider
-        value={{ allBookings: [], reloadFutureBookings } as any}
+        value={{ allBookings: [], fetchAllBookings } as any}
       >
         <BookingActions
           status={BookingStatusLabel.PRE_APPROVED}
@@ -62,6 +62,9 @@ const renderWithFailingApprove = (error: Error) => {
     </ThemeProvider>,
   );
 };
+
+const renderWithFailingApprove = (error: Error) =>
+  renderWithApprove(vi.fn().mockRejectedValue(error));
 
 const runFinalApprove = async () => {
   const user = userEvent.setup();
@@ -90,7 +93,7 @@ describe("BookingActions when final approval only partly succeeds", () => {
       BookingStatusLabel.APPROVED,
     );
     expect(setOptimisticStatus).not.toHaveBeenCalledWith(undefined);
-    expect(reloadFutureBookings).toHaveBeenCalled();
+    expect(fetchAllBookings).toHaveBeenCalledWith(false);
   });
 
   it("reverts the status and shows an error when approval failed", async () => {
@@ -102,6 +105,20 @@ describe("BookingActions when final approval only partly succeeds", () => {
     expect(alert).toHaveTextContent("Failed to approve booking");
     expect(alert).toHaveClass("MuiAlert-standardError");
     expect(setOptimisticStatus).toHaveBeenLastCalledWith(undefined);
-    expect(reloadFutureBookings).not.toHaveBeenCalled();
+    expect(fetchAllBookings).not.toHaveBeenCalled();
+  });
+
+  it("keeps the approved status when the follow-up refresh fails", async () => {
+    fetchAllBookings.mockRejectedValueOnce(new Error("Firestore unavailable"));
+    renderWithApprove(vi.fn().mockResolvedValue(undefined));
+
+    await runFinalApprove();
+
+    expect(fetchAllBookings).toHaveBeenCalledWith(false);
+    expect(setOptimisticStatus).toHaveBeenCalledWith(
+      BookingStatusLabel.APPROVED,
+    );
+    expect(setOptimisticStatus).not.toHaveBeenCalledWith(undefined);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
