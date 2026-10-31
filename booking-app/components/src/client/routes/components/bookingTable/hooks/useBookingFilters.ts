@@ -272,7 +272,10 @@ class BookingFilter {
           (row.firstName && row.firstName.toLowerCase().includes(query)) ||
           (row.lastName && row.lastName.toLowerCase().includes(query)) ||
           // Search in roomId
-          (row.roomId && row.roomId.toLowerCase().includes(query)),
+          (row.roomId && row.roomId.toLowerCase().includes(query)) ||
+          // Search in WebCheckout cart id
+          (row.webcheckoutCartNumber &&
+            row.webcheckoutCartNumber.toLowerCase().includes(query)),
       );
     }
     return this;
