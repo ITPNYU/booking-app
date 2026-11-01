@@ -3,7 +3,11 @@ import { ChevronRight } from "@mui/icons-material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { useParams, useRouter } from "next/navigation";
-import { BookingFormDropdown, BookingFormTextField } from "./BookingFormInputs";
+import {
+  BookingFormDropdown,
+  BookingFormMultiSelect,
+  BookingFormTextField,
+} from "./BookingFormInputs";
 import {
   AttendeeAffiliation,
   FormContextLevel,
@@ -71,8 +75,14 @@ export default function DetailsInput({
   );
 
   const {
-    form: { showNNumber, showSponsor, showBookingType, productionSchedule },
-    mappings: { role: roleMapping },
+    form: {
+      showNNumber,
+      showSponsor,
+      showBookingType,
+      showDepartmentCollaboration,
+      productionSchedule,
+    },
+    mappings: { role: roleMapping, program: programMapping },
   } = useTenantSchema();
 
   const {
@@ -81,8 +91,28 @@ export default function DetailsInput({
     trigger,
     watch,
     reset,
+    setValue,
     formState: { errors, isValid },
   } = useRequestFormState({ userApiData, isVIP, isWalkIn });
+
+  // Departments a collaboration can name: the same list as the Affiliation
+  // step, plus Other.
+  const collaborationDepartmentOptions = useMemo(() => {
+    const departments = Object.keys(programMapping || {}).sort((a, b) =>
+      a.localeCompare(b),
+    );
+    return departments.includes("Other")
+      ? departments
+      : [...departments, "Other"];
+  }, [programMapping]);
+  const isDepartmentCollaboration = watch("departmentCollaboration") === "Yes";
+
+  // Answering No drops any departments picked while the answer was Yes.
+  useEffect(() => {
+    if (!isDepartmentCollaboration) {
+      setValue("collaboratingDepartments", [], { shouldValidate: false });
+    }
+  }, [isDepartmentCollaboration, setValue]);
 
   // The missing-data guard lets a request onto Services only while the
   // Details answer set is valid. The Services form cannot see these fields,
@@ -384,6 +414,25 @@ export default function DetailsInput({
               .map((x) => x.bookingType)
               .sort((a, b) => a.localeCompare(b))}
             dataTestId="booking-type-select"
+            {...{ control, errors, trigger }}
+          />
+        )}
+        {!isMod && showDepartmentCollaboration && (
+          <BookingFormDropdown
+            id="departmentCollaboration"
+            label="Is this a collaboration between two or more departments?"
+            options={["Yes", "No"]}
+            dataTestId="department-collaboration-select"
+            {...{ control, errors, trigger }}
+          />
+        )}
+        {!isMod && showDepartmentCollaboration && isDepartmentCollaboration && (
+          <BookingFormMultiSelect
+            id="collaboratingDepartments"
+            label="Collaborating Departments"
+            description="Select every department involved, including your own."
+            options={collaborationDepartmentOptions}
+            dataTestId="collaborating-departments-select"
             {...{ control, errors, trigger }}
           />
         )}

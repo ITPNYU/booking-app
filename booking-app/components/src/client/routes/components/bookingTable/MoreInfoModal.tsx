@@ -822,6 +822,18 @@ export default function MoreInfoModal({
                       <TableCell>{booking.bookingType ?? BLANK}</TableCell>
                     </TableRow>
                   )}
+                  {(schema.form.showDepartmentCollaboration ||
+                    booking.departmentCollaboration) && (
+                    <TableRow>
+                      <LabelCell>Department Collaboration</LabelCell>
+                      <TableCell>
+                        {booking.departmentCollaboration === "Yes" &&
+                        booking.collaboratingDepartments?.length
+                          ? `Yes: ${booking.collaboratingDepartments.join(", ")}`
+                          : (booking.departmentCollaboration ?? BLANK)}
+                      </TableCell>
+                    </TableRow>
+                  )}
                   <TableRow>
                     <LabelCell>Expected Attendance</LabelCell>
                     <TableCell>{booking.expectedAttendance ?? BLANK}</TableCell>
