@@ -241,6 +241,33 @@ describe("approve page", () => {
     ).toBeDisabled();
   });
 
+  it("does not offer final approval while the booking waits on service decisions", async () => {
+    mockClientGetDataByCalendarEventId.mockResolvedValue({
+      ...booking,
+      xstateData: {
+        snapshot: {
+          value: {
+            "Services Request": {
+              "Catering Request": "Catering Requested",
+              "Staff Request": "Staff Approved",
+            },
+          },
+        },
+      },
+    });
+
+    renderPage();
+
+    expect(
+      await screen.findByText(/waiting on decisions for its requested services/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Status: PRE-APPROVED")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Approve Booking" }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText("Reason for declining")).toBeEnabled();
+  });
+
   it.each([BookingStatusLabel.APPROVED, BookingStatusLabel.DECLINED])(
     "does not offer approval for a %s booking",
     async (status) => {

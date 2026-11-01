@@ -28,6 +28,20 @@ const APPROVABLE_STATUSES = new Set<string>([
   BookingStatusLabel.EQUIPMENT,
 ]);
 
+const AWAITING_SERVICES_MESSAGE =
+  "This booking is waiting on decisions for its requested services. It can be approved once each service has been approved or declined.";
+
+// A Media Commons booking waiting on its service decisions still shows as
+// PRE-APPROVED, but the server refuses final approval until every service is
+// decided, so the admin page offers per-service actions instead.
+const isAwaitingServiceDecisions = (booking: Booking): boolean => {
+  const value = (booking as { xstateData?: { snapshot?: { value?: unknown } } })
+    .xstateData?.snapshot?.value;
+  return (
+    typeof value === "object" && value !== null && "Services Request" in value
+  );
+};
+
 const NOT_AN_APPROVER_MESSAGE =
   "You are not an approver for this booking, so you can't approve or decline it. If you think you should be, contact the admins.";
 
@@ -182,6 +196,7 @@ const ApprovePageContent: React.FC = () => {
   const status = getBookingStatus(booking, tenant);
   const busy = loading || declining;
   const done = approved || declined || notApprover;
+  const awaitingServices = isAwaitingServiceDecisions(booking);
 
   return (
     <div style={{ padding: 24 }}>
@@ -198,9 +213,14 @@ const ApprovePageContent: React.FC = () => {
       </div>
       {APPROVABLE_STATUSES.has(status) ? (
         <div>
+          {awaitingServices && !done && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              {AWAITING_SERVICES_MESSAGE}
+            </Alert>
+          )}
           <Button
             onClick={() => handleApprove()}
-            disabled={busy || done}
+            disabled={busy || done || awaitingServices}
             variant="contained"
           >
             {loading
