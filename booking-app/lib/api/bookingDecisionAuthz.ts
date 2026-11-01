@@ -1,25 +1,23 @@
 import { PagePermission } from "@/components/src/types";
+import { parseBookingResourceIds } from "@/components/src/utils/approversResources";
 import { resolveCallerRole } from "@/lib/api/authz";
 import {
   serverGetFinalApproverEmail,
-  serverListResourceApproversByEmail,
+  serverResolveResourceApproverEmails,
 } from "@/lib/firebase/server/adminDb";
 
 export type BookingDecision = "approve" | "decline";
-
-const parseBookingResourceIds = (roomId: unknown): string[] =>
-  String(roomId ?? "")
-    .split(",")
-    .map(resourceId => resourceId.trim())
-    .filter(Boolean);
 
 /**
  * Whether `email` may approve or decline `booking`.
  *
  * Admins always may. Liaisons give the first approval, and may decline at any
  * stage because the liaison page offers Decline for every status. Once the
- * booking has its first approval, the tenant final approver and any resource
- * approver assigned to every booked room may approve or decline it.
+ * booking has its first approval, the tenant final approver and the resource
+ * approvers of any booked room may approve or decline it: a booking gets one
+ * final approval, so an approver of one of its rooms can give it. The
+ * resolver adds the tenant final approver for rooms with no approvers of
+ * their own.
  */
 export async function authorizeBookingDecision(
   email: string,
@@ -53,12 +51,9 @@ export async function authorizeBookingDecision(
   const resourceIds = parseBookingResourceIds(booking.roomId);
   if (resourceIds.length === 0) return false;
 
-  const assignments = await serverListResourceApproversByEmail(
-    normalizedEmail,
+  const approvers = await serverResolveResourceApproverEmails(
+    resourceIds,
     tenant,
   );
-  const assignedResourceIds = new Set(
-    assignments.map(assignment => assignment.resourceId),
-  );
-  return resourceIds.every(resourceId => assignedResourceIds.has(resourceId));
+  return approvers.includes(normalizedEmail);
 }

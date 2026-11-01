@@ -94,6 +94,7 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
         {
           resourceId: "room-1201",
           name: "Room 1201",
+          calendarId: "cal-1201",
           requestLimits: {
             perSemester: { student: 1 },
           },
@@ -157,6 +158,7 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
         {
           roomId: 1201,
           name: "Legacy Room 1201",
+          calendarId: "cal-1201",
           requestLimits: {
             perDay: { student: 1 },
           },
@@ -246,6 +248,7 @@ describe("Request limits enforcement (POST /api/bookings)", () => {
         {
           resourceId: "room-1201",
           name: "Room 1201",
+          calendarId: "cal-1201",
           requestLimits: {
             // perDay limit forces the window to be the current calendar day,
             // which is much narrower than the full booking history.

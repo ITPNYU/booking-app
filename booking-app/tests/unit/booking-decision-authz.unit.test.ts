@@ -6,7 +6,7 @@ vi.mock("@/lib/api/authz", () => ({
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverGetFinalApproverEmail: vi.fn(),
-  serverListResourceApproversByEmail: vi.fn(),
+  serverResolveResourceApproverEmails: vi.fn(),
 }));
 
 import { PagePermission } from "@/components/src/types";
@@ -17,13 +17,13 @@ import {
 } from "@/lib/api/bookingDecisionAuthz";
 import {
   serverGetFinalApproverEmail,
-  serverListResourceApproversByEmail,
+  serverResolveResourceApproverEmails,
 } from "@/lib/firebase/server/adminDb";
 
 const mockResolveCallerRole = vi.mocked(resolveCallerRole);
 const mockServerGetFinalApproverEmail = vi.mocked(serverGetFinalApproverEmail);
-const mockServerListResourceApproversByEmail = vi.mocked(
-  serverListResourceApproversByEmail,
+const mockServerResolveResourceApproverEmails = vi.mocked(
+  serverResolveResourceApproverEmails,
 );
 
 const EMAIL = "approver@nyu.edu";
@@ -43,7 +43,7 @@ describe("authorizeBookingDecision", () => {
     vi.clearAllMocks();
     mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
     mockServerGetFinalApproverEmail.mockResolvedValue(null as any);
-    mockServerListResourceApproversByEmail.mockResolvedValue([]);
+    mockServerResolveResourceApproverEmails.mockResolvedValue([]);
   });
 
   describe.each<BookingDecision>(["approve", "decline"])("%s", (decision) => {
@@ -64,13 +64,10 @@ describe("authorizeBookingDecision", () => {
     });
 
     it("denies other users before the first approval, even resource approvers", async () => {
-      mockServerListResourceApproversByEmail.mockResolvedValue([
-        { resourceId: "room-1", email: EMAIL },
-        { resourceId: "room-2", email: EMAIL },
-      ] as any);
+      mockServerResolveResourceApproverEmails.mockResolvedValue([EMAIL]);
 
       await expect(authorize(requested, decision)).resolves.toBe(false);
-      expect(mockServerListResourceApproversByEmail).not.toHaveBeenCalled();
+      expect(mockServerResolveResourceApproverEmails).not.toHaveBeenCalled();
     });
 
     it("allows the tenant final approver after the first approval", async () => {
@@ -79,23 +76,23 @@ describe("authorizeBookingDecision", () => {
       await expect(authorize(preApproved, decision)).resolves.toBe(true);
     });
 
-    it("allows a resource approver of every booked room after the first approval", async () => {
-      mockServerListResourceApproversByEmail.mockResolvedValue([
-        { resourceId: "room-1", email: EMAIL },
-        { resourceId: "room-2", email: EMAIL },
-      ] as any);
+    it("allows a resource approver of any booked room after the first approval", async () => {
+      mockServerResolveResourceApproverEmails.mockResolvedValue([
+        "other@nyu.edu",
+        EMAIL,
+      ]);
 
       await expect(authorize(preApproved, decision)).resolves.toBe(true);
-      expect(mockServerListResourceApproversByEmail).toHaveBeenCalledWith(
-        EMAIL,
+      expect(mockServerResolveResourceApproverEmails).toHaveBeenCalledWith(
+        ["room-1", "room-2"],
         "itp",
       );
     });
 
-    it("denies a resource approver of only some booked rooms", async () => {
-      mockServerListResourceApproversByEmail.mockResolvedValue([
-        { resourceId: "room-1", email: EMAIL },
-      ] as any);
+    it("denies someone who approves none of the booked rooms", async () => {
+      mockServerResolveResourceApproverEmails.mockResolvedValue([
+        "other@nyu.edu",
+      ]);
 
       await expect(authorize(preApproved, decision)).resolves.toBe(false);
     });

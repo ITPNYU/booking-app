@@ -37,7 +37,6 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverFetchAllDataFromCollection: vi.fn(async () => []),
   logServerBookingChange: vi.fn(async () => undefined),
   serverGetFinalApproverEmail: vi.fn(async () => "final@nyu.edu"),
-  serverListResourceApproversByEmail: vi.fn(async () => []),
   serverResolveResourceApproverEmails: vi.fn(async () => []),
   serverUpdateInFirestore: (...args: unknown[]) =>
     mockUpdateInFirestore(...args),
