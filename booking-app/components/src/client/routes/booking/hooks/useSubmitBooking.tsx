@@ -16,7 +16,6 @@ import { isValidNetIdFormat } from "../../../../utils/validationHelpers";
 import { DatabaseContext } from "../../components/Provider";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
-import useCalculateOverlap from "./useCalculateOverlap";
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
@@ -55,12 +54,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
   } = useContext(BookingContext);
   const { resources: schemaResources } = useTenantSchema();
 
-  const isOverlap = useCalculateOverlap();
-  if (isOverlap) {
-    setError(new Error("Booking time slot is no longer available"));
-    setSubmitting("error");
-    return;
-  }
   const isEdit = formContext === FormContextLevel.EDIT;
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isVIP = formContext === FormContextLevel.VIP;

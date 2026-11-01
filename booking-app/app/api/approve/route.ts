@@ -107,7 +107,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id, note: rawNote } = await req.json();
+  let id: unknown;
+  let rawNote: unknown;
+  try {
+    ({ id, note: rawNote } = await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (typeof id !== "string" || !id.trim()) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
   // Optional note from the approver, added to the history entry.
   const note = normalizeActionNote(rawNote);
 

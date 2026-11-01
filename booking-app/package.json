@@ -23,6 +23,8 @@
     "migrate:tenant-resource-ids:dry-run": "node scripts/migrateTenantResourceIds.js --dry-run",
     "seed:mc-services": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/seedMcResourceServices.ts",
     "seed:mc-services:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/seedMcResourceServices.ts --dry-run",
+    "migrate:approvers-resources": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"jsx\":\"react\"}' scripts/migrateApproversResources.ts",
+    "migrate:approvers-resources:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"jsx\":\"react\"}' scripts/migrateApproversResources.ts --dry-run",
     "backup:tenant-schema": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/backupTenantSchemaToDisk.ts"
   },
   "dependencies": {
@@ -71,7 +73,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.0",
     "@eslint/js": "^9.0.0",
-    "@playwright/test": "^1.55.0",
+    "@playwright/test": "^1.64.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",

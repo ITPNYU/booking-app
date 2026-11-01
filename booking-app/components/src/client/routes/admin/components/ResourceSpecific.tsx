@@ -7,62 +7,31 @@ import {
   Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
-import { Timestamp } from "firebase/firestore";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  clientAddResourceApprover,
-  clientAddServiceApprover,
-  clientListResourceApprovers,
-  clientListServiceApprovers,
-  clientRemoveResourceApprover,
-  clientRemoveServiceApprover,
+  clientListApproversResources,
+  clientUpdateApproversResource,
 } from "@/lib/firebase/firebase";
 import ListTable from "../../components/ListTable";
 import { useTenantSchema } from "../../components/SchemaProvider";
-import { formatDate } from "../../../utils/date";
 import { TableNames } from "../../../../policy";
-import { isLegacyServicesArray } from "../../../../utils/resourceServicesUtils";
-import { compareResourceIds } from "../../../../utils/resourceOrder";
+import {
+  type ApproverService,
+  type ApproversResource,
+  getApproverResources,
+  getResourceApproverServices,
+} from "../../../../utils/approversResources";
 
-type ResourceApproverRow = {
-  id: string;
-  email: string;
-  createdAt?: Timestamp;
-};
-
-type ResourceApprover = ResourceApproverRow & {
-  resourceId: string;
-};
-
-type ServiceApproverRow = {
-  id: string;
-  service: string;
-  email: string;
-  createdAt?: Timestamp;
-};
-
-type ServiceApprover = ServiceApproverRow & {
-  resourceId: string;
-};
-
-const SERVICE_LABELS: Record<string, string> = {
+const SERVICE_LABELS: Record<ApproverService, string> = {
   setup: "Setup",
+  furnishings: "Furniture",
   equipment: "Equipment",
   staff: "Staffing",
   catering: "Catering",
   cleaning: "Cleanup",
   security: "Security",
-  furnishings: "Furniture",
 };
-
-const SERVICE_ALIASES: Record<string, string> = {
-  staffing: "staff",
-  cleanup: "cleaning",
-};
-
-const normalizeServiceKey = (service: string): string =>
-  SERVICE_ALIASES[service.trim().toLowerCase()] ?? service.trim().toLowerCase();
 
 const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
@@ -79,38 +48,43 @@ const validateNyuEmail = async (
   return response.ok;
 };
 
-type ResourceApproverTableProps = {
+type ApproverTableProps = {
   resourceId: string;
-  rows: ResourceApproverRow[];
+  approvers: ApproversResource | undefined;
   rowsRefresh: () => Promise<void>;
 };
 
 const ResourceApproverTable = ({
   resourceId,
-  rows,
+  approvers,
   rowsRefresh,
-}: ResourceApproverTableProps) => {
+}: ApproverTableProps) => {
   const { tenantId } = useTenantSchema();
   const [loading, setLoading] = useState(false);
   const [valueToAdd, setValueToAdd] = useState("");
+  const emails = approvers?.resourceApprovers ?? [];
 
   const addResourceApprover = useCallback(async () => {
     const normalizedEmail = normalizeEmail(valueToAdd);
     if (!normalizedEmail) {
       return;
     }
-
-    const duplicate = rows.some(
-      (record) => normalizeEmail(record.email) === normalizedEmail,
-    );
-    if (duplicate) {
+    if (emails.includes(normalizedEmail)) {
       alert("This user is already a resource approver.");
       return;
     }
 
     setLoading(true);
     try {
-      await clientAddResourceApprover(resourceId, normalizedEmail, tenantId);
+      if (!(await validateNyuEmail(normalizedEmail, tenantId))) {
+        alert("Enter a valid NYU NetID email.");
+        return;
+      }
+      await clientUpdateApproversResource(
+        resourceId,
+        { action: "add", kind: "resource", email: normalizedEmail },
+        tenantId,
+      );
       setValueToAdd("");
       await rowsRefresh();
     } catch (error) {
@@ -119,11 +93,15 @@ const ResourceApproverTable = ({
     } finally {
       setLoading(false);
     }
-  }, [resourceId, rows, rowsRefresh, tenantId, valueToAdd]);
+  }, [emails, resourceId, rowsRefresh, tenantId, valueToAdd]);
 
   const removeResourceApprover = useCallback(
     async (row: { [key: string]: string }) => {
-      await clientRemoveResourceApprover(resourceId, row.email, tenantId);
+      await clientUpdateApproversResource(
+        resourceId,
+        { action: "remove", kind: "resource", email: row.email },
+        tenantId,
+      );
     },
     [resourceId, tenantId],
   );
@@ -173,70 +151,77 @@ const ResourceApproverTable = ({
 
   return (
     <ListTable
-      tableName={TableNames.RESOURCE_APPROVERS}
+      tableName={TableNames.APPROVERS_RESOURCES}
       columnNameToRemoveBy="email"
-      rows={rows as unknown as { [key: string]: string }[]}
+      rows={emails.map((email) => ({ id: email, email }))}
       rowsRefresh={rowsRefresh}
       topRow={topRow}
       onRemoveRow={removeResourceApprover}
-      columnFormatters={{ createdAt: formatDate }}
     />
   );
 };
 
-type ServiceApproverTableProps = {
-  resourceId: string;
-  serviceOptions: Array<{ key: string; label: string }>;
-  rows: ServiceApproverRow[];
-  rowsRefresh: () => Promise<void>;
-};
-
 const ServiceApproverTable = ({
   resourceId,
-  serviceOptions,
-  rows,
+  approvers,
   rowsRefresh,
-}: ServiceApproverTableProps) => {
+  services,
+}: ApproverTableProps & { services: ApproverService[] }) => {
   const { tenantId } = useTenantSchema();
   const [loading, setLoading] = useState(false);
-  const [serviceToAdd, setServiceToAdd] = useState<string>(
-    serviceOptions[0]?.key ?? "",
+  const [serviceToAdd, setServiceToAdd] = useState<ApproverService | "">(
+    services[0] ?? "",
   );
   const [valueToAdd, setValueToAdd] = useState("");
 
   useEffect(() => {
-    if (!serviceOptions.some((service) => service.key === serviceToAdd)) {
-      setServiceToAdd(serviceOptions[0]?.key ?? "");
+    if (!serviceToAdd || !services.includes(serviceToAdd)) {
+      setServiceToAdd(services[0] ?? "");
     }
-  }, [serviceOptions, serviceToAdd]);
+  }, [services, serviceToAdd]);
+
+  // Only services the resource still offers: an assignment left behind by a
+  // service removed from the schema is not used for routing either.
+  const rows = useMemo(
+    () =>
+      services.flatMap((service) =>
+        (approvers?.serviceApprovers[service] ?? []).map((email) => ({
+          id: `${service}:${email}`,
+          email,
+          service,
+        })),
+      ),
+    [approvers, services],
+  );
 
   const addServiceApprover = useCallback(async () => {
     const normalizedEmail = normalizeEmail(valueToAdd);
     if (!normalizedEmail || !serviceToAdd) {
       return;
     }
-
-    const duplicate = rows.some(
-      (record) =>
-        record.service === serviceToAdd &&
-        normalizeEmail(record.email) === normalizedEmail,
-    );
-    if (duplicate) {
+    if (
+      (approvers?.serviceApprovers[serviceToAdd] ?? []).includes(
+        normalizedEmail,
+      )
+    ) {
       alert("This user has already been added");
       return;
     }
 
     setLoading(true);
     try {
-      const isValidEmail = await validateNyuEmail(normalizedEmail, tenantId);
-      if (!isValidEmail) {
+      if (!(await validateNyuEmail(normalizedEmail, tenantId))) {
         alert("Enter a valid NYU NetID email.");
         return;
       }
-      await clientAddServiceApprover(
+      await clientUpdateApproversResource(
         resourceId,
-        serviceToAdd,
-        normalizedEmail,
+        {
+          action: "add",
+          kind: "service",
+          service: serviceToAdd,
+          email: normalizedEmail,
+        },
         tenantId,
       );
       setValueToAdd("");
@@ -247,14 +232,18 @@ const ServiceApproverTable = ({
     } finally {
       setLoading(false);
     }
-  }, [resourceId, rows, rowsRefresh, serviceToAdd, tenantId, valueToAdd]);
+  }, [approvers, resourceId, rowsRefresh, serviceToAdd, tenantId, valueToAdd]);
 
   const removeServiceApprover = useCallback(
     async (row: { [key: string]: string }) => {
-      await clientRemoveServiceApprover(
+      await clientUpdateApproversResource(
         resourceId,
-        row.service,
-        row.email,
+        {
+          action: "remove",
+          kind: "service",
+          service: row.service as ApproverService,
+          email: row.email,
+        },
         tenantId,
       );
     },
@@ -279,14 +268,16 @@ const ServiceApproverTable = ({
               select
               id={`service-approver-service-${resourceId}`}
               inputProps={{ "aria-label": `Service for ${resourceId}` }}
-              onChange={(event) => setServiceToAdd(event.target.value)}
+              onChange={(event) =>
+                setServiceToAdd(event.target.value as ApproverService)
+              }
               value={serviceToAdd}
               size="small"
-              disabled={serviceOptions.length === 0}
+              disabled={services.length === 0}
             >
-              {serviceOptions.map((service) => (
-                <MenuItem key={service.key} value={service.key}>
-                  {service.label}
+              {services.map((service) => (
+                <MenuItem key={service} value={service}>
+                  {SERVICE_LABELS[service]}
                 </MenuItem>
               ))}
             </TextField>
@@ -307,7 +298,7 @@ const ServiceApproverTable = ({
               value={valueToAdd}
               placeholder="Add email"
               size="small"
-              disabled={serviceOptions.length === 0}
+              disabled={services.length === 0}
             />
           </Grid>
         </Grid>
@@ -315,9 +306,7 @@ const ServiceApproverTable = ({
           onClick={() => void addServiceApprover()}
           color="primary"
           sx={{ padding: 0 }}
-          disabled={
-            loading || !valueToAdd.trim() || serviceOptions.length === 0
-          }
+          disabled={loading || !valueToAdd.trim() || services.length === 0}
           aria-label={`Add service approver for ${resourceId}`}
         >
           <AddCircleOutline />
@@ -328,52 +317,33 @@ const ServiceApproverTable = ({
 
   return (
     <ListTable
-      tableName={TableNames.SERVICE_APPROVERS}
+      tableName={TableNames.APPROVERS_RESOURCES}
       columnNameToRemoveBy="email"
-      rows={rows as unknown as { [key: string]: string }[]}
+      rows={rows}
       rowsRefresh={rowsRefresh}
       topRow={topRow}
       onRemoveRow={removeServiceApprover}
-      columnFormatters={{ createdAt: formatDate }}
+      columnFormatters={{
+        service: (service) =>
+          SERVICE_LABELS[service as ApproverService] ?? service,
+      }}
     />
   );
 };
 
 export const ResourceSpecific = () => {
   const { resources, tenantId } = useTenantSchema();
-  const [approvers, setApprovers] = useState<ResourceApprover[]>([]);
-  const [serviceApprovers, setServiceApprovers] = useState<ServiceApprover[]>(
-    [],
-  );
+  const [approversByResource, setApproversByResource] = useState<
+    Map<string, ApproversResource>
+  >(new Map());
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadApprovers = useCallback(async () => {
-    setLoading(true);
     setLoadError(null);
     try {
-      const [fetchedResourceApprovers, fetchedServiceApprovers] =
-        await Promise.all([
-          clientListResourceApprovers(tenantId),
-          clientListServiceApprovers(tenantId),
-        ]);
-      setApprovers(
-        fetchedResourceApprovers.map((item) => ({
-          id: item.id,
-          resourceId: item.resourceId.trim(),
-          email: normalizeEmail(item.email),
-          createdAt: item.createdAt,
-        })),
-      );
-      setServiceApprovers(
-        fetchedServiceApprovers.map((item) => ({
-          id: item.id,
-          resourceId: item.resourceId.trim(),
-          service: normalizeServiceKey(item.service),
-          email: normalizeEmail(item.email),
-          createdAt: item.createdAt,
-        })),
-      );
+      const docs = await clientListApproversResources(tenantId);
+      setApproversByResource(new Map(docs.map((doc) => [doc.resourceId, doc])));
     } catch (error) {
       console.error("Failed to load approvers:", error);
       setLoadError("Failed to load approvers.");
@@ -386,72 +356,20 @@ export const ResourceSpecific = () => {
     void loadApprovers();
   }, [loadApprovers]);
 
-  const approversByResource = useMemo(() => {
-    const result = new Map<string, ResourceApproverRow[]>();
-    approvers.forEach(({ resourceId, ...row }) => {
-      const rows = result.get(resourceId) ?? [];
-      rows.push(row);
-      result.set(resourceId, rows);
-    });
-    result.forEach((rows) =>
-      rows.sort((a, b) => a.email.localeCompare(b.email)),
-    );
-    return result;
-  }, [approvers]);
-
-  const serviceOptionsByResource = useMemo(() => {
-    const result = new Map<string, Array<{ key: string; label: string }>>();
-    resources.forEach((resource) => {
-      const seen = new Set<string>();
-      // `services` may be a legacy string[] or the consolidated config object.
-      // Both describe the same set of services, so reduce over the service
-      // names (config keys) in either shape.
-      const serviceNames = isLegacyServicesArray(resource.services)
-        ? resource.services
-        : Object.keys(resource.services ?? {});
-      const options = serviceNames.reduce<
-        Array<{ key: string; label: string }>
-      >((acc, service) => {
-        const key = normalizeServiceKey(service);
-        if (!SERVICE_LABELS[key] || seen.has(key)) return acc;
-        seen.add(key);
-        acc.push({ key, label: SERVICE_LABELS[key] });
-        return acc;
-      }, []);
-      result.set(resource.resourceId, options);
-    });
-    return result;
-  }, [resources]);
-
-  const serviceApproversByResource = useMemo(() => {
-    const result = new Map<string, ServiceApproverRow[]>();
-    serviceApprovers.forEach(({ resourceId, ...row }) => {
-      const allowedServices = new Set(
-        (serviceOptionsByResource.get(resourceId) ?? []).map(
-          (service) => service.key,
-        ),
-      );
-      if (!allowedServices.has(row.service)) return;
-      const rows = result.get(resourceId) ?? [];
-      rows.push(row);
-      result.set(resourceId, rows);
-    });
-    result.forEach((rows) =>
-      rows.sort((a, b) => {
-        const serviceCompare = a.service.localeCompare(b.service);
-        if (serviceCompare !== 0) return serviceCompare;
-        return a.email.localeCompare(b.email);
-      }),
-    );
-    return result;
-  }, [serviceApprovers, serviceOptionsByResource]);
-
-  const sortedResources = useMemo(
-    () =>
-      [...resources].sort((a, b) =>
-        compareResourceIds(a.resourceId, b.resourceId),
-      ),
+  // Annex spaces are approved through the room they are booked under.
+  const approverResources = useMemo(
+    () => getApproverResources(resources),
     [resources],
+  );
+  const servicesByResource = useMemo(
+    () =>
+      new Map(
+        approverResources.map((resource) => [
+          resource.resourceId,
+          getResourceApproverServices(resource, resources),
+        ]),
+      ),
+    [approverResources, resources],
   );
 
   if (loading) {
@@ -466,7 +384,7 @@ export const ResourceSpecific = () => {
     );
   }
 
-  if (resources.length === 0) {
+  if (approverResources.length === 0) {
     return (
       <Typography color="text.secondary">
         No resources in tenant schema.
@@ -476,24 +394,26 @@ export const ResourceSpecific = () => {
 
   return (
     <Box mt={1}>
-      {sortedResources.map((resource) => (
+      <Typography color="text.secondary" mb={3}>
+        A room with no approvers of its own uses the tenant final approver for
+        final approval and the tenant-wide service approvers for its services.
+      </Typography>
+      {approverResources.map((resource) => (
         <Box key={resource.resourceId} mb={4}>
           <Typography variant="h6" style={{ marginBottom: 16 }}>
             {resource.resourceId} {resource.name}
           </Typography>
           <ResourceApproverTable
             resourceId={resource.resourceId}
-            rows={approversByResource.get(resource.resourceId) ?? []}
+            approvers={approversByResource.get(resource.resourceId)}
             rowsRefresh={loadApprovers}
           />
           <Box mt={3}>
             <ServiceApproverTable
               resourceId={resource.resourceId}
-              serviceOptions={
-                serviceOptionsByResource.get(resource.resourceId) ?? []
-              }
-              rows={serviceApproversByResource.get(resource.resourceId) ?? []}
+              approvers={approversByResource.get(resource.resourceId)}
               rowsRefresh={loadApprovers}
+              services={servicesByResource.get(resource.resourceId) ?? []}
             />
           </Box>
         </Box>

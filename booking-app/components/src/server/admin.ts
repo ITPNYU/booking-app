@@ -42,6 +42,7 @@ import {
   withActionNote,
 } from "../utils/bookingHistoryNotes";
 import { formatHistoryDateTime } from "../client/utils/date";
+import { parseBookingResourceIds } from "../utils/approversResources";
 import { getSecondaryContactName } from "../utils/formatters";
 import { getTenantEmailConfig } from "./emails";
 
@@ -56,12 +57,6 @@ const historyDateLabel = (value: unknown) => {
   const instant = timestampToDate(value);
   return instant ? formatHistoryDateTime(instant) : "";
 };
-
-const parseBookingResourceIds = (roomId: unknown): string[] =>
-  String(roomId ?? "")
-    .split(",")
-    .map((resourceId) => resourceId.trim())
-    .filter(Boolean);
 
 const resolveBookingResourceApproverEmails = async (
   roomId: unknown,

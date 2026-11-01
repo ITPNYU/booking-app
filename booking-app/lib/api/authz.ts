@@ -5,8 +5,53 @@ import {
   getTenantCollectionName,
 } from "@/components/src/policy";
 import { PagePermission } from "@/components/src/types";
+import { hasLegacyServiceApproverFlag } from "@/components/src/utils/approversResources";
 import type { SessionContext } from "@/lib/api/requireSession";
 import { MAINTENANCE_MODE_SETTINGS_DOC_ID } from "@/lib/utils/maintenanceMode";
+
+/** Whether `email` approves a service on some resource of the tenant. */
+export async function isAssignedServiceApprover(
+  email: string,
+  tenant: string,
+): Promise<boolean> {
+  const snapshot = await admin
+    .firestore()
+    .collection(getTenantCollectionName(TableNames.APPROVERS_RESOURCES, tenant))
+    .where("serviceApproverEmails", "array-contains", email)
+    .limit(1)
+    .get();
+  return !snapshot.empty;
+}
+
+/**
+ * Whether the caller approves at least one service in the tenant: by a
+ * tenant-wide `usersRights` flag or by an assignment on some resource. Both
+ * reach the Services page; `/api/permissions` uses this to compute it.
+ */
+export async function isServiceApprover(
+  email: string,
+  tenant: string,
+  userRights: Record<string, unknown> | null | undefined,
+): Promise<boolean> {
+  return (
+    hasLegacyServiceApproverFlag(userRights) ||
+    isAssignedServiceApprover(email, tenant)
+  );
+}
+
+export type ResolveCallerRoleOptions = {
+  /**
+   * Count service approvers (a `usersRights` service flag or an assignment
+   * on some resource) as SERVICES. Off by default: being a service approver
+   * gets you the Services page (from `/api/permissions`) and the right to
+   * decide that service on bookings for your rooms (checked per booking in
+   * `/api/services`), not the SERVICES role's tenant-wide powers such as
+   * modifying bookings, editing WebCheckout carts or reading memos. Pass it
+   * only where SERVICES gates data any approver may see. It can cost one
+   * more query.
+   */
+  includeServiceApprovers?: boolean;
+};
 
 /**
  * Resolve the caller's role for a given tenant by reading the same
@@ -18,6 +63,7 @@ import { MAINTENANCE_MODE_SETTINGS_DOC_ID } from "@/lib/utils/maintenanceMode";
 export async function resolveCallerRole(
   session: SessionContext,
   tenant: string | undefined,
+  { includeServiceApprovers = false }: ResolveCallerRoleOptions = {},
 ): Promise<PagePermission> {
   const email = session.email;
   const db = admin.firestore();
@@ -64,6 +110,15 @@ export async function resolveCallerRole(
 
   if (userRights?.isWorker === true) return PagePermission.PA;
 
+  // Last, so SERVICES is only ever added for someone who would otherwise
+  // just book; nobody loses the role they have today.
+  if (
+    includeServiceApprovers &&
+    (await isServiceApprover(email, tenant, userRights))
+  ) {
+    return PagePermission.SERVICES;
+  }
+
   return PagePermission.BOOKING;
 }
 
@@ -86,14 +141,10 @@ const POLICY: Record<string, Policy> = {
   [TableNames.SUPER_ADMINS]: { read: "anyNYU", write: "superOnly" },
   [TableNames.USERS_RIGHTS]: { read: "anyNYU", write: "adminOrSuper" },
   [TableNames.APPROVERS]: { read: "anyNYU", write: "adminOrSuper" },
-  [TableNames.RESOURCE_APPROVERS]: {
-    read: "adminOrSuper",
-    write: "adminOrSuper",
-  },
-  [TableNames.SERVICE_APPROVERS]: {
-    read: "adminOrSuper",
-    write: "adminOrSuper",
-  },
+  // Approver assignments: admins read them in Settings; writes go through
+  // /api/approversResources, which validates and keeps serviceApproverEmails
+  // in step.
+  [TableNames.APPROVERS_RESOURCES]: { read: "adminOrSuper", write: "deny" },
   [TableNames.ADMINS]: { read: "anyNYU", write: "adminOrSuper" },
   [TableNames.PAS]: { read: "anyNYU", write: "adminOrSuper" },
 

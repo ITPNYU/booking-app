@@ -12,9 +12,7 @@ permissions:
 jobs:
   e2e-tests-mc:
     name: MC E2E Tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
-    # Pinned: ubuntu-latest moved to 26.04, where this Playwright version
-    # can't install Chromium. Move back once Playwright supports it.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -69,9 +67,7 @@ jobs:
 
   e2e-tests-itp:
     name: ITP E2E Tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
-    # Pinned: ubuntu-latest moved to 26.04, where this Playwright version
-    # can't install Chromium. Move back once Playwright supports it.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
