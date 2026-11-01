@@ -79,6 +79,12 @@ export async function redactBookingDocsForCaller<
   if (collection !== TableNames.BOOKING || docs.length === 0) {
     return docs;
   }
+  // Nothing to strip, so whoever is asking gets the same docs.
+  if (
+    !docs.some((doc) => STAFF_ONLY_BOOKING_FIELDS.some((field) => field in doc))
+  ) {
+    return docs;
+  }
   const role = await resolveCallerRole(session, tenant);
   if (await canReadStaffOnlyBookingFields(tenant, role)) {
     return docs;

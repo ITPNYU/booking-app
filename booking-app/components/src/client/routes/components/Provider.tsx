@@ -212,6 +212,11 @@ export const DatabaseProvider = ({
 
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
+  // Role computed by /api/permissions, which can also see per-resource
+  // service approver assignments that the browser cannot read.
+  const [serverPagePermission, setServerPagePermission] = useState<
+    PagePermission | undefined
+  >();
 
   useEffect(() => {
     const fetchUserApiData = async () => {
@@ -249,6 +254,9 @@ export const DatabaseProvider = ({
     if (servicesEmails.includes(userEmail)) return PagePermission.SERVICES;
     if (liaisonEmails.includes(userEmail)) return PagePermission.LIAISON;
     if (paEmails.includes(userEmail)) return PagePermission.PA;
+    if (serverPagePermission === PagePermission.SERVICES) {
+      return PagePermission.SERVICES;
+    }
 
     return PagePermission.BOOKING;
   }, [
@@ -258,6 +266,7 @@ export const DatabaseProvider = ({
     paUsers,
     equipmentUsers,
     superAdminUsers,
+    serverPagePermission,
   ]);
 
   // Defer non-permission data fetches to pages that actually need them.
@@ -461,6 +470,7 @@ export const DatabaseProvider = ({
       }
       const raw = (await res.json()) as Record<string, unknown>;
       const data = reviveTimestamps(raw) as {
+        pagePermission?: PagePermission;
         adminUsers: AdminUser[];
         paUsers: PaUser[];
         liaisonUsers: Approver[];
@@ -470,6 +480,7 @@ export const DatabaseProvider = ({
         maintenanceMode?: MaintenanceModeSettings;
         siteBanner?: SiteBannerSettings;
       };
+      setServerPagePermission(data.pagePermission);
       setAdminUsers(data.adminUsers ?? []);
       setPaUsers(data.paUsers ?? []);
       setLiaisonUsers(data.liaisonUsers ?? []);
