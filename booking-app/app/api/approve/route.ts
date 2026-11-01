@@ -12,20 +12,17 @@ import {
   resolveFirstApprovalHistoryNote,
   serverApproveBooking,
 } from "@/components/src/server/admin";
-import { BookingStatusLabel, PagePermission } from "@/components/src/types";
-import { parseBookingResourceIds } from "@/components/src/utils/approversResources";
+import { BookingStatusLabel } from "@/components/src/types";
 import { ADMIN_POLICY_APPROVED_NOTE } from "@/components/src/utils/bookingHistoryNotes";
 import {
   getMediaCommonsServices,
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
-import { resolveCallerRole } from "@/lib/api/authz";
+import { authorizeBookingDecision } from "@/lib/api/bookingDecisionAuthz";
 import { requireSession } from "@/lib/api/requireSession";
 import {
   logServerBookingChange,
   serverGetDataByCalendarEventId,
-  serverGetFinalApproverEmail,
-  serverResolveResourceApproverEmails,
 } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { NextRequest, NextResponse } from "next/server";
@@ -96,41 +93,6 @@ const getErrorStatus = (error: unknown): number =>
     ? error.status
     : 500;
 
-async function authorizeApproval(
-  email: string,
-  tenant: string,
-  booking: Record<string, unknown>,
-): Promise<boolean> {
-  const role = await resolveCallerRole(
-    { email, netId: email.split("@")[0] },
-    tenant,
-  );
-  if (role === PagePermission.ADMIN || role === PagePermission.SUPER_ADMIN) {
-    return true;
-  }
-
-  if (!booking.firstApprovedAt) {
-    return role === PagePermission.LIAISON;
-  }
-
-  const normalizedEmail = email.trim().toLowerCase();
-  const tenantFinalApprover = await serverGetFinalApproverEmail(tenant);
-  if (tenantFinalApprover?.trim().toLowerCase() === normalizedEmail) {
-    return true;
-  }
-
-  // Any booked room's resource approver may give the booking's one final
-  // approval; the resolver adds the tenant final approver for unassigned rooms.
-  const resourceIds = parseBookingResourceIds(booking.roomId);
-  if (resourceIds.length === 0) return false;
-
-  const approvers = await serverResolveResourceApproverEmails(
-    resourceIds,
-    tenant,
-  );
-  return approvers.includes(normalizedEmail);
-}
-
 /**
  * Checks if the XState result indicates a transition to Services Request parallel state
  * This typically happens for Media Commons bookings with requested services
@@ -165,7 +127,7 @@ export async function POST(req: NextRequest) {
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
-    if (!(await authorizeApproval(email, tenant, booking))) {
+    if (!(await authorizeBookingDecision(email, tenant, booking, "approve"))) {
       return NextResponse.json(
         { error: "You are not authorized to approve this booking" },
         { status: 403 },
