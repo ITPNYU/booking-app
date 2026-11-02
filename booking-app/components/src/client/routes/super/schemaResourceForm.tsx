@@ -8,7 +8,6 @@ import {
   plainResourceDefault,
   projectResourceEdits,
   resourceIdError,
-  TEMPLATE_SCHEMA_ID,
 } from "@/lib/tenant/resourceDefault";
 import SchemaResourceFields from "./schemaResourceFields";
 import {
@@ -29,36 +28,6 @@ function resourceLabel(resource: Resource): string {
 
 type FormMode = "closed" | "edit" | "add";
 
-export async function initializeResourceDefault(): Promise<void> {
-  const res = await fetch(`/api/tenantSchema/${TEMPLATE_SCHEMA_ID}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "initialize-resource-default" }),
-  });
-  const result = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(result.error || `Failed: ${res.status}`);
-  }
-}
-
-async function fetchResourceDefault(): Promise<Resource | null> {
-  const res = await fetch(`/api/tenantSchema/${TEMPLATE_SCHEMA_ID}?raw=1`);
-  if (res.status === 404) return null;
-  const result = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(result.error || `Failed: ${res.status}`);
-  }
-  const resourceDefault = result.resourceDefault;
-  if (
-    !resourceDefault ||
-    typeof resourceDefault !== "object" ||
-    Array.isArray(resourceDefault)
-  ) {
-    return null;
-  }
-  return resourceDefault as Resource;
-}
-
 export default function SchemaResourceForm({
   schema,
   onSchemaChange,
@@ -72,37 +41,11 @@ export default function SchemaResourceForm({
   const [mode, setMode] = useState<FormMode>("closed");
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [draft, setDraft] = useState<Resource | null>(null);
-  const [resourceDefault, setResourceDefault] = useState<Resource | null>(null);
-  const [defaultStatus, setDefaultStatus] = useState<
-    "loading" | "ready" | "missing" | "error"
-  >("loading");
-  const [statusError, setStatusError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [initializing, setInitializing] = useState(false);
   const [baseline, setBaseline] = useState<Resource | null>(null);
   const [initialDraft, setInitialDraft] = useState<Resource | null>(null);
   const baselineJsonRef = useRef("");
   const seenTenantId = useRef(schema.tenantId);
-
-  const loadDefault = async (): Promise<Resource | null> => {
-    setDefaultStatus("loading");
-    setStatusError(null);
-    try {
-      const stored = await fetchResourceDefault();
-      setResourceDefault(stored);
-      setDefaultStatus(stored ? "ready" : "missing");
-      return stored;
-    } catch (err: unknown) {
-      setResourceDefault(null);
-      setDefaultStatus("error");
-      setStatusError(err instanceof Error ? err.message : "Failed to load resource default");
-      return null;
-    }
-  };
-
-  useEffect(() => {
-    void loadDefault();
-  }, []);
 
   const resources = Array.isArray(schema.resources) ? schema.resources : [];
   const selected =
@@ -115,12 +58,8 @@ export default function SchemaResourceForm({
     }
   }, [resources.length, selectedIndex]);
 
-  const draftFrom = (source: Resource): Resource => {
-    const base = resourceDefault
-      ? mergeResource(plainResourceDefault(), resourceDefault)
-      : plainResourceDefault();
-    return mergeResource(base, source);
-  };
+  const draftFrom = (source: Resource): Resource =>
+    mergeResource(plainResourceDefault(), source);
 
   const rememberResource = (source: Resource) => {
     const stored = plainResource(source);
@@ -137,7 +76,7 @@ export default function SchemaResourceForm({
     setBaseline(null);
     setInitialDraft(null);
     baselineJsonRef.current = "";
-    if (resourceDefault) setDraft(draftFrom(resourceDefault));
+    setDraft(plainResourceDefault());
     setMode("add");
   };
 
@@ -166,7 +105,7 @@ export default function SchemaResourceForm({
     const json = JSON.stringify(selected);
     if (json === baselineJsonRef.current) return;
     rememberResource(selected);
-  }, [mode, selected, resourceDefault, schema.tenantId]);
+  }, [mode, selected, schema.tenantId]);
 
   useEffect(() => {
     seenTenantId.current = schema.tenantId;
@@ -178,22 +117,6 @@ export default function SchemaResourceForm({
     baselineJsonRef.current = "";
     setFormError(null);
   }, [schema.tenantId]);
-
-  const handleInitialize = async () => {
-    setInitializing(true);
-    setStatusError(null);
-    try {
-      await initializeResourceDefault();
-      const stored = await loadDefault();
-      if (stored) setDraft(mergeResource(plainResourceDefault(), stored));
-    } catch (err: unknown) {
-      setStatusError(
-        err instanceof Error ? err.message : "Failed to initialize resource default",
-      );
-    } finally {
-      setInitializing(false);
-    }
-  };
 
   const readResource = (): Resource | null => {
     if (!draft) return null;
@@ -220,7 +143,6 @@ export default function SchemaResourceForm({
   };
 
   const handleAdd = () => {
-    if (!resourceDefault) return;
     const resource = readResource();
     if (!resource) return;
     const nextResources = [...resources, resource];
@@ -258,8 +180,8 @@ export default function SchemaResourceForm({
   };
 
   const showFields =
-    (mode === "edit" && Boolean(selected)) ||
-    (mode === "add" && defaultStatus === "ready" && Boolean(resourceDefault));
+    (mode === "edit" && Boolean(selected) && Boolean(draft)) ||
+    (mode === "add" && Boolean(draft));
 
   return (
     <Box sx={{ mb: 2 }}>
@@ -303,41 +225,10 @@ export default function SchemaResourceForm({
         >
           Delete
         </Button>
-        <Button
-          variant="outlined"
-          onClick={openAdd}
-          disabled={defaultStatus === "loading" || mode === "add"}
-        >
+        <Button variant="outlined" onClick={openAdd} disabled={mode === "add"}>
           Add resource
         </Button>
       </Box>
-
-      {mode === "add" && (
-        <Box sx={{ maxWidth: 480, mt: 2 }}>
-          {defaultStatus === "loading" && (
-            <Typography variant="body2">Loading resource default...</Typography>
-          )}
-          {statusError && <Alert severity="error">{statusError}</Alert>}
-          {defaultStatus === "missing" && (
-            <Alert
-              severity="info"
-              sx={{ mb: 1 }}
-              action={
-                <Button
-                  color="inherit"
-                  size="small"
-                  onClick={handleInitialize}
-                  disabled={initializing}
-                >
-                  Initialize resource default
-                </Button>
-              }
-            >
-              No resource default is stored in the database yet.
-            </Alert>
-          )}
-        </Box>
-      )}
 
       {showFields && (
         <Box

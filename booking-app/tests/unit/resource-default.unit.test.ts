@@ -9,14 +9,12 @@ import {
 } from "@/lib/tenant/resourceDefault";
 
 describe("resource default", () => {
-  it("strips array __defaults__ so Firestore can store the object", () => {
+  it("copies the resource default as plain JSON", () => {
     const stored = plainResourceDefault();
     expect(stored.resourceId).toBe("");
     expect(stored.staffingSections).toEqual([]);
     expect(stored.staffingSections).not.toHaveProperty("__defaults__");
-    expect(
-      (defaultResource.staffingSections as { __defaults__?: unknown }).__defaults__,
-    ).toBeDefined();
+    expect(defaultResource.staffingSections).toEqual([]);
   });
 
   it("copies the stored default and overwrites room fields", () => {

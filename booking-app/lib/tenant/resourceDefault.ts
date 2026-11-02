@@ -2,19 +2,11 @@ import {
   defaultResource,
   type Resource,
 } from "@/components/src/client/routes/components/schemaTypes";
+import { resourceIdError as resourceIdIssue } from "@/lib/tenant/validateTenantSchema";
 
-/** Firestore document that holds the resource copied into new rows. Not a tenant. */
-export const TEMPLATE_SCHEMA_ID = "_template";
+export { resourceIdIssue as resourceIdError };
 
-export function isTemplateSchemaId(value: string): boolean {
-  return value === TEMPLATE_SCHEMA_ID;
-}
-
-export type ResourceDefaultDocument = {
-  resourceDefault: Resource;
-};
-
-/** A Firestore-safe copy. Array `__defaults__` is not a stored field. */
+/** A JSON copy, so the editor can change a room without mutating the shared default. */
 export function plainResource(value: unknown): Resource | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -116,19 +108,6 @@ export function mergeResource(base: Resource, overlay: unknown): Resource {
   const right = plainResource(overlay);
   if (!right) return left;
   return deepMerge(left, right) as Resource;
-}
-
-export function resourceIdError(
-  resourceId: string,
-  existingIds: string[],
-): string | null {
-  const id = resourceId.trim();
-  if (!id) return "Resource id is required";
-  if (id.includes(",")) return "Resource id must not contain commas";
-  if (existingIds.includes(id)) {
-    return `Resource id "${id}" is already in the schema`;
-  }
-  return null;
 }
 
 export type ResourceFormFields = {
