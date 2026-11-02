@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   getBookingServiceRooms,
   getMediaCommonsAutoCloseout,
@@ -16,6 +16,11 @@ import {
   isPassiveSetupSelection,
   mergeRoomIdsWithAnnex,
   resolveAnnexCalendarIds,
+  resolveSelectedRoomCalendars,
+  roomCalendarResolutionError,
+  roomsForIds,
+  ROOM_CALENDAR_ID_NOT_FOUND,
+  TENANT_RESOURCES_UNAVAILABLE,
 } from "@/components/src/utils/resourceServicesUtils";
 import { MC_TEST_RESOURCE_SERVICES } from "@/components/src/testHelpers/mcResourceServicesFixture";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
@@ -681,6 +686,90 @@ describe("annex parent-child resources", () => {
     expect(mergeRoomIdsWithAnnex("202, 1201", undefined)).toBe("202, 1201");
     expect(mergeRoomIdsWithAnnex("202", { "202": ["202"] })).toBe("202");
     expect(mergeRoomIdsWithAnnex(undefined, undefined)).toBe("");
+  });
+
+  it("finds existing booking rooms on the schema resource list", () => {
+    expect(
+      roomsForIds(
+        [
+          { resourceId: "202", calendarId: "cal-202" },
+          { resourceId: "203", calendarId: "cal-203" },
+          { roomId: "204" },
+        ],
+        ["203", "204", "missing"],
+      ),
+    ).toEqual([
+      { roomId: "203", calendarId: "cal-203" },
+      { roomId: "204", calendarId: "" },
+    ]);
+    expect(roomsForIds([], ["202"])).toEqual([]);
+  });
+
+  it("uses the schema calendar id and ignores the client-supplied one", () => {
+    const resources = [
+      { resourceId: "202", calendarId: "server-cal-202" },
+      { resourceId: "203", calendarId: "server-cal-203" },
+    ];
+    expect(
+      resolveSelectedRoomCalendars(
+        [
+          { roomId: "202", calendarId: "stale-client-cal", name: "202" },
+          { roomId: 203, calendarId: "also-stale" },
+        ],
+        resources,
+      ),
+    ).toEqual({
+      rooms: [
+        { roomId: "202", calendarId: "server-cal-202", name: "202" },
+        { roomId: "203", calendarId: "server-cal-203" },
+      ],
+    });
+  });
+
+  it("reports a room that has no schema calendar", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const missing = resolveSelectedRoomCalendars(
+      [{ roomId: "999", calendarId: "client-cal" }],
+      [{ resourceId: "202", calendarId: "server-cal-202" }],
+    );
+    expect(missing).toEqual({ rooms: [], missingRoomId: "999" });
+    expect(roomCalendarResolutionError(missing)).toBe(
+      ROOM_CALENDAR_ID_NOT_FOUND,
+    );
+    expect(resolveSelectedRoomCalendars(undefined, [])).toEqual({ rooms: [] });
+    expect(resolveSelectedRoomCalendars([], [])).toEqual({ rooms: [] });
+    error.mockRestore();
+  });
+
+  it("does not blame a room when the resource catalog is empty", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const selected = [{ roomId: "202", calendarId: "client-cal" }];
+    const empty = resolveSelectedRoomCalendars(selected, []);
+    expect(empty).toEqual({ rooms: [], resourcesUnavailable: true });
+    expect(empty.missingRoomId).toBeUndefined();
+    expect(roomCalendarResolutionError(empty)).toBe(
+      TENANT_RESOURCES_UNAVAILABLE,
+    );
+    expect(resolveSelectedRoomCalendars(selected, undefined)).toEqual({
+      rooms: [],
+      resourcesUnavailable: true,
+    });
+    error.mockRestore();
+  });
+
+  it("reports the room itself when the catalog loaded but that room has no calendar", () => {
+    const missingCalendar = resolveSelectedRoomCalendars(
+      [
+        { roomId: "202", calendarId: "client-cal" },
+        { roomId: "annex", calendarId: "client-annex" },
+      ],
+      [
+        { resourceId: "202", calendarId: "server-cal-202" },
+        { resourceId: "annex", calendarId: "" },
+      ],
+    );
+    expect(missingCalendar).toEqual({ rooms: [], missingRoomId: "annex" });
+    expect(missingCalendar.resourcesUnavailable).toBeUndefined();
   });
 
   it("dedupes calendar IDs across parents", () => {

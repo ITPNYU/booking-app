@@ -49,7 +49,9 @@ import { BOOKING_MEMO_MAX_LEN } from "@/components/src/constants/bookingMemo";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
 
 const schemaWith = (
-  detailsModal: Partial<ReturnType<typeof generateDefaultSchema>["detailsModal"]>,
+  detailsModal: Partial<
+    ReturnType<typeof generateDefaultSchema>["detailsModal"]
+  >,
 ) => {
   const base = generateDefaultSchema("mc");
   return {
