@@ -9,6 +9,8 @@ import { sendDeclineCcEmails } from "@/components/src/server/declineCcEmails";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import { authorizeBookingDecision } from "@/lib/api/bookingDecisionAuthz";
+import { requireSession } from "@/lib/api/requireSession";
 import {
   logServerBookingChange,
   serverGetDataByCalendarEventId,
@@ -22,20 +24,28 @@ import { NextRequest, NextResponse } from "next/server";
  * (or for non-XState tenants). Mirrors the old server/db.ts decline side effects:
  * Firestore stamp, history log, guest email (plus a copy to each of the
  * tenant's decline CC addresses), calendar [DECLINED] prefix.
+ *
+ * Only users who may decline the booking (authorizeBookingDecision) can call
+ * it. The decline is recorded under the session's email, not the body's.
  */
 export async function POST(req: NextRequest) {
+  const session = await requireSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let requestBody: {
     calendarEventId?: string;
-    email?: string;
     reason?: string;
     tenant?: string;
   } = {};
 
   try {
     requestBody = await req.json();
-    const { calendarEventId, email, reason, tenant } = requestBody;
+    const { calendarEventId, reason, tenant } = requestBody;
+    const email = session.email;
 
-    if (!calendarEventId || !email) {
+    if (!calendarEventId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 },
@@ -55,6 +65,13 @@ export async function POST(req: NextRequest) {
 
     if (!bookingDoc) {
       throw new Error("Booking not found");
+    }
+
+    if (!(await authorizeBookingDecision(email, tenant, bookingDoc, "decline"))) {
+      return NextResponse.json(
+        { error: "You are not authorized to decline this booking" },
+        { status: 403 },
+      );
     }
 
     await serverUpdateDataByCalendarEventId(

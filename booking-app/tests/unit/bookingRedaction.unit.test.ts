@@ -20,7 +20,9 @@ vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
 
 const schemaWith = (
-  detailsModal: Partial<ReturnType<typeof generateDefaultSchema>["detailsModal"]>,
+  detailsModal: Partial<
+    ReturnType<typeof generateDefaultSchema>["detailsModal"]
+  >,
 ) => {
   const base = generateDefaultSchema("mc");
   return {
@@ -130,6 +132,18 @@ describe("bookingRedaction", () => {
 
   it("skips the role lookup for an empty result set", async () => {
     await redactBookingDocsForCaller(session, "mc", TableNames.BOOKING, []);
+    expect(mocks.mockResolveCallerRole).not.toHaveBeenCalled();
+  });
+
+  it("skips the role lookup when no booking has a staff-only field", async () => {
+    const input = [{ id: "b", title: "Two" }];
+    const out = await redactBookingDocsForCaller(
+      session,
+      "mc",
+      TableNames.BOOKING,
+      input,
+    );
+    expect(out).toBe(input);
     expect(mocks.mockResolveCallerRole).not.toHaveBeenCalled();
   });
 

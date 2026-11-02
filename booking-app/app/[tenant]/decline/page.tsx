@@ -4,7 +4,10 @@ import {
   DatabaseContext,
   DatabaseProvider,
 } from "@/components/src/client/routes/components/Provider";
-import { decline } from "@/components/src/client/bookingActionClient";
+import {
+  NotAnApproverError,
+  decline,
+} from "@/components/src/client/bookingActionClient";
 import { Button, TextField } from "@mui/material";
 import { useParams, useSearchParams } from "next/navigation";
 import React, { Suspense, useContext, useState } from "react";
@@ -32,8 +35,18 @@ const DeclinePageContent: React.FC = () => {
         );
         setDeclined(true);
       } catch (err) {
-        setError("Failed to decline booking.");
         console.log(err);
+        if (err instanceof NotAnApproverError) {
+          setError(
+            "You are not an approver for this booking, so you can't decline it.",
+          );
+        } else {
+          setError(
+            err instanceof Error && err.message
+              ? err.message
+              : "Failed to decline booking.",
+          );
+        }
       } finally {
         setLoading(false);
       }
