@@ -1,351 +1,30 @@
 // Server-safe tenant-schema types and defaults.
 //
-// This module deliberately contains NO React (`createContext`) so it can be
-// imported from server code (API routes, `lib/tenant/coerceTenantSchema`,
-// scripts) without pulling the client-only `SchemaProvider` into the server
-// bundle. `SchemaProvider.tsx` re-exports everything here for client consumers.
+// Zod objects are the source of the types and the values copied into a new
+// tenant or room. This module has no React, so API routes and scripts can
+// import it. `SchemaProvider.tsx` re-exports everything here for client code.
+//
+// Objects are loose: an older Firestore key does not fail validation. Callers
+// that save a document write the submitted value, not the parsed clone, so
+// unknown keys are kept.
 
 import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { isMediaCommonsTenant } from "@/components/src/constants/tenants";
+import { z } from "zod";
 
 export { defaultSafetyTrainingInfoUrl };
 
-export type Attestation = {
-  id: string;
-  html: string;
-};
-
-export type StaffingSection = {
-  name: string;
-  indexes: number[];
-};
-
-export type ShowInOrigin = {
-  user?: boolean;
-  walkIn?: boolean;
-  VIP?: boolean;
-};
-
-export type ResourceChartFieldConfig = {
-  label?: string;
-  descriptionHtml?: string;
-  required?: boolean;
-  /** Reserved for schema authors; forms always apply CHARTFIELD_REGEX when required. */
-  validation?: string;
-};
-
-export type ResourceFormOption = {
-  value: string;
-  label: string;
-  required?: boolean;
-  descriptionHtml?: string;
-  chartField?: ResourceChartFieldConfig;
-  /** Optional Google Calendar ID for auxiliary spaces (filled when calendars exist). */
-  calendarId?: string;
-  /** Production calendar ID for auxiliary spaces. */
-  calendarIdProd?: string;
-};
-
-/** @deprecated Use ResourceFormOption */
-export type ResourceFormSelectOption = ResourceFormOption & {
-  requiresChartField?: boolean;
-  defaultValue?: boolean;
-};
-
-/**
- * Yes/No switch lock state for a service section.
- * - "on": switch is locked to Yes; the service is always requested and its
- *   dependent fields (chartfield, details) are always shown
- * - "off": switch is locked to No; only the description is shown
- * - "optional" (default when omitted): the user controls the switch
- * Schema locks take precedence over dynamic locks (catering → cleaning,
- * large-event security).
- */
-export type ServiceToggle = "on" | "off" | "optional";
-
-/**
- * Service section config.
- * - mode "radio" / "select": choice list via options (`select` normalizes to radio on migrate)
- * - mode "checkbox": optional option checkboxes (not forced like radio)
- * - mode "static": read-only HTML
- * - mode "hidden": offered but not shown
- * - omit mode + chartField (no options): yes/no switch
- * - omit mode + description only (no options/chartField/toggle): treated as static on migrate
- * - toggle: lock the yes/no switch (see ServiceToggle). For equipment, omitting
- *   toggle keeps the legacy layout (details field always shown, no switch).
- * - autoCloseout: when the booking reaches Service Closeout (after Cancel or
- *   Check Out), an approved request for this service is closed out by the
- *   system instead of waiting for a service user. Omitted/false keeps the
- *   manual closeout. Any booked room with the flag set closes the service out.
- */
-export type ResourceFormSectionConfig = {
-  showInOrigin?: ShowInOrigin;
-  label?: string;
-  descriptionHtml?: string;
-  mode?: "radio" | "select" | "checkbox" | "static" | "hidden";
-  toggle?: ServiceToggle;
-  autoCloseout?: boolean;
-  options?: ResourceFormOption[];
-  defaultValue?: string;
-  required?: boolean;
-  chartField?: ResourceChartFieldConfig;
-  forceCleaning?: boolean;
-  studentLoungeCheckbox?: boolean;
-  showDetailsField?: boolean;
-  detailsLabel?: string;
-  detailsDescriptionHtml?: string;
-  /** @deprecated Prefer showInOrigin */
-  hideForUser?: boolean;
-  /** @deprecated Prefer showInOrigin */
-  hideForVIP?: boolean;
-  /** @deprecated Prefer showInOrigin */
-  hideForWalkIn?: boolean;
-};
-
-export type ResourceStaffingServiceOption = {
-  value: string;
-  label: string;
-  defaultValue?: boolean;
-};
-
-export type ResourceStaffingSectionConfig = {
-  label: string;
-  descriptionHtml?: string;
-  mode: "radio";
-  defaultValue?: string;
-  options: ResourceFormOption[];
-  /** @deprecated Prefer label */
-  name?: string;
-  /** @deprecated Prefer options */
-  services?: ResourceStaffingServiceOption[];
-};
-
-export type ResourceStaffingConfig = {
-  showInOrigin?: ShowInOrigin;
-  label?: string;
-  descriptionHtml?: string;
-  /** Lock the staffing yes/no switch (see ServiceToggle). */
-  toggle?: ServiceToggle;
-  /** System closes out an approved staffing request (see ResourceFormSectionConfig). */
-  autoCloseout?: boolean;
-  sections?: Record<string, ResourceStaffingSectionConfig>;
-  /** @deprecated Prefer sections with options */
-  staffingOptions?: ResourceStaffingServiceOption[];
-  /** @deprecated Prefer omitting mode (switch) or sections */
-  mode?: "radio" | "static" | "hidden";
-  hideForUser?: boolean;
-  hideForVIP?: boolean;
-  hideForWalkIn?: boolean;
-};
-
-export type ResourceServicesConfig = {
-  annex?: ResourceFormSectionConfig;
-  setup?: ResourceFormSectionConfig;
-  staffing?: ResourceStaffingConfig;
-  furnishings?: ResourceFormSectionConfig;
-  equipment?: ResourceFormSectionConfig;
-  catering?: ResourceFormSectionConfig;
-  cleaning?: ResourceFormSectionConfig;
-  security?: ResourceFormSectionConfig;
-  /** @deprecated Prefer annex */
-  auxiliarySpace?: ResourceFormSectionConfig & { enabled?: boolean };
-};
-
-export type ResourceServiceKey = keyof ResourceServicesConfig;
-
-export type ResourceTraining = {
-  required?: boolean;
-  formId?: string;
-  infoUrl?: string;
-};
-
-export type RequestLimitPeriod =
-  | "perDay"
-  | "perWeek"
-  | "perMonth"
-  | "perSemester";
-
-/** Keys in `resource.requestLimits` — one bucket per base role (VIP / walk-in share the same cap). */
-export type RequestLimitBucketKey = "admin" | "faculty" | "student";
-
-export type RequestLimits = Partial<
-  Record<RequestLimitPeriod, Partial<Record<RequestLimitBucketKey, number>>>
->;
-
-export type Resource = {
-  capacity: number;
-  name: string;
-  resourceId: string;
-  /**
-   * When set, this resource is an auxiliary (annex) space belonging to the
-   * parent resource. Annex resources are hidden from the top-level room list,
-   * cannot be booked standalone, and are offered as annex checkboxes under
-   * their parent; selecting one invites its calendar to the parent's event.
-   */
-  parentResourceId?: string;
-  isEquipment: boolean;
-  calendarId: string;
-  training?: ResourceTraining;
-  isWalkIn: boolean;
-  isWalkInCanBookTwo: boolean;
-  /** Consolidated service config; legacy string[] coerced on read */
-  services: ResourceServicesConfig | string[];
-  /**
-   * Limit how many requests a user can make per period for this resource.
-   * Convention: `-1` (or missing) means “unlimited”.
-   *
-   * Shape: each period has only `admin`, `faculty`, `student` — counts include all booking origins.
-   */
-  requestLimits?: RequestLimits;
-  autoApproval?: {
-    shouldAutoApprove?: boolean;
-    minHour?: {
-      admin: number;
-      faculty: number;
-      student: number;
-    };
-    maxHour?: {
-      admin: number;
-      faculty: number;
-      student: number;
-    };
-    conditions?: {
-      setup: boolean;
-      equipment: boolean;
-      staffing: boolean;
-      catering: boolean;
-      cleaning: boolean;
-      security: boolean;
-      furnishings?: boolean;
-    };
-  };
-  maxHour?: {
-    student: number;
-    faculty: number;
-    admin: number;
-    studentWalkIn: number;
-    facultyWalkIn: number;
-    adminWalkIn: number;
-    studentVIP: number;
-    facultyVIP: number;
-    adminVIP: number;
-  };
-  minHour?: {
-    student: number;
-    faculty: number;
-    admin: number;
-    studentWalkIn: number;
-    facultyWalkIn: number;
-    adminWalkIn: number;
-    studentVIP: number;
-    facultyVIP: number;
-    adminVIP: number;
-  };
-  staffingServices?: string[];
-  staffingSections?: StaffingSection[];
-  calendarIdProd?: string;
-};
-
-export type TimeSensitiveRequestWarning = {
-  hours?: number;
-  isActive?: boolean;
-  message?: string;
-  policyLink?: string;
-};
-
-export type TermRange = [number, number]; // [startMonth, endMonth], 1-12 inclusive
-
-export type TermConfig = {
-  fallTerm: TermRange; // e.g. [9, 12]
-  springTerm: TermRange; // e.g. [1, 5]
-  summerTerm: TermRange; // e.g. [6, 8]
-};
-
-export type ContextLabels = {
-  user: string;
-  worker: string;
-  reviewer: string;
-  services: string;
-  admin: string;
-};
-
-export type TenantBranding = {
-  name: string;
-  logo: string;
-  nameForPolicy: string;
-  contextLabels: ContextLabels;
-};
-
-export type FormServicesConfig = {
-  showCatering: boolean;
-  showEquipment: boolean;
-  showSecurity: boolean;
-  showSetup: boolean;
-  showStaffing: boolean;
-};
-
-export type FormAlertSeverity = "success" | "info" | "warning" | "error";
-
-/**
- * Closed set of predicates the booking status bar knows how to evaluate.
- * Unknown keys are ignored and the alert stays hidden.
- */
-export type FormAlertWhen = {
-  autoApproval?: "eligible" | "ineligible";
-};
-
-/**
- * In-app booking-form alert. `status` fills the single approval bar.
- * `notice` stacks under it. Blockers (ban, overlap, limits) stay in code.
- */
-export type FormAlert = {
-  id: string;
-  /** Omit to show for every origin. A missing key means show. */
-  showInOrigin?: ShowInOrigin;
-  /** All keys must match. Omit for an always-on notice. */
-  when?: FormAlertWhen;
-  slot: "status" | "notice";
-  severity: FormAlertSeverity;
-  message: string;
-};
-
-/** Duration-gated free-text field on the Details step (issue #1126). */
-export type ProductionScheduleConfig = {
-  enabled: boolean;
-  /** Required when reservation length (hours) is strictly greater than this. */
-  requiredAboveHours: number;
-  label: string;
-  description: string;
-  templateLink: string;
-  templateLinkText: string;
-  calendarBannerMessage: string;
-};
-
-export type FormConfig = {
-  showBookingType: boolean;
-  showNNumber: boolean;
-  showSponsor: boolean;
-  services: FormServicesConfig;
-  /** Omitted on older documents; code defaults preserve the previous banners. */
-  alerts?: FormAlert[];
-  productionSchedule: ProductionScheduleConfig;
-};
-
-/** Staff roles that a booking detail feature can be scoped to. */
-export type BookingDetailRole =
-  | "PA"
-  | "LIAISON"
-  | "SERVICES"
-  | "ADMIN"
-  | "SUPER_ADMIN";
-
-export const BOOKING_DETAIL_ROLES: readonly BookingDetailRole[] = [
+export const bookingDetailRoleSchema = z.enum([
   "PA",
   "LIAISON",
   "SERVICES",
   "ADMIN",
   "SUPER_ADMIN",
-];
+]);
+
+export const BOOKING_DETAIL_ROLES = bookingDetailRoleSchema.options;
+
+export type BookingDetailRole = z.infer<typeof bookingDetailRoleSchema>;
 
 export const DEFAULT_MEMO_ROLES: readonly BookingDetailRole[] = [
   "SERVICES",
@@ -375,10 +54,10 @@ function normalizeDetailRoles(
 ): BookingDetailRole[] {
   if (raw === undefined || raw === null) return [...defaults];
   if (!Array.isArray(raw)) return [];
+  const allowed = new Set<string>(BOOKING_DETAIL_ROLES);
   const roles = raw.filter(
-    (r): r is BookingDetailRole =>
-      typeof r === "string" &&
-      (BOOKING_DETAIL_ROLES as readonly string[]).includes(r),
+    (role): role is BookingDetailRole =>
+      typeof role === "string" && allowed.has(role),
   );
   return Array.from(new Set(roles));
 }
@@ -393,253 +72,487 @@ export function normalizeWebCheckoutRoles(raw: unknown): BookingDetailRole[] {
   return normalizeDetailRoles(raw, DEFAULT_WEBCHECKOUT_ROLES);
 }
 
+const showInOriginSchema = z
+  .object({
+    user: z.boolean().optional(),
+    walkIn: z.boolean().optional(),
+    VIP: z.boolean().optional(),
+  })
+  .loose();
+
+export type ShowInOrigin = z.infer<typeof showInOriginSchema>;
+
+const resourceChartFieldSchema = z
+  .object({
+    label: z.string().optional(),
+    descriptionHtml: z.string().optional(),
+    required: z.boolean().optional(),
+    /** Reserved for schema authors; forms always apply CHARTFIELD_REGEX when required. */
+    validation: z.string().optional(),
+  })
+  .loose();
+
+export type ResourceChartFieldConfig = z.infer<typeof resourceChartFieldSchema>;
+
+const resourceFormOptionSchema = z
+  .object({
+    value: z.string().default(""),
+    label: z.string().default(""),
+    required: z.boolean().optional(),
+    descriptionHtml: z.string().optional(),
+    chartField: resourceChartFieldSchema.optional(),
+    /** Optional Google Calendar ID for auxiliary spaces (filled when calendars exist). */
+    calendarId: z.string().optional(),
+    /** Production calendar ID for auxiliary spaces. */
+    calendarIdProd: z.string().optional(),
+    /** @deprecated Use chartField */
+    requiresChartField: z.boolean().optional(),
+    /** @deprecated */
+    defaultValue: z.boolean().optional(),
+  })
+  .loose();
+
+export type ResourceFormOption = z.infer<typeof resourceFormOptionSchema>;
+
+/** @deprecated Use ResourceFormOption */
+export type ResourceFormSelectOption = ResourceFormOption;
+
 /**
- * Booking detail modal configuration (Firestore `tenantSchema.detailsModal`).
- * Separate from `form`, which configures the request form.
+ * Yes/No switch lock state for a service section.
+ * - "on": switch is locked to Yes; the service is always requested and its
+ *   dependent fields (chartfield, details) are always shown
+ * - "off": switch is locked to No; only the description is shown
+ * - "optional" (default when omitted): the user controls the switch
+ * Schema locks take precedence over dynamic locks (catering → cleaning,
+ * large-event security).
  */
-export type DetailsModalConfig = {
-  /** Show the WebCheckout section and the cart number in the bookings table. */
-  showWebCheckout: boolean;
-  /**
-   * Roles that can see the WebCheckout section. Roles in
-   * `webCheckoutEditRoles` can always see it too. Scoped to page contexts the
-   * same way as `memoViewRoles`. On My Bookings the requester still sees an
-   * assigned cart read-only while `showWebCheckout` is on.
-   */
-  webCheckoutViewRoles: BookingDetailRole[];
-  /**
-   * Roles that can edit the cart number, scoped to page contexts the same way
-   * as `memoEditRoles`. `POST /api/updateWebcheckoutCart` enforces the same
-   * list.
-   */
-  webCheckoutEditRoles: BookingDetailRole[];
-  /**
-   * Show the staff-only Memo section under WebCheckout, used to record e.g.
-   * work order confirmation numbers.
-   */
-  showMemo: boolean;
-  /**
-   * Roles that can read the Memo. Roles in `memoEditRoles` can always read it
-   * too. A role also unlocks its own page context (PA page, Liaison page,
-   * Services page, Admin page; SUPER_ADMIN uses the Admin page). The Firestore
-   * read routes enforce the same list.
-   */
-  memoViewRoles: BookingDetailRole[];
-  /**
-   * Roles that can edit the Memo, scoped to page contexts the same way as
-   * `memoViewRoles`. `PUT /api/bookings/memo` enforces the same list.
-   */
-  memoEditRoles: BookingDetailRole[];
-};
+export const serviceToggleSchema = z.enum(["on", "off", "optional"]);
 
-export type OriginsConfig = {
-  VIP: boolean;
-  walkIn: boolean;
-};
+export type ServiceToggle = z.infer<typeof serviceToggleSchema>;
 
-export type MappingsConfig = {
-  program: Record<string, string[]>;
-  role: Record<string, string[]>;
-  school: Record<string, string[]>;
-};
+const resourceFormModeSchema = z.enum([
+  "radio",
+  "select",
+  "checkbox",
+  "static",
+  "hidden",
+]);
 
-export type TrainingConfig = {
-  formId?: string;
-};
+/**
+ * Service section config.
+ * - mode "radio" / "select": choice list via options (`select` normalizes to radio on migrate)
+ * - mode "checkbox": optional option checkboxes (not forced like radio)
+ * - mode "static": read-only HTML
+ * - mode "hidden": offered but not shown
+ * - omit mode + chartField (no options): yes/no switch
+ * - omit mode + description only (no options/chartField/toggle): treated as static on migrate
+ * - toggle: lock the yes/no switch (see ServiceToggle). For equipment, omitting
+ *   toggle keeps the legacy layout (details field always shown, no switch).
+ * - autoCloseout: when the booking reaches Service Closeout (after Cancel or
+ *   Check Out), an approved request for this service is closed out by the
+ *   system instead of waiting for a service user. Omitted/false keeps the
+ *   manual closeout. Any booked room with the flag set closes the service out.
+ */
+const resourceFormSectionSchema = z
+  .object({
+    showInOrigin: showInOriginSchema.optional(),
+    label: z.string().optional(),
+    descriptionHtml: z.string().optional(),
+    mode: resourceFormModeSchema.optional(),
+    toggle: serviceToggleSchema.optional(),
+    autoCloseout: z.boolean().optional(),
+    options: z.array(resourceFormOptionSchema).optional(),
+    defaultValue: z.string().optional(),
+    required: z.boolean().optional(),
+    chartField: resourceChartFieldSchema.optional(),
+    forceCleaning: z.boolean().optional(),
+    studentLoungeCheckbox: z.boolean().optional(),
+    showDetailsField: z.boolean().optional(),
+    detailsLabel: z.string().optional(),
+    detailsDescriptionHtml: z.string().optional(),
+    /** @deprecated Prefer showInOrigin */
+    hideForUser: z.boolean().optional(),
+    /** @deprecated Prefer showInOrigin */
+    hideForVIP: z.boolean().optional(),
+    /** @deprecated Prefer showInOrigin */
+    hideForWalkIn: z.boolean().optional(),
+    enabled: z.boolean().optional(),
+  })
+  .loose();
 
-export type EmailNotifications = {
-  requestedUser: string;
-  requestedNeedsApproval: string;
-  reviewedNeedsApproval: string;
-  approvedWalkIn: string;
-  approvedVIP: string;
-  checkedOut: string;
-  checkedIn: string;
-  declined: string;
-  canceled: string;
-  canceledLate: string;
-  noShow: string;
-  closed: string;
-  approvedUser: string;
-};
+export type ResourceFormSectionConfig = z.infer<
+  typeof resourceFormSectionSchema
+>;
 
-export type SchemaContextType = {
-  /** Tenant slug / document id (e.g. mc, itp) */
-  tenantId: string;
-  tenant: TenantBranding;
-  policy: string;
-  mappings: MappingsConfig;
-  roles: string[];
-  form: FormConfig;
-  detailsModal: DetailsModalConfig;
-  attestations: Attestation[];
-  resources: Resource[];
-  origins: OriginsConfig;
-  training?: TrainingConfig;
-  supportPA?: boolean;
-  supportLiaison?: boolean;
-  resourceName: string;
-  declinedGracePeriod?: number;
-  /** Hours pending before interim column text is emphasized on the admin bookings dashboard (default 18) */
-  interimHighlightThresholdHours?: number;
-  /**
-   * When enabled, automatically cancel requests within a time window prior to start time
-   * if they are still unapproved (Requested / Pre-approved depending on conditions).
-   *
-   * Stored as `false` by default for backwards compatibility with older schemas.
-   */
-  autoCancel?:
-    | false
-    | {
-        minutesPriorToStart: number;
-        conditions: {
-          requested: boolean;
-          preApproved: boolean;
-        };
-      };
-  /** Term/semester configuration for "perSemester" request limits */
-  termConfig?: TermConfig;
-  calendarConfig?: {
-    startHour?: Record<string, string>;
-    slotUnit?: Record<string, number>;
-    multipleResourceSelect?: boolean;
-    timeSensitiveRequestWarning?: TimeSensitiveRequestWarning;
-  };
-  ccEmails?: {
-    approved: { development: string; staging: string; production: string };
-    canceled: { development: string; staging: string; production: string };
+const resourceStaffingServiceOptionSchema = z
+  .object({
+    value: z.string().default(""),
+    label: z.string().default(""),
+    defaultValue: z.boolean().optional(),
+  })
+  .loose();
+
+export type ResourceStaffingServiceOption = z.infer<
+  typeof resourceStaffingServiceOptionSchema
+>;
+
+const resourceStaffingSectionSchema = z
+  .object({
+    label: z.string().default(""),
+    descriptionHtml: z.string().optional(),
+    mode: z.literal("radio").default("radio"),
+    defaultValue: z.string().optional(),
+    options: z.array(resourceFormOptionSchema).default([]),
+    /** @deprecated Prefer label */
+    name: z.string().optional(),
+    /** @deprecated Prefer options */
+    services: z.array(resourceStaffingServiceOptionSchema).optional(),
+  })
+  .loose();
+
+export type ResourceStaffingSectionConfig = z.infer<
+  typeof resourceStaffingSectionSchema
+>;
+
+const resourceStaffingConfigSchema = z
+  .object({
+    showInOrigin: showInOriginSchema.optional(),
+    label: z.string().optional(),
+    descriptionHtml: z.string().optional(),
+    /** Lock the staffing yes/no switch (see ServiceToggle). */
+    toggle: serviceToggleSchema.optional(),
+    /** System closes out an approved staffing request (see ResourceFormSectionConfig). */
+    autoCloseout: z.boolean().optional(),
+    sections: z.record(z.string(), resourceStaffingSectionSchema).optional(),
+    /** @deprecated Prefer sections with options */
+    staffingOptions: z.array(resourceStaffingServiceOptionSchema).optional(),
+    /** @deprecated Prefer omitting mode (switch) or sections */
+    mode: z.enum(["radio", "static", "hidden"]).optional(),
+    hideForUser: z.boolean().optional(),
+    hideForVIP: z.boolean().optional(),
+    hideForWalkIn: z.boolean().optional(),
+  })
+  .loose();
+
+export type ResourceStaffingConfig = z.infer<typeof resourceStaffingConfigSchema>;
+
+const resourceServicesObjectSchema = z
+  .object({
+    annex: resourceFormSectionSchema.optional(),
+    setup: resourceFormSectionSchema.optional(),
+    staffing: resourceStaffingConfigSchema.optional(),
+    furnishings: resourceFormSectionSchema.optional(),
+    equipment: resourceFormSectionSchema.optional(),
+    catering: resourceFormSectionSchema.optional(),
+    cleaning: resourceFormSectionSchema.optional(),
+    security: resourceFormSectionSchema.optional(),
+    /** @deprecated Prefer annex */
+    auxiliarySpace: resourceFormSectionSchema.optional(),
+  })
+  .loose();
+
+export const resourceServicesSchema = z.union([
+  z.array(z.string()),
+  resourceServicesObjectSchema,
+]);
+
+export type ResourceServicesConfig = z.infer<typeof resourceServicesObjectSchema>;
+
+export type ResourceServiceKey = keyof ResourceServicesConfig;
+
+const resourceTrainingSchema = z
+  .object({
+    required: z.boolean().default(false),
+    formId: z.string().default(""),
+    infoUrl: z.string().default(defaultSafetyTrainingInfoUrl),
+  })
+  .loose();
+
+export type ResourceTraining = z.infer<typeof resourceTrainingSchema>;
+
+export const requestLimitPeriodSchema = z.enum([
+  "perDay",
+  "perWeek",
+  "perMonth",
+  "perSemester",
+]);
+
+export type RequestLimitPeriod = z.infer<typeof requestLimitPeriodSchema>;
+
+/** Keys in `resource.requestLimits` — one bucket per base role (VIP / walk-in share the same cap). */
+export const requestLimitBucketKeySchema = z.enum([
+  "admin",
+  "faculty",
+  "student",
+]);
+
+export type RequestLimitBucketKey = z.infer<typeof requestLimitBucketKeySchema>;
+
+const requestLimitBucketSchema = z
+  .object({
+    admin: z.number().default(-1),
+    faculty: z.number().default(-1),
+    student: z.number().default(-1),
+  })
+  .loose();
+
+const requestLimitsSchema = z
+  .object({
+    perDay: requestLimitBucketSchema.prefault({}),
+    perWeek: requestLimitBucketSchema.prefault({}),
+    perMonth: requestLimitBucketSchema.prefault({}),
+    perSemester: requestLimitBucketSchema.prefault({}),
+  })
+  .loose();
+
+export type RequestLimits = z.infer<typeof requestLimitsSchema>;
+
+const approvalHourSchema = z
+  .object({
+    admin: z.number().default(-1),
+    faculty: z.number().default(-1),
+    student: z.number().default(-1),
+  })
+  .loose();
+
+const autoApprovalSchema = z
+  .object({
+    shouldAutoApprove: z.boolean().default(false),
+    minHour: approvalHourSchema.prefault({}),
+    maxHour: approvalHourSchema.prefault({}),
+    conditions: z
+      .object({
+        setup: z.boolean().default(false),
+        equipment: z.boolean().default(false),
+        staffing: z.boolean().default(false),
+        catering: z.boolean().default(false),
+        cleaning: z.boolean().default(false),
+        security: z.boolean().default(false),
+        furnishings: z.boolean().default(false),
+      })
+      .loose()
+      .prefault({}),
+  })
+  .loose();
+
+const originHourSchema = z
+  .object({
+    student: z.number().default(-1),
+    faculty: z.number().default(-1),
+    admin: z.number().default(-1),
+    studentWalkIn: z.number().default(-1),
+    facultyWalkIn: z.number().default(-1),
+    adminWalkIn: z.number().default(-1),
+    studentVIP: z.number().default(-1),
+    facultyVIP: z.number().default(-1),
+    adminVIP: z.number().default(-1),
+  })
+  .loose();
+
+const staffingSectionSchema = z
+  .object({
+    name: z.string().default(""),
+    indexes: z.array(z.number()).default([]),
+  })
+  .loose();
+
+export type StaffingSection = z.infer<typeof staffingSectionSchema>;
+
+export const defaultStaffingSection = staffingSectionSchema.parse({});
+
+/**
+ * Room shape. `resourceId` may be empty here so `resourceSchema.parse({})`
+ * is the object copied into a new room. A tenant document rejects an empty id.
+ */
+export const resourceSchema = z
+  .object({
+    capacity: z.number().default(0),
+    name: z.string().default(""),
+    resourceId: z.string().default(""),
     /**
-     * Gets a copy of the requester's decline email. Each value may list
-     * several addresses separated by commas or semicolons; empty sends none.
+     * When set, this resource is an auxiliary (annex) space belonging to the
+     * parent resource. Annex resources are hidden from the top-level room list,
+     * cannot be booked standalone, and are offered as annex checkboxes under
+     * their parent; selecting one invites its calendar to the parent's event.
      */
-    declined?: { development: string; staging: string; production: string };
-  };
-  emailNotifications: EmailNotifications;
-};
+    parentResourceId: z.string().optional(),
+    isEquipment: z.boolean().default(false),
+    calendarId: z.string().default(""),
+    training: resourceTrainingSchema.prefault({}),
+    isWalkIn: z.boolean().default(false),
+    isWalkInCanBookTwo: z.boolean().default(false),
+    /** Consolidated service config; legacy string[] coerced on read */
+    services: resourceServicesSchema.prefault({}),
+    /**
+     * Limit how many requests a user can make per period for this resource.
+     * Convention: `-1` (or missing) means “unlimited”.
+     *
+     * Shape: each period has only `admin`, `faculty`, `student` — counts include all booking origins.
+     */
+    requestLimits: requestLimitsSchema.prefault({}),
+    autoApproval: autoApprovalSchema.prefault({}),
+    maxHour: originHourSchema.prefault({}),
+    minHour: originHourSchema.prefault({}),
+    staffingServices: z.array(z.string()).default([]),
+    staffingSections: z.array(staffingSectionSchema).default([]),
+    calendarIdProd: z.string().default(""),
+  })
+  .loose();
 
-function defineObjectArrayWithDefaults<T>(
-  defaults: T,
-): ObjectArrayWithDefaults<T> {
-  const value = [] as ObjectArrayWithDefaults<T>;
-  value.__defaults__ = defaults;
-  return value;
+export type Resource = z.infer<typeof resourceSchema>;
+
+export const defaultResource = resourceSchema.parse({});
+
+function resourceIdIssue(resourceId: string): string | null {
+  const id = resourceId.trim();
+  if (!id) return "Resource id is required";
+  if (id.includes(",")) return "Resource id must not contain commas";
+  return null;
 }
 
-export interface ObjectArrayWithDefaults<T> extends Array<T> {
-  __defaults__: T;
-}
+/** One stored room: the resource shape, plus a non-empty id with no commas. */
+export const tenantResourceSchema = resourceSchema.superRefine((resource, ctx) => {
+  const message = resourceIdIssue(resource.resourceId);
+  if (!message) return;
+  ctx.addIssue({
+    code: "custom",
+    message,
+    path: ["resourceId"],
+  });
+});
 
-export const defaultStaffingSection: StaffingSection = {
-  name: "",
-  indexes: [],
-};
+/** Rooms on a tenant document. Ids are non-empty, comma-free, and unique. */
+export const resourcesArraySchema = z
+  .array(resourceSchema)
+  .superRefine((resources, ctx) => {
+    const seen = new Set<string>();
+    resources.forEach((resource, index) => {
+      const message = resourceIdIssue(resource.resourceId);
+      if (message) {
+        ctx.addIssue({
+          code: "custom",
+          message,
+          path: [index, "resourceId"],
+        });
+        return;
+      }
+      const id = resource.resourceId.trim();
+      if (seen.has(id)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Resource id "${id}" is already in the schema`,
+          path: [index, "resourceId"],
+        });
+        return;
+      }
+      seen.add(id);
+    });
+  });
 
-export const defaultAttestation: Attestation = {
-  id: "",
-  html: "",
-};
+const attestationSchema = z
+  .object({
+    id: z.string().default(""),
+    html: z.string().default(""),
+  })
+  .loose();
 
-export const defaultResource: Resource = {
-  capacity: 0,
-  name: "",
-  resourceId: "",
-  isEquipment: false,
-  calendarId: "",
-  training: {
-    required: false,
-    formId: "",
-    infoUrl: defaultSafetyTrainingInfoUrl,
-  },
-  isWalkIn: false,
-  isWalkInCanBookTwo: false,
-  services: {},
-  requestLimits: {
-    perDay: { admin: -1, faculty: -1, student: -1 },
-    perWeek: { admin: -1, faculty: -1, student: -1 },
-    perMonth: { admin: -1, faculty: -1, student: -1 },
-    perSemester: { admin: -1, faculty: -1, student: -1 },
-  },
-  autoApproval: {
-    shouldAutoApprove: false,
-    minHour: { admin: -1, faculty: -1, student: -1 },
-    maxHour: { admin: -1, faculty: -1, student: -1 },
-    conditions: {
-      setup: false,
-      equipment: false,
-      staffing: false,
-      catering: false,
-      cleaning: false,
-      security: false,
-      furnishings: false,
-    },
-  },
-  maxHour: {
-    student: -1,
-    faculty: -1,
-    admin: -1,
-    studentWalkIn: -1,
-    facultyWalkIn: -1,
-    adminWalkIn: -1,
-    studentVIP: -1,
-    facultyVIP: -1,
-    adminVIP: -1,
-  },
-  minHour: {
-    student: -1,
-    faculty: -1,
-    admin: -1,
-    studentWalkIn: -1,
-    facultyWalkIn: -1,
-    adminWalkIn: -1,
-    studentVIP: -1,
-    facultyVIP: -1,
-    adminVIP: -1,
-  },
-  staffingServices: [],
-  staffingSections: defineObjectArrayWithDefaults(defaultStaffingSection),
-  calendarIdProd: "",
-};
+export type Attestation = z.infer<typeof attestationSchema>;
 
-const defaultTimeSensitiveRequestWarning: TimeSensitiveRequestWarning = {
-  hours: 48,
-  isActive: false,
-  message: "",
-  policyLink: "",
-};
+export const defaultAttestation = attestationSchema.parse({});
 
-export const defaultProductionSchedule: ProductionScheduleConfig = {
-  enabled: false,
-  requiredAboveHours: 4,
-  label: "Production Schedule",
-  description:
-    "Please provide a production schedule for your reservation. This is required to justify reservations longer than 4 hours. It should minimally include setup, production, and breakdown.",
-  templateLink:
-    "https://docs.google.com/document/d/1RzBf0mlWiYHrWpfIvh7qS5zKnmTn3SHSr7xVTQaOoz0/edit?usp=sharing",
-  templateLinkText:
-    "Click here for schedule templates for events, recording sessions, and other productions",
-  calendarBannerMessage:
-    "This request is greater than four hours. You will need to provide a production schedule on the next page to continue.",
-};
+const timeSensitiveRequestWarningSchema = z
+  .object({
+    hours: z.number().default(48),
+    isActive: z.boolean().default(false),
+    message: z.string().default(""),
+    policyLink: z.string().default(""),
+  })
+  .loose();
 
-const defaultContextLabelsByTenantId = (tenantId?: string): ContextLabels => {
-  const normalized = (tenantId || "").toLowerCase();
-  if (normalized === "itp") {
-    return {
-      user: "User",
-      worker: "ER",
-      reviewer: "1st Approver",
-      services: "Services",
-      admin: "Admin",
-    };
-  }
-  return {
-    user: "User",
-    worker: "PA",
-    reviewer: "Liaison",
-    services: "Services",
-    admin: "Admin",
-  };
-};
+export type TimeSensitiveRequestWarning = z.infer<
+  typeof timeSensitiveRequestWarningSchema
+>;
+
+const termRangeSchema = z.tuple([z.number(), z.number()]);
+
+export type TermRange = z.infer<typeof termRangeSchema>;
+
+const termConfigSchema = z
+  .object({
+    fallTerm: termRangeSchema.default([9, 12]),
+    springTerm: termRangeSchema.default([1, 5]),
+    summerTerm: termRangeSchema.default([6, 8]),
+  })
+  .loose();
+
+export type TermConfig = z.infer<typeof termConfigSchema>;
+
+const contextLabelsSchema = z
+  .object({
+    user: z.string().default("User"),
+    worker: z.string().default("PA"),
+    reviewer: z.string().default("Liaison"),
+    services: z.string().default("Services"),
+    admin: z.string().default("Admin"),
+  })
+  .loose();
+
+export type ContextLabels = z.infer<typeof contextLabelsSchema>;
+
+const tenantBrandingSchema = z
+  .object({
+    name: z.string().default(""),
+    logo: z.string().default(""),
+    nameForPolicy: z.string().default(""),
+    contextLabels: contextLabelsSchema.prefault({}),
+  })
+  .loose();
+
+export type TenantBranding = z.infer<typeof tenantBrandingSchema>;
+
+const formServicesSchema = z
+  .object({
+    showCatering: z.boolean().default(true),
+    showEquipment: z.boolean().default(true),
+    showSecurity: z.boolean().default(true),
+    showSetup: z.boolean().default(true),
+    showStaffing: z.boolean().default(true),
+  })
+  .loose();
+
+export type FormServicesConfig = z.infer<typeof formServicesSchema>;
+
+export const formAlertSeveritySchema = z.enum([
+  "success",
+  "info",
+  "warning",
+  "error",
+]);
+
+export type FormAlertSeverity = z.infer<typeof formAlertSeveritySchema>;
+
+const formAlertWhenSchema = z
+  .object({
+    autoApproval: z.enum(["eligible", "ineligible"]).optional(),
+  })
+  .loose();
+
+export type FormAlertWhen = z.infer<typeof formAlertWhenSchema>;
+
+const formAlertSchema = z
+  .object({
+    id: z.string(),
+    /** Omit to show for every origin. A missing key means show. */
+    showInOrigin: showInOriginSchema.optional(),
+    /** All keys must match. Omit for an always-on notice. */
+    when: formAlertWhenSchema.optional(),
+    slot: z.enum(["status", "notice"]),
+    severity: formAlertSeveritySchema,
+    message: z.string(),
+  })
+  .loose();
+
+export type FormAlert = z.infer<typeof formAlertSchema>;
 
 export const defaultFormAlerts: FormAlert[] = [
   {
@@ -668,123 +581,278 @@ export const defaultFormAlerts: FormAlert[] = [
   },
 ];
 
-const defaultTenantBranding = (tenantId?: string): TenantBranding => ({
-  name: "",
-  logo: "",
-  nameForPolicy: "",
-  contextLabels: defaultContextLabelsByTenantId(tenantId),
-});
+/** Duration-gated free-text field on the Details step (issue #1126). */
+const productionScheduleSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    /** Required when reservation length (hours) is strictly greater than this. */
+    requiredAboveHours: z.number().default(4),
+    label: z.string().default("Production Schedule"),
+    description: z
+      .string()
+      .default(
+        "Please provide a production schedule for your reservation. This is required to justify reservations longer than 4 hours. It should minimally include setup, production, and breakdown.",
+      ),
+    templateLink: z
+      .string()
+      .default(
+        "https://docs.google.com/document/d/1RzBf0mlWiYHrWpfIvh7qS5zKnmTn3SHSr7xVTQaOoz0/edit?usp=sharing",
+      ),
+    templateLinkText: z
+      .string()
+      .default(
+        "Click here for schedule templates for events, recording sessions, and other productions",
+      ),
+    calendarBannerMessage: z
+      .string()
+      .default(
+        "This request is greater than four hours. You will need to provide a production schedule on the next page to continue.",
+      ),
+  })
+  .loose();
 
-export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
-  tenant: defaultTenantBranding(),
-  policy: "",
-  mappings: {
-    program: {},
-    role: {},
-    school: {},
-  },
-  roles: [],
-  form: {
-    showBookingType: true,
-    showNNumber: true,
-    showSponsor: true,
-    services: {
-      showCatering: true,
-      showEquipment: true,
-      showSecurity: true,
-      showSetup: true,
-      showStaffing: true,
-    },
-    alerts: defaultFormAlerts,
-    productionSchedule: defaultProductionSchedule,
-  },
-  detailsModal: {
-    showWebCheckout: true,
-    webCheckoutViewRoles: [...DEFAULT_WEBCHECKOUT_ROLES],
-    webCheckoutEditRoles: [...DEFAULT_WEBCHECKOUT_ROLES],
-    showMemo: false,
-    memoViewRoles: [...DEFAULT_MEMO_ROLES],
-    memoEditRoles: [...DEFAULT_MEMO_ROLES],
-  },
-  attestations: defineObjectArrayWithDefaults(defaultAttestation),
-  resources: defineObjectArrayWithDefaults(defaultResource),
-  origins: {
-    VIP: false,
-    walkIn: false,
-  },
-  training: {
-    formId: "",
-  },
-  supportPA: false,
-  supportLiaison: false,
-  resourceName: "",
-  declinedGracePeriod: 24,
-  interimHighlightThresholdHours: 18,
-  autoCancel: false,
-  termConfig: {
-    fallTerm: [9, 12],
-    springTerm: [1, 5],
-    summerTerm: [6, 8],
-  },
-  calendarConfig: {
-    startHour: {
-      student: "09:00:00",
-      studentVIP: "06:00:00",
-      studentWalkIn: "09:00:00",
-      faculty: "09:00:00",
-      facultyVIP: "06:00:00",
-      facultyWalkIn: "09:00:00",
-      admin: "09:00:00",
-      adminVIP: "06:00:00",
-      adminWalkIn: "09:00:00",
-    },
-    slotUnit: {
-      student: 15,
-      studentVIP: 15,
-      studentWalkIn: 15,
-      faculty: 15,
-      facultyVIP: 15,
-      facultyWalkIn: 15,
-      admin: 15,
-      adminVIP: 15,
-      adminWalkIn: 15,
-    },
-    multipleResourceSelect: false,
-    timeSensitiveRequestWarning: defaultTimeSensitiveRequestWarning,
-  },
-  ccEmails: {
-    approved: { development: "", staging: "", production: "" },
-    canceled: { development: "", staging: "", production: "" },
-    declined: { development: "", staging: "", production: "" },
-  },
-  emailNotifications: {
-    requestedUser: "",
-    requestedNeedsApproval: "",
-    reviewedNeedsApproval: "",
-    approvedWalkIn: "",
-    approvedVIP: "",
-    checkedOut: "",
-    checkedIn: "",
-    declined: "",
-    canceled: "",
-    canceledLate: "",
-    noShow: "",
-    closed: "",
-    approvedUser: "",
-  },
+export type ProductionScheduleConfig = z.infer<typeof productionScheduleSchema>;
+
+export const defaultProductionSchedule = productionScheduleSchema.parse({});
+
+const formConfigSchema = z
+  .object({
+    showBookingType: z.boolean().default(true),
+    showNNumber: z.boolean().default(true),
+    showSponsor: z.boolean().default(true),
+    services: formServicesSchema.prefault({}),
+    /** Omitted on older documents; code defaults preserve the previous banners. */
+    alerts: z.array(formAlertSchema).default(defaultFormAlerts),
+    productionSchedule: productionScheduleSchema.prefault({}),
+  })
+  .loose();
+
+export type FormConfig = z.infer<typeof formConfigSchema>;
+
+const roleListSchema = z.array(bookingDetailRoleSchema);
+
+const detailsModalSchema = z
+  .object({
+    /** Show the WebCheckout section and the cart number in the bookings table. */
+    showWebCheckout: z.boolean().default(true),
+    /**
+     * Roles that can see the WebCheckout section. Roles in
+     * `webCheckoutEditRoles` can always see it too. Scoped to page contexts the
+     * same way as `memoViewRoles`. On My Bookings the requester still sees an
+     * assigned cart read-only while `showWebCheckout` is on.
+     */
+    webCheckoutViewRoles: roleListSchema.default([...DEFAULT_WEBCHECKOUT_ROLES]),
+    /**
+     * Roles that can edit the cart number, scoped to page contexts the same way
+     * as `memoEditRoles`. `POST /api/updateWebcheckoutCart` enforces the same
+     * list.
+     */
+    webCheckoutEditRoles: roleListSchema.default([...DEFAULT_WEBCHECKOUT_ROLES]),
+    /**
+     * Show the staff-only Memo section under WebCheckout, used to record e.g.
+     * work order confirmation numbers.
+     */
+    showMemo: z.boolean().default(false),
+    /**
+     * Roles that can read the Memo. Roles in `memoEditRoles` can always read it
+     * too. A role also unlocks its own page context (PA page, Liaison page,
+     * Services page, Admin page; SUPER_ADMIN uses the Admin page). The Firestore
+     * read routes enforce the same list.
+     */
+    memoViewRoles: roleListSchema.default([...DEFAULT_MEMO_ROLES]),
+    /**
+     * Roles that can edit the Memo, scoped to page contexts the same way as
+     * `memoViewRoles`. `PUT /api/bookings/memo` enforces the same list.
+     */
+    memoEditRoles: roleListSchema.default([...DEFAULT_MEMO_ROLES]),
+  })
+  .loose();
+
+export type DetailsModalConfig = z.infer<typeof detailsModalSchema>;
+
+const originsSchema = z
+  .object({
+    VIP: z.boolean().default(false),
+    walkIn: z.boolean().default(false),
+  })
+  .loose();
+
+export type OriginsConfig = z.infer<typeof originsSchema>;
+
+const stringListRecordSchema = z.record(z.string(), z.array(z.string()));
+
+const mappingsSchema = z
+  .object({
+    program: stringListRecordSchema.prefault({}),
+    role: stringListRecordSchema.prefault({}),
+    school: stringListRecordSchema.prefault({}),
+  })
+  .loose();
+
+export type MappingsConfig = z.infer<typeof mappingsSchema>;
+
+const trainingConfigSchema = z
+  .object({
+    formId: z.string().default(""),
+  })
+  .loose();
+
+export type TrainingConfig = z.infer<typeof trainingConfigSchema>;
+
+const emailNotificationsSchema = z
+  .object({
+    requestedUser: z.string().default(""),
+    requestedNeedsApproval: z.string().default(""),
+    reviewedNeedsApproval: z.string().default(""),
+    approvedWalkIn: z.string().default(""),
+    approvedVIP: z.string().default(""),
+    checkedOut: z.string().default(""),
+    checkedIn: z.string().default(""),
+    declined: z.string().default(""),
+    canceled: z.string().default(""),
+    canceledLate: z.string().default(""),
+    noShow: z.string().default(""),
+    closed: z.string().default(""),
+    approvedUser: z.string().default(""),
+  })
+  .loose();
+
+export type EmailNotifications = z.infer<typeof emailNotificationsSchema>;
+
+const emailEnvironmentSchema = z
+  .object({
+    development: z.string().default(""),
+    staging: z.string().default(""),
+    production: z.string().default(""),
+  })
+  .loose();
+
+const ccEmailsSchema = z
+  .object({
+    approved: emailEnvironmentSchema.prefault({}),
+    canceled: emailEnvironmentSchema.prefault({}),
+    /**
+     * Gets a copy of the requester's decline email. Each value may list
+     * several addresses separated by commas or semicolons; empty sends none.
+     */
+    declined: emailEnvironmentSchema.prefault({}),
+  })
+  .loose();
+
+const START_HOURS: Record<string, string> = {
+  student: "09:00:00",
+  studentVIP: "06:00:00",
+  studentWalkIn: "09:00:00",
+  faculty: "09:00:00",
+  facultyVIP: "06:00:00",
+  facultyWalkIn: "09:00:00",
+  admin: "09:00:00",
+  adminVIP: "06:00:00",
+  adminWalkIn: "09:00:00",
 };
 
+const SLOT_UNITS: Record<string, number> = {
+  student: 15,
+  studentVIP: 15,
+  studentWalkIn: 15,
+  faculty: 15,
+  facultyVIP: 15,
+  facultyWalkIn: 15,
+  admin: 15,
+  adminVIP: 15,
+  adminWalkIn: 15,
+};
+
+const calendarConfigSchema = z
+  .object({
+    startHour: z.record(z.string(), z.string()).default(START_HOURS),
+    slotUnit: z.record(z.string(), z.number()).default(SLOT_UNITS),
+    multipleResourceSelect: z.boolean().default(false),
+    timeSensitiveRequestWarning: timeSensitiveRequestWarningSchema.prefault({}),
+  })
+  .loose();
+
+const autoCancelSchema = z.union([
+  z.literal(false),
+  z
+    .object({
+      minutesPriorToStart: z.number(),
+      conditions: z
+        .object({
+          requested: z.boolean(),
+          preApproved: z.boolean(),
+        })
+        .loose(),
+    })
+    .loose(),
+]);
+
+const defaultContextLabelsByTenantId = (tenantId?: string): ContextLabels => {
+  const normalized = (tenantId || "").toLowerCase();
+  if (normalized === "itp") {
+    return contextLabelsSchema.parse({
+      user: "User",
+      worker: "ER",
+      reviewer: "1st Approver",
+      services: "Services",
+      admin: "Admin",
+    });
+  }
+  return contextLabelsSchema.parse({});
+};
+
+export const tenantSchema = z
+  .object({
+    /** Tenant slug / document id (e.g. mc, itp) */
+    tenantId: z.string(),
+    tenant: tenantBrandingSchema.prefault({}),
+    policy: z.string().default(""),
+    mappings: mappingsSchema.prefault({}),
+    roles: z.array(z.string()).default([]),
+    form: formConfigSchema.prefault({}),
+    detailsModal: detailsModalSchema.prefault({}),
+    attestations: z.array(attestationSchema).default([]),
+    resources: resourcesArraySchema.default([]),
+    origins: originsSchema.prefault({}),
+    training: trainingConfigSchema.prefault({}),
+    supportPA: z.boolean().default(false),
+    supportLiaison: z.boolean().default(false),
+    resourceName: z.string().default(""),
+    declinedGracePeriod: z.number().default(24),
+    /** Hours pending before interim column text is emphasized on the admin bookings dashboard (default 18) */
+    interimHighlightThresholdHours: z.number().default(18),
+    /**
+     * When enabled, automatically cancel requests within a time window prior to start time
+     * if they are still unapproved (Requested / Pre-approved depending on conditions).
+     *
+     * Stored as `false` by default for backwards compatibility with older schemas.
+     */
+    autoCancel: autoCancelSchema.default(false),
+    /** Term/semester configuration for "perSemester" request limits */
+    termConfig: termConfigSchema.prefault({}),
+    calendarConfig: calendarConfigSchema.prefault({}),
+    ccEmails: ccEmailsSchema.prefault({}),
+    emailNotifications: emailNotificationsSchema.prefault({}),
+  })
+  .loose();
+
+export type SchemaContextType = z.infer<typeof tenantSchema>;
+
+export const defaultScheme: Omit<SchemaContextType, "tenantId"> = tenantSchema
+  .omit({ tenantId: true })
+  .parse({});
+
 export function generateDefaultSchema(tenantId: string): SchemaContextType {
+  const schema = tenantSchema.parse({ tenantId });
   return {
-    tenantId,
-    ...defaultScheme,
+    ...schema,
     tenant: {
-      ...defaultScheme.tenant,
+      ...schema.tenant,
       contextLabels: defaultContextLabelsByTenantId(tenantId),
     },
     form: {
-      ...defaultScheme.form,
-      services: { ...defaultScheme.form.services },
+      ...schema.form,
+      services: { ...schema.form.services },
       // MC requires production schedules for long reservations (#1126).
       productionSchedule: {
         ...defaultProductionSchedule,

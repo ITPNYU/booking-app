@@ -1,23 +1,13 @@
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import SchemaEditor from "@/components/src/client/routes/super/schemaEditor";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defaultResource } from "@/components/src/client/routes/components/schemaTypes";
 
 const mcSchema = {
   tenantId: "mc",
   resources: [{ name: "Room A", resourceId: "room-a", capacity: 4 }],
-};
-
-const resourceDefault = {
-  name: "",
-  resourceId: "",
-  capacity: 0,
-  calendarId: "",
-  calendarIdProd: "",
-  isEquipment: false,
-  isWalkIn: false,
-  requestLimits: { perSemester: { admin: -1, faculty: -1, student: -1 } },
 };
 
 function jsonResponse(body: unknown, status = 200) {
@@ -46,7 +36,10 @@ describe("SchemaEditor add resource", () => {
           return jsonResponse({ success: true, backupCreated: true });
         }
         if (String(url).includes("_template")) {
-          return jsonResponse({ resourceDefault });
+          return jsonResponse({ error: "Not found" }, 404);
+        }
+        if (String(url).includes("/api/tenantSchema/itp")) {
+          return jsonResponse({ tenantId: "itp", policy: "itp policy" });
         }
         if (String(url).includes("/api/tenantSchema/mc")) {
           return jsonResponse(mcSchema);
@@ -75,8 +68,13 @@ describe("SchemaEditor add resource", () => {
     await user.click(screen.getByRole("button", { name: "Add to schema" }));
 
     await waitFor(() => {
-      expect(document.querySelector("textarea")?.value).toContain("studio");
+      const text = document.querySelector("textarea")?.value ?? "";
+      expect(text).toContain("studio");
+      expect(text).toContain(`"admin": ${defaultResource.requestLimits.perDay.admin}`);
     });
+    expect(
+      vi.mocked(fetch).mock.calls.some((call) => String(call[0]).includes("_template")),
+    ).toBe(false);
     expect(
       vi.mocked(fetch).mock.calls.some((call) => call[1]?.method === "PUT"),
     ).toBe(false);
@@ -104,11 +102,27 @@ describe("SchemaEditor add resource", () => {
 
     const [tenantSelect] = screen.getAllByRole("combobox");
     await user.click(tenantSelect);
-    await user.click(await screen.findByRole("option", { name: "_template (defaults)" }));
+    await user.click(await screen.findByRole("option", { name: "itp" }));
 
     await waitFor(() => {
       expect(screen.getByText("(entire schema)")).toBeInTheDocument();
-      expect(document.querySelector("textarea")?.value).toContain("resourceDefault");
+      expect(document.querySelector("textarea")?.value).toContain("itp policy");
     });
+  });
+
+  it("shows a schema error and keeps Save disabled when a boolean is a string", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "mc" }));
+    await user.click(await screen.findByRole("button", { name: /^supportPA/ }));
+
+    const textarea = document.querySelector("textarea");
+    expect(textarea).toBeTruthy();
+    fireEvent.change(textarea as HTMLTextAreaElement, { target: { value: '"yes"' } });
+
+    expect(await screen.findByText(/supportPA:/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 });
