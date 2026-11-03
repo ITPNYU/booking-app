@@ -77,6 +77,15 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
     mocks.serverSaveDataToFirestore(...args),
 }));
 
+vi.mock("@/lib/googleClient", () => ({
+  getCalendarClient: vi.fn(async () => ({
+    events: {
+      list: vi.fn(async () => ({ data: { items: [] } })),
+      get: vi.fn(async () => ({ data: {} })),
+    },
+  })),
+}));
+
 vi.mock("@/lib/stateMachines/xstateUtilsV5", () => ({
   get executeXStateTransition() {
     throw new Error("xstate init failed");
@@ -127,7 +136,9 @@ describe("POST /api/bookingsDirect XState fallback", () => {
     vi.clearAllMocks();
     mocks.getMaintenanceModeSettings.mockResolvedValue({ enabled: false });
     mocks.getCachedTenantSchema.mockResolvedValue(null);
-    mocks.serverGetTenantResources.mockResolvedValue([]);
+    mocks.serverGetTenantResources.mockResolvedValue([
+      { resourceId: "101", calendarId: "room-cal" },
+    ]);
     mocks.serverGetRoomCalendarId.mockResolvedValue("primary-cal");
     mocks.insertEvent.mockResolvedValue({ id: "event-1" });
     mocks.serverGetNextSequentialId.mockResolvedValue(42);
