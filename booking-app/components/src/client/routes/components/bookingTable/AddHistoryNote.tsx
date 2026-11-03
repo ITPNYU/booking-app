@@ -60,7 +60,6 @@ export default function AddHistoryNote({
     <Box sx={{ mt: 1 }}>
       <TextField
         label="Note"
-        helperText="Added to the history. The requester can see it."
         value={note}
         onChange={(e) => setNote(e.target.value)}
         multiline

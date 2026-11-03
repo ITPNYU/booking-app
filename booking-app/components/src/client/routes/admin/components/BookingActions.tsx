@@ -294,7 +294,6 @@ export default function BookingActions(props: Props) {
             <Box sx={{ p: 2, width: 320 }}>
               <TextField
                 label={`Note for ${selectedAction} (optional)`}
-                helperText="Saved in the booking history. The requester can see it."
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 multiline
