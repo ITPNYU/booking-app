@@ -13,7 +13,10 @@ import {
   Typography,
 } from "@mui/material";
 
-import { formatOrigin } from "@/components/src/utils/formatters";
+import {
+  formatDepartmentCollaboration,
+  formatOrigin,
+} from "@/components/src/utils/formatters";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
@@ -827,10 +830,7 @@ export default function MoreInfoModal({
                     <TableRow>
                       <LabelCell>Department Collaboration</LabelCell>
                       <TableCell>
-                        {booking.departmentCollaboration === "Yes" &&
-                        booking.collaboratingDepartments?.length
-                          ? `Yes: ${booking.collaboratingDepartments.join(", ")}`
-                          : (booking.departmentCollaboration ?? BLANK)}
+                        {formatDepartmentCollaboration(booking) ?? BLANK}
                       </TableCell>
                     </TableRow>
                   )}

@@ -4,6 +4,7 @@ import { DatabaseContext } from "@/components/src/client/routes/components/Provi
 import { SchemaProvider } from "@/components/src/client/routes/components/SchemaProvider";
 import { generateDefaultSchema } from "@/components/src/client/routes/components/schemaTypes";
 import { FormContextLevel } from "@/components/src/types";
+import { formatDepartmentCollaboration } from "@/components/src/utils/formatters";
 import { coerceTenantSchema } from "@/lib/tenant/coerceTenantSchema";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -21,9 +22,12 @@ vi.mock(
   () => ({ default: vi.fn(() => ({ isAutoApproval: true })) }),
 );
 
-vi.mock("@/components/src/client/routes/booking/hooks/useSubmitBooking", () => ({
-  default: vi.fn(() => vi.fn()),
-}));
+vi.mock(
+  "@/components/src/client/routes/booking/hooks/useSubmitBooking",
+  () => ({
+    default: vi.fn(() => vi.fn()),
+  }),
+);
 
 const theme = createTheme({
   palette: { custom: { border: "#e3e3e3", gray3: "#888888" } as any },
@@ -211,5 +215,95 @@ describe("department collaboration question (#1383)", () => {
         collaboratingDepartments: [],
       }),
     );
+  });
+  it("asks for the department name when Other is picked, and drops it when Other is unticked", async () => {
+    const user = userEvent.setup();
+    renderDetails();
+
+    await chooseCollaboration(user, "Yes");
+    const openDepartments = async () =>
+      user.click(
+        within(
+          await screen.findByTestId("collaborating-departments-select"),
+        ).getByRole("combobox"),
+      );
+    await openDepartments();
+    await user.click(screen.getByRole("option", { name: "IDM" }));
+    await user.click(screen.getByRole("option", { name: "Other" }));
+    await user.keyboard("{Escape}");
+
+    expect(
+      await screen.findByText("Other Collaborating Department(s)*"),
+    ).toBeInTheDocument();
+    await user.type(
+      screen.getByRole("textbox", {
+        name: /Other Collaborating Department/,
+      }),
+      "Tisch Drama",
+    );
+    await waitFor(() =>
+      expect(latestFormData()).toMatchObject({
+        collaboratingDepartments: ["IDM", "Other"],
+        otherCollaboratingDepartments: "Tisch Drama",
+      }),
+    );
+
+    await openDepartments();
+    await user.click(screen.getByRole("option", { name: "Other" }));
+    await user.keyboard("{Escape}");
+
+    expect(
+      screen.queryByText("Other Collaborating Department(s)*"),
+    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(latestFormData()).toMatchObject({
+        collaboratingDepartments: ["IDM"],
+        otherCollaboratingDepartments: "",
+      }),
+    );
+  });
+
+  it("requires the Other department name", async () => {
+    const user = userEvent.setup();
+    renderDetails();
+
+    await chooseCollaboration(user, "Yes");
+    await user.click(
+      within(
+        await screen.findByTestId("collaborating-departments-select"),
+      ).getByRole("combobox"),
+    );
+    await user.click(screen.getByRole("option", { name: "Other" }));
+    await user.keyboard("{Escape}");
+    const field = await screen.findByRole("textbox", {
+      name: /Other Collaborating Department/,
+    });
+    await user.type(field, "   ");
+    await user.tab();
+
+    expect(
+      await screen.findByText(
+        "Other Collaborating Department(s) cannot be empty whitespace",
+      ),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("formatDepartmentCollaboration", () => {
+  it("names the Other department(s) in the details", () => {
+    expect(
+      formatDepartmentCollaboration({
+        departmentCollaboration: "Yes",
+        collaboratingDepartments: ["IDM", "Other"],
+        otherCollaboratingDepartments: " Tisch Drama ",
+      }),
+    ).toBe("Yes: IDM, Other (Tisch Drama)");
+  });
+
+  it("shows No, and nothing for bookings that were never asked", () => {
+    expect(
+      formatDepartmentCollaboration({ departmentCollaboration: "No" }),
+    ).toBe("No");
+    expect(formatDepartmentCollaboration({})).toBeUndefined();
   });
 });

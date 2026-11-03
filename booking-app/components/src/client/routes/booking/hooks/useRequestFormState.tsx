@@ -49,6 +49,7 @@ export default function useRequestFormState({
       productionSchedule: "",
       departmentCollaboration: "",
       collaboratingDepartments: [],
+      otherCollaboratingDepartments: "",
       roomSetupByRoom: {},
       setupDetailsByRoom: {},
       chartFieldForRoomSetupByRoom: {},

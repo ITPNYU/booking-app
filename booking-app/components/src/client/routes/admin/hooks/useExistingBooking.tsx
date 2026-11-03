@@ -215,6 +215,7 @@ export default function useExistingBooking() {
       bookingType: booking.bookingType,
       departmentCollaboration: booking.departmentCollaboration,
       collaboratingDepartments: booking.collaboratingDepartments,
+      otherCollaboratingDepartments: booking.otherCollaboratingDepartments,
       attendeeAffiliation: booking.attendeeAffiliation,
       roomSetup: booking.roomSetup,
       setupDetails: booking.setupDetails,

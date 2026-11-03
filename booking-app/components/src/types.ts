@@ -186,6 +186,8 @@ export type Inputs = {
   departmentCollaboration?: string;
   /** The departments collaborating, when departmentCollaboration is "Yes". */
   collaboratingDepartments?: string[];
+  /** The department name(s) typed in when "Other" is a collaborating department. */
+  otherCollaboratingDepartments?: string;
   attendeeAffiliation: string;
   roomSetup: string;
   setupDetails: string;

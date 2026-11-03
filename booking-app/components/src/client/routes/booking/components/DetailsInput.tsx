@@ -53,12 +53,8 @@ export default function DetailsInput({
   userApiData,
 }: Props) {
   const { userEmail, settings } = useContext(DatabaseContext);
-  const {
-    selectedRooms,
-    formData,
-    setIsDetailsValid,
-    bookingCalendarInfo,
-  } = useContext(BookingContext);
+  const { selectedRooms, formData, setIsDetailsValid, bookingCalendarInfo } =
+    useContext(BookingContext);
   const blocked = useRequestBlocked();
   const router = useRouter();
   const { tenant } = useParams();
@@ -106,6 +102,11 @@ export default function DetailsInput({
       : [...departments, "Other"];
   }, [programMapping]);
   const isDepartmentCollaboration = watch("departmentCollaboration") === "Yes";
+  const collaboratingDepartments = watch("collaboratingDepartments");
+  const hasOtherCollaboratingDepartment =
+    isDepartmentCollaboration &&
+    Array.isArray(collaboratingDepartments) &&
+    collaboratingDepartments.includes("Other");
 
   // Answering No drops any departments picked while the answer was Yes.
   useEffect(() => {
@@ -113,6 +114,13 @@ export default function DetailsInput({
       setValue("collaboratingDepartments", [], { shouldValidate: false });
     }
   }, [isDepartmentCollaboration, setValue]);
+
+  // Unticking Other drops the department name typed for it.
+  useEffect(() => {
+    if (!hasOtherCollaboratingDepartment) {
+      setValue("otherCollaboratingDepartments", "", { shouldValidate: false });
+    }
+  }, [hasOtherCollaboratingDepartment, setValue]);
 
   // The missing-data guard lets a request onto Services only while the
   // Details answer set is valid. The Services form cannot see these fields,
@@ -436,6 +444,16 @@ export default function DetailsInput({
             {...{ control, errors, trigger }}
           />
         )}
+        {!isMod &&
+          showDepartmentCollaboration &&
+          hasOtherCollaboratingDepartment && (
+            <BookingFormTextField
+              id="otherCollaboratingDepartments"
+              label="Other Collaborating Department(s)"
+              description="Name the department(s) not in the list."
+              {...{ control, errors, trigger }}
+            />
+          )}
         <BookingFormTextField
           id="expectedAttendance"
           label="Expected Attendance"

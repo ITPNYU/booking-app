@@ -39,3 +39,23 @@ export const getSecondaryContactName = (bookingContents: any): string => {
   // Fallback to old format
   return bookingContents.secondaryName?.toString() || "";
 };
+
+/**
+ * Formats the department collaboration answer (#1383), e.g.
+ * "Yes: IDM, Other (Tisch Drama)". Returns undefined when there's no answer.
+ */
+export const formatDepartmentCollaboration = (booking: {
+  departmentCollaboration?: string;
+  collaboratingDepartments?: string[];
+  otherCollaboratingDepartments?: string;
+}): string | undefined => {
+  const { departmentCollaboration, collaboratingDepartments } = booking;
+  if (departmentCollaboration !== "Yes" || !collaboratingDepartments?.length) {
+    return departmentCollaboration || undefined;
+  }
+  const other = booking.otherCollaboratingDepartments?.trim();
+  const departments = collaboratingDepartments.map((department) =>
+    department === "Other" && other ? `Other (${other})` : department,
+  );
+  return `Yes: ${departments.join(", ")}`;
+};
