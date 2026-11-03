@@ -99,15 +99,50 @@ const parseExportDate = (value: string | null): Date | null => {
     : date;
 };
 
+/**
+ * Lifecycle timestamps that decide "End Event Status", in ascending
+ * precedence. The most recent stamp wins; `rank` only breaks exact ties
+ * (e.g. auto-approval writes requestedAt / firstApprovedAt /
+ * finalApprovedAt in the same instant).
+ *
+ * `closedAt` is deliberately excluded: every terminal state auto-closes,
+ * so it would hide whether the booking was canceled, a no-show, or
+ * checked out. It has its own column.
+ */
+const STATUS_TIMESTAMPS: ReadonlyArray<{
+  field: keyof Booking;
+  label: string;
+}> = [
+  { field: "requestedAt", label: "Requested" },
+  { field: "firstApprovedAt", label: "Pending" },
+  { field: "finalApprovedAt", label: "Approved" },
+  { field: "checkedInAt", label: "Checked in" },
+  { field: "checkedOutAt", label: "Checked out" },
+  { field: "noShowedAt", label: "No Show" },
+  { field: "declinedAt", label: "Declined" },
+  { field: "canceledAt", label: "Canceled" },
+];
+
 const getBookingStatus = (booking: Booking): string => {
-  if (booking.finalApprovedAt) return "Approved";
-  if (booking.declinedAt) return "Declined";
-  if (booking.canceledAt) return "Canceled";
-  if (booking.checkedOutAt) return "Checked out";
-  if (booking.checkedInAt) return "Checked in";
-  if (booking.noShowedAt) return "No Show";
-  if (booking.firstApprovedAt) return "Pending";
-  return "Requested";
+  // Marking a no-show also stamps canceledAt moments later (System
+  // auto-cancel). That follow-up cancel must not hide the no-show, so a
+  // cancel stamped at/after the no-show is ignored here.
+  const noShowedAt = toDate(booking.noShowedAt);
+  const canceledAt = toDate(booking.canceledAt);
+  const isAutoCancelAfterNoShow =
+    !!noShowedAt && !!canceledAt && canceledAt >= noShowedAt;
+
+  let best: { label: string; time: number; rank: number } | null = null;
+  STATUS_TIMESTAMPS.forEach(({ field, label }, rank) => {
+    if (field === "canceledAt" && isAutoCancelAfterNoShow) return;
+    const date = toDate(booking[field]);
+    if (!date) return;
+    const time = date.getTime();
+    if (!best || time > best.time || (time === best.time && rank > best.rank)) {
+      best = { label, time, rank };
+    }
+  });
+  return best?.label ?? "Requested";
 };
 
 const calculateTimeInUse = (startDate: unknown, endDate: unknown): number => {
