@@ -50,7 +50,11 @@ export const formatDepartmentCollaboration = (booking: {
   otherCollaboratingDepartments?: string;
 }): string | undefined => {
   const { departmentCollaboration, collaboratingDepartments } = booking;
-  if (departmentCollaboration !== "Yes" || !collaboratingDepartments?.length) {
+  if (
+    departmentCollaboration !== "Yes" ||
+    !Array.isArray(collaboratingDepartments) ||
+    collaboratingDepartments.length === 0
+  ) {
     return departmentCollaboration || undefined;
   }
   const other = booking.otherCollaboratingDepartments?.trim();

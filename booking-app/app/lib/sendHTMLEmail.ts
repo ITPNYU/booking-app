@@ -6,6 +6,7 @@ import { MEDIA_COMMONS_EMAIL } from "@/components/src/mediaCommonsPolicy";
 import { admins } from "@/components/src/server/admin";
 import { getEmailBranchTag } from "@/components/src/server/emails";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import { formatDepartmentCollaboration } from "@/components/src/utils/formatters";
 import { ApproverType } from "@/components/src/types";
 import {
   bookingServicesDisplayForEmail,
@@ -173,6 +174,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     startDate: serverFormatDateOnly(String(contents.startDate ?? "")),
     endDate: serverFormatDateOnly(String(contents.endDate ?? "")),
     status,
+    departmentCollaborationDisplay: formatDepartmentCollaboration(contents),
     services: {
       show: hasBookingServicesDisplay(servicesDisplay),
       bookingLevel: servicesDisplay.bookingLevel,

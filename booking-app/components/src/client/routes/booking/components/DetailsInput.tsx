@@ -88,6 +88,7 @@ export default function DetailsInput({
     watch,
     reset,
     setValue,
+    clearErrors,
     formState: { errors, isValid },
   } = useRequestFormState({ userApiData, isVIP, isWalkIn });
 
@@ -108,19 +109,22 @@ export default function DetailsInput({
     Array.isArray(collaboratingDepartments) &&
     collaboratingDepartments.includes("Other");
 
-  // Answering No drops any departments picked while the answer was Yes.
+  // Answering No drops any departments picked while the answer was Yes,
+  // with any error shown for them. (Hidden fields aren't validated.)
   useEffect(() => {
     if (!isDepartmentCollaboration) {
       setValue("collaboratingDepartments", [], { shouldValidate: false });
+      clearErrors("collaboratingDepartments");
     }
-  }, [isDepartmentCollaboration, setValue]);
+  }, [isDepartmentCollaboration, setValue, clearErrors]);
 
   // Unticking Other drops the department name typed for it.
   useEffect(() => {
     if (!hasOtherCollaboratingDepartment) {
       setValue("otherCollaboratingDepartments", "", { shouldValidate: false });
+      clearErrors("otherCollaboratingDepartments");
     }
-  }, [hasOtherCollaboratingDepartment, setValue]);
+  }, [hasOtherCollaboratingDepartment, setValue, clearErrors]);
 
   // The missing-data guard lets a request onto Services only while the
   // Details answer set is valid. The Services form cannot see these fields,
