@@ -13,14 +13,35 @@ vi.mock("@/lib/utils/testEnvironment", () => ({
   shouldBypassAuth: vi.fn(),
 }));
 
+vi.mock("@/lib/firebase/server/adminDb", () => ({
+  serverGetDataByCalendarEventId: vi.fn(),
+}));
+
+vi.mock("@/lib/api/bookingDecisionAuthz", () => ({
+  authorizeBookingDecision: vi.fn(),
+}));
+
+vi.mock("@/lib/api/authz", () => ({
+  resolveCallerRole: vi.fn(),
+}));
+
 import { POST } from "@/app/api/xstate-transition/route";
+import { PagePermission } from "@/components/src/types";
+import { resolveCallerRole } from "@/lib/api/authz";
+import { authorizeBookingDecision } from "@/lib/api/bookingDecisionAuthz";
 import { requireSession } from "@/lib/api/requireSession";
+import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 
 const mockExecuteXStateTransition = vi.mocked(executeXStateTransition);
 const mockRequireSession = vi.mocked(requireSession);
 const mockShouldBypassAuth = vi.mocked(shouldBypassAuth);
+const mockAuthorizeBookingDecision = vi.mocked(authorizeBookingDecision);
+const mockResolveCallerRole = vi.mocked(resolveCallerRole);
+const mockServerGetDataByCalendarEventId = vi.mocked(
+  serverGetDataByCalendarEventId,
+);
 
 const createRequest = (body: Record<string, unknown>) =>
   ({
@@ -132,5 +153,237 @@ describe("POST /api/xstate-transition edit", () => {
       undefined,
       ["catering", "staff"],
     );
+  });
+});
+
+describe("POST /api/xstate-transition decline", () => {
+  const booking = {
+    id: "booking-db-id",
+    roomId: "room-1",
+    firstApprovedAt: "2026-10-17T12:00:00Z",
+  };
+  const declineRequest = () =>
+    createRequest({
+      calendarEventId: "calendar-123",
+      eventType: "decline",
+      email: "someone-else@nyu.edu",
+      reason: "No staff available",
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRequireSession.mockResolvedValue({
+      email: "approver@nyu.edu",
+      netId: "approver",
+    });
+    mockShouldBypassAuth.mockReturnValue(false);
+    mockServerGetDataByCalendarEventId.mockResolvedValue(booking);
+    mockAuthorizeBookingDecision.mockResolvedValue(true);
+    mockExecuteXStateTransition.mockResolvedValue({
+      success: true,
+      newState: "Declined",
+    });
+  });
+
+  it("declines for an approver and records the session user", async () => {
+    const response = await POST(declineRequest());
+
+    expect(response.status).toBe(200);
+    expect(mockServerGetDataByCalendarEventId).toHaveBeenCalledWith(
+      "bookings",
+      "calendar-123",
+      "mc",
+    );
+    expect(mockAuthorizeBookingDecision).toHaveBeenCalledWith(
+      "approver@nyu.edu",
+      "mc",
+      booking,
+      "decline",
+    );
+    expect(mockExecuteXStateTransition).toHaveBeenCalledWith(
+      "calendar-123",
+      "decline",
+      "mc",
+      "approver@nyu.edu",
+      "No staff available",
+      "approver",
+      undefined,
+    );
+  });
+
+  it("returns 403 and does not decline for a user who is not an approver", async () => {
+    mockAuthorizeBookingDecision.mockResolvedValue(false);
+
+    const response = await POST(declineRequest());
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "You are not authorized to decline this booking",
+    });
+    expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unauthenticated decline", async () => {
+    mockRequireSession.mockResolvedValue(null);
+
+    const response = await POST(declineRequest());
+
+    expect(response.status).toBe(401);
+    expect(mockServerGetDataByCalendarEventId).not.toHaveBeenCalled();
+    expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the booking does not exist", async () => {
+    mockServerGetDataByCalendarEventId.mockResolvedValue(null);
+
+    const response = await POST(declineRequest());
+
+    expect(response.status).toBe(404);
+    expect(mockAuthorizeBookingDecision).not.toHaveBeenCalled();
+    expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+  });
+
+  it("does not run the decline check for other transitions", async () => {
+    mockExecuteXStateTransition.mockResolvedValue({
+      success: true,
+      newState: "Checked In",
+    });
+
+    const response = await POST(
+      createRequest({
+        calendarEventId: "calendar-123",
+        eventType: "checkIn",
+        email: "pa@nyu.edu",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mockAuthorizeBookingDecision).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/xstate-transition approve", () => {
+  const booking = { id: "booking-db-id", roomId: "room-1" };
+  const approveRequest = () =>
+    createRequest({
+      calendarEventId: "calendar-123",
+      eventType: "approve",
+      email: "someone-else@nyu.edu",
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRequireSession.mockResolvedValue({
+      email: "approver@nyu.edu",
+      netId: "approver",
+    });
+    mockShouldBypassAuth.mockReturnValue(false);
+    mockServerGetDataByCalendarEventId.mockResolvedValue(booking);
+    mockAuthorizeBookingDecision.mockResolvedValue(true);
+    mockExecuteXStateTransition.mockResolvedValue({
+      success: true,
+      newState: "Pre-approved",
+    });
+  });
+
+  it("applies the /api/approve rule and records the session user", async () => {
+    const response = await POST(approveRequest());
+
+    expect(response.status).toBe(200);
+    expect(mockAuthorizeBookingDecision).toHaveBeenCalledWith(
+      "approver@nyu.edu",
+      "mc",
+      booking,
+      "approve",
+    );
+    expect(mockExecuteXStateTransition).toHaveBeenCalledWith(
+      "calendar-123",
+      "approve",
+      "mc",
+      "approver@nyu.edu",
+      undefined,
+      "approver",
+      undefined,
+    );
+  });
+
+  it("returns 403 and does not approve for a user who is not an approver", async () => {
+    mockAuthorizeBookingDecision.mockResolvedValue(false);
+
+    const response = await POST(approveRequest());
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "You are not authorized to approve this booking",
+    });
+    expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unauthenticated approve", async () => {
+    mockRequireSession.mockResolvedValue(null);
+
+    const response = await POST(approveRequest());
+
+    expect(response.status).toBe(401);
+    expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/xstate-transition service events", () => {
+  const serviceRequest = (eventType: string) =>
+    createRequest({
+      calendarEventId: "calendar-123",
+      eventType,
+      email: "someone@nyu.edu",
+    });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockRequireSession.mockResolvedValue({
+      email: "staff@nyu.edu",
+      netId: "staff",
+    });
+    mockShouldBypassAuth.mockReturnValue(false);
+    mockResolveCallerRole.mockResolvedValue(PagePermission.ADMIN);
+    mockExecuteXStateTransition.mockResolvedValue({
+      success: true,
+      newState: "Services Request",
+    });
+  });
+
+  it.each(["approveSetup", "declineStaff", "closeoutCatering"])(
+    "lets an admin send %s",
+    async (eventType) => {
+      const response = await POST(serviceRequest(eventType));
+
+      expect(response.status).toBe(200);
+      expect(mockResolveCallerRole).toHaveBeenCalledWith(
+        { email: "staff@nyu.edu", netId: "staff" },
+        "mc",
+      );
+      expect(mockExecuteXStateTransition).toHaveBeenCalled();
+    },
+  );
+
+  it.each([PagePermission.SERVICES, PagePermission.LIAISON, PagePermission.BOOKING])(
+    "returns 403 for a %s user",
+    async (role) => {
+      mockResolveCallerRole.mockResolvedValue(role);
+
+      const response = await POST(serviceRequest("approveSetup"));
+
+      expect(response.status).toBe(403);
+      expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects an unauthenticated service event", async () => {
+    mockRequireSession.mockResolvedValue(null);
+
+    const response = await POST(serviceRequest("declineEquipment"));
+
+    expect(response.status).toBe(401);
+    expect(mockResolveCallerRole).not.toHaveBeenCalled();
+    expect(mockExecuteXStateTransition).not.toHaveBeenCalled();
   });
 });

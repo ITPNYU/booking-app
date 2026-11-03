@@ -58,10 +58,19 @@ vi.mock("@/components/src/server/admin", () => ({
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   logServerBookingChange: vi.fn(),
+  // The edit route's ban check (lib/bookingBan) reads usersBanned: no bans.
+  serverFetchAllDataFromCollection: async () => [],
   serverGetDataByCalendarEventId: async (
     _table: string,
     calendarEventId: string,
   ) => findBooking(calendarEventId),
+  // The edit route's ban check reads usersBanned through this helper.
+  serverFetchAllDataFromCollection: async () => [],
+}));
+
+vi.mock("@/lib/bookingBan", () => ({
+  BANNED_FROM_BOOKING_MESSAGE: "You are banned from booking",
+  anyRequesterIsBanned: async () => false,
 }));
 
 vi.mock("@/components/src/server/db", () => ({
@@ -114,7 +123,23 @@ vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
 }));
 
 vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
-  serverGetTenantResources: async () => [],
+  serverGetTenantResources: async () => [
+    { resourceId: "202", calendarId: "cal-room-202" },
+  ],
+}));
+
+vi.mock("@/lib/bookingBan", () => ({
+  BANNED_FROM_BOOKING_MESSAGE: "You are banned from booking",
+  anyRequesterIsBanned: async () => false,
+}));
+
+vi.mock("@/lib/googleClient", () => ({
+  getCalendarClient: async () => ({
+    events: {
+      list: async () => ({ data: { items: [] } }),
+      get: async () => ({ data: { iCalUID: "own-ical" } }),
+    },
+  }),
 }));
 
 vi.mock("@/app/api/bookings/shared", () => ({

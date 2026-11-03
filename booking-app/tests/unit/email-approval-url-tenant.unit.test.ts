@@ -26,10 +26,10 @@ describe("getApprovalUrl – tenant-aware URL generation", () => {
     );
   });
 
-  it("admin URL includes tenant prefix when tenant is provided", () => {
+  it("final approver URL opens the tenant's approve page", () => {
     const url = getApprovalUrl("evt-123", ApproverType.FINAL_APPROVER, "itp");
     expect(url).toBe(
-      "https://example.com/itp/admin?calendarEventId=evt-123",
+      "https://example.com/itp/approve?calendarEventId=evt-123",
     );
   });
 
@@ -40,10 +40,10 @@ describe("getApprovalUrl – tenant-aware URL generation", () => {
     );
   });
 
-  it("falls back to DEFAULT_TENANT for admin when tenant is undefined", () => {
+  it("falls back to DEFAULT_TENANT for the final approver when tenant is undefined", () => {
     const url = getApprovalUrl("evt-123", ApproverType.FINAL_APPROVER);
     expect(url).toBe(
-      `https://example.com/${DEFAULT_TENANT}/admin?calendarEventId=evt-123`,
+      `https://example.com/${DEFAULT_TENANT}/approve?calendarEventId=evt-123`,
     );
   });
 

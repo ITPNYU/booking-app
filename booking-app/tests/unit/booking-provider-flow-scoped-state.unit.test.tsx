@@ -55,6 +55,41 @@ const navigate = (rerender: (ui: React.ReactElement) => void, path: string) => {
   rerender(tree());
 };
 
+describe("BookingProvider - timed ban clock", () => {
+  beforeEach(() => {
+    (usePathname as any).mockReturnValue("/mc/book/form");
+    mockDatabaseContext.bannedUsers = [];
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    mockDatabaseContext.bannedUsers = [];
+  });
+
+  it("drops a timed ban after it expires without reloading the list", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-03T15:00:00.000Z"));
+    mockDatabaseContext.bannedUsers = [
+      {
+        email: "test@nyu.edu",
+        bannedAt: "2026-06-01T00:00:00.000Z",
+        startsAt: "2026-06-01T00:00:00.000Z",
+        endsAt: "2026-06-03T15:00:30.000Z",
+      },
+    ] as any;
+
+    render(tree());
+    expect(context.isBanned).toBe(true);
+
+    act(() => {
+      vi.advanceTimersByTime(30_000);
+    });
+
+    expect(context.isBanned).toBe(false);
+    expect(context.banEndsAt).toBeNull();
+  });
+});
+
 describe("BookingProvider - state scoped to the current request", () => {
   beforeEach(() => {
     (usePathname as any).mockReturnValue("/mc/book/form");

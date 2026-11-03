@@ -1,10 +1,7 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { getApprovalCcEmail } from "@/components/src/tenantPolicyServer";
-import {
-  serverGetRoomCalendarId,
-  serverSendBookingDetailEmail,
-} from "@/components/src/server/admin";
+import { serverSendBookingDetailEmail } from "@/components/src/server/admin";
 import {
   isServicesRequestState,
   notifyServiceApproversForRequestedServices,
@@ -41,7 +38,12 @@ import {
   getRequestLimitRoleKey,
 } from "@/lib/bookingRequestLimits";
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
+import {
+  BANNED_FROM_BOOKING_MESSAGE,
+  requesterIsBanned,
+} from "@/lib/bookingBan";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { prepareBookingCalendars } from "@/app/api/bookings/checkOverlap";
 import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
 import {
   getProductionScheduleRequiredErrorMessage,
@@ -164,6 +166,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Walk-ins are restricted on the guest. VIP claims are client-controlled, so
+  // a banned guest cannot be hidden behind an unbanned requestedBy.
+  const banSubjects =
+    origin === BookingOrigin.VIP || type === BookingOrigin.VIP
+      ? [email, requestedBy]
+      : [email];
+  const checkedBanSubjects = new Set<string>();
+  for (const subject of banSubjects) {
+    if (typeof subject !== "string") continue;
+    const key = subject.trim().toLowerCase();
+    if (!key || checkedBanSubjects.has(key)) continue;
+    checkedBanSubjects.add(key);
+    if (await requesterIsBanned(subject, tenant)) {
+      return NextResponse.json(
+        { error: BANNED_FROM_BOOKING_MESSAGE },
+        { status: 403 },
+      );
+    }
+  }
+
   const tenantSchema = await getCachedTenantSchema(tenant);
   const productionScheduleConfig = tenantSchema?.form?.productionSchedule;
   if (
@@ -185,6 +207,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const tenantResources = await serverGetTenantResources(tenant);
+  const prepared = await prepareBookingCalendars({
+    tenant,
+    selectedRooms,
+    resources: tenantResources,
+    annexByRoom: data?.annexByRoom,
+    bookingCalendarInfo,
+  });
+  if ("response" in prepared) return prepared.response;
+  const { rooms: bookedRooms } = prepared;
+
   console.log("📥 BOOKING DIRECT API - Received data:", {
     origin,
     type,
@@ -200,13 +233,9 @@ export async function POST(request: NextRequest) {
   const { department } = data;
   const { departmentDisplay, schoolDisplay } =
     getAffiliationDisplayValues(data);
-  const [room, ...otherRooms] = selectedRooms;
-  const selectedRoomIds = selectedRooms.map(
-    (r: { roomId: string }) => r.roomId,
-  );
-  const otherRoomIds = otherRooms.map(
-    (r: { calendarId: string }) => r.calendarId,
-  );
+  const [room, ...otherRooms] = bookedRooms;
+  const selectedRoomIds = bookedRooms.map((r) => r.roomId);
+  const otherRoomIds = otherRooms.map((r) => r.calendarId);
 
   try {
     const bookingRoleField = String(data?.role ?? "").trim();
@@ -214,11 +243,11 @@ export async function POST(request: NextRequest) {
       FormContextLevel.FULL_FORM,
       bookingRoleField,
     );
-    const selectedRoomIdsNums = selectedRoomIds
-      .map((id: number | string) => Number(id))
-      .filter((n: number) => Number.isFinite(n));
+    const selectedRoomIdsForLimits = selectedRoomIds
+      .map((id) => String(id).trim())
+      .filter((id) => id.length > 0);
 
-    if (tenant && email && bookingRoleField && selectedRoomIdsNums.length > 0) {
+    if (tenant && email && bookingRoleField && selectedRoomIdsForLimits.length > 0) {
       const tenantSchema = await serverGetDocumentById<SchemaContextType>(
         TableNames.TENANT_SCHEMA,
         tenant,
@@ -230,7 +259,7 @@ export async function POST(request: NextRequest) {
         email,
         bookingRoleField,
         limitRoleKey,
-        selectedRoomIds: selectedRoomIdsNums,
+        selectedRoomIds: selectedRoomIdsForLimits,
         schema: tenantSchema,
       });
 
@@ -264,7 +293,7 @@ export async function POST(request: NextRequest) {
     if (isMediaCommons(tenant)) {
       const servicesRequested = getMediaCommonsServices(
         data,
-        await serverGetTenantResources(tenant),
+        tenantResources,
       );
       const hasServices = Object.values(servicesRequested).some(Boolean);
 
@@ -295,7 +324,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const calendarId = await serverGetRoomCalendarId(room.roomId, tenant);
+  const calendarId = room?.calendarId;
   if (calendarId == null) {
     return NextResponse.json(
       { result: "error", message: "ROOM CALENDAR ID NOT FOUND" },
@@ -399,7 +428,7 @@ export async function POST(request: NextRequest) {
 
       // Get services requested for Media Commons
       const servicesRequested = isMediaCommons(tenant)
-        ? getMediaCommonsServices(data, await serverGetTenantResources(tenant))
+        ? getMediaCommonsServices(data, tenantResources)
         : undefined;
 
       // Create XState actor with proper context

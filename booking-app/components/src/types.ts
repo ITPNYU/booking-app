@@ -19,8 +19,12 @@ export enum AttendeeAffiliation {
 }
 
 export type Ban = {
+  id?: string;
   email: string;
   bannedAt: string;
+  /** Absent on a permanent ban. Timed bans block only while now is in [startsAt, endsAt). */
+  startsAt?: unknown;
+  endsAt?: unknown;
 };
 
 export type Booking = Inputs &

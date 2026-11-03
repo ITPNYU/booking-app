@@ -12,6 +12,7 @@ const mockGetTenantEmailConfig = vi.fn();
 const mockSendHTMLEmail = vi.fn();
 const mockLogServerBookingChange = vi.fn();
 const mockCallXStateTransitionAPI = vi.fn();
+const mockGetCalendarClient = vi.fn();
 const mockFinalApprove = vi.fn();
 
 vi.mock("@/components/src/server/admin", () => ({
@@ -61,7 +62,10 @@ vi.mock("@/lib/tenant/getCachedTenantSchema", () => ({
 }));
 
 vi.mock("@/lib/tenant/serverGetTenantResources", () => ({
-  serverGetTenantResources: vi.fn().mockResolvedValue([]),
+  serverGetTenantResources: vi.fn().mockResolvedValue([
+    { resourceId: "202", calendarId: "cal-room-202" },
+    { resourceId: "203", calendarId: "cal-room-203" },
+  ]),
 }));
 
 vi.mock("@/components/src/server/db", () => ({
@@ -95,6 +99,20 @@ vi.mock("firebase-admin/firestore", () => ({
   },
 }));
 
+const banMocks = vi.hoisted(() => ({
+  anyRequesterIsBanned: vi.fn(async () => false),
+}));
+
+vi.mock("@/lib/bookingBan", () => ({
+  BANNED_FROM_BOOKING_MESSAGE: "You are banned from booking",
+  anyRequesterIsBanned: (...args: unknown[]) =>
+    banMocks.anyRequesterIsBanned(...args),
+}));
+
+vi.mock("@/lib/googleClient", () => ({
+  getCalendarClient: () => mockGetCalendarClient(),
+}));
+
 vi.mock("@/app/api/bookings/shared", () => ({
   buildBookingContents: (...args: any[]) => args[0],
   extractTenantFromRequest: () => "mc",
@@ -105,6 +123,7 @@ vi.mock("@/app/api/bookings/shared", () => ({
 }));
 
 import { PUT } from "@/app/api/bookings/edit/route";
+import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { NextRequest } from "next/server";
 
 const createRequest = (body: any) =>
@@ -159,8 +178,53 @@ const editEvents = () =>
   mockCallXStateTransitionAPI.mock.calls.filter(([, event]) => event === "edit");
 
 describe("Edit resets only the service decisions of changed services", () => {
+  it("rejects a banned requester before recreating the calendar event", async () => {
+    banMocks.anyRequesterIsBanned.mockImplementation(async (emails: unknown[]) =>
+      (emails as string[]).includes("user@nyu.edu"),
+    );
+
+    const res = await submit({});
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: "You are banned from booking",
+    });
+    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith(
+      ["user@nyu.edu", "user@nyu.edu"],
+      "mc",
+    );
+    expect(mockDeleteEvent).not.toHaveBeenCalled();
+    expect(mockInsertEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects when modifiedBy is banned even if the booking email is not", async () => {
+    banMocks.anyRequesterIsBanned.mockResolvedValue(true);
+
+    const res = await PUT(
+      createRequest({
+        email: "guest@nyu.edu",
+        selectedRooms: [{ roomId: 202, calendarId: "cal-room-202" }],
+        allRooms: [],
+        bookingCalendarInfo: {
+          startStr: "2026-05-05T10:00:00.000Z",
+          endStr: "2026-05-05T11:00:00.000Z",
+        },
+        data: { title: "Original Meeting", department: "ITP" },
+        calendarEventId: "old-cal-123",
+        modifiedBy: "banned@nyu.edu",
+      }),
+    );
+
+    expect(res.status).toBe(403);
+    expect(banMocks.anyRequesterIsBanned).toHaveBeenCalledWith(
+      ["guest@nyu.edu", "banned@nyu.edu"],
+      "mc",
+    );
+    expect(mockInsertEvent).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
+    banMocks.anyRequesterIsBanned.mockResolvedValue(false);
 
     mockInsertEvent.mockResolvedValue({ id: "new-cal-456" });
     mockBookingContentsToDescription.mockResolvedValue("<p>desc</p>");
@@ -177,6 +241,12 @@ describe("Edit resets only the service decisions of changed services", () => {
     mockServerUpdateDataByCalendarEventId.mockResolvedValue(undefined);
     mockServerDeleteFieldsByCalendarEventId.mockResolvedValue(undefined);
     mockDeleteEvent.mockResolvedValue(undefined);
+    mockGetCalendarClient.mockResolvedValue({
+      events: {
+        list: vi.fn().mockResolvedValue({ data: { items: [] } }),
+        get: vi.fn().mockResolvedValue({ data: { iCalUID: "own-ical" } }),
+      },
+    });
     mockCallXStateTransitionAPI.mockResolvedValue({
       success: true,
       newState: "Requested",
@@ -275,6 +345,46 @@ describe("Edit resets only the service decisions of changed services", () => {
       expect(editEvents()).toEqual([
         ["new-cal-456", "edit", "user@nyu.edu", "mc", undefined, undefined, ["staff"]],
       ]);
+    });
+
+    it("rejects a conflicting slot before deleting the existing event", async () => {
+      mockServerBookingContents.mockResolvedValue(savedBooking());
+      vi.mocked(serverGetTenantResources).mockResolvedValueOnce([
+        { resourceId: "202", calendarId: "schema-cal" },
+      ] as never);
+      const list = vi.fn().mockResolvedValue({
+        data: {
+          items: [
+            {
+              id: "someone-else",
+              iCalUID: "other-ical",
+              summary: "[APPROVED] 202 Taken",
+              start: { dateTime: "2026-05-05T10:30:00.000Z" },
+              end: { dateTime: "2026-05-05T11:30:00.000Z" },
+            },
+          ],
+        },
+      });
+      mockGetCalendarClient.mockResolvedValue({
+        events: {
+          list,
+          get: vi.fn().mockResolvedValue({ data: { iCalUID: "own-ical" } }),
+        },
+      });
+
+      const res = await submit(savedServiceRequests);
+      expect(res.status).toBe(409);
+      await expect(res.json()).resolves.toEqual({
+        error: "Time slot no longer available",
+      });
+      expect(list).toHaveBeenCalledWith(
+        expect.objectContaining({ calendarId: "schema-cal" }),
+      );
+      expect(list).not.toHaveBeenCalledWith(
+        expect.objectContaining({ calendarId: "cal-room-202" }),
+      );
+      expect(mockDeleteEvent).not.toHaveBeenCalled();
+      expect(mockInsertEvent).not.toHaveBeenCalled();
     });
 
     it("leaves the machine alone when no decision was cleared and no service was turned on or off", async () => {
