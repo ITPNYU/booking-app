@@ -53,17 +53,9 @@ jobs:
 
           TEXT=$(printf '%s\n' \
             "✅ ${WHO} PR #${NUMBER} was approved by ${REVIEWER}. It is ready to merge." \
-            "${TITLE}")
-
-          PAYLOAD=$(jq -n --arg text "$TEXT" --arg url "$URL" '{
-            text: $text,
-            cardsV2: [{
-              cardId: "pr-approved",
-              card: { sections: [{ widgets: [{ buttonList: { buttons: [
-                { text: "Open PR", onClick: { openLink: { url: $url } } }
-              ] } }] }] }
-            }]
-          }')
+            "${TITLE}" \
+            "${URL}")
+          PAYLOAD=$(jq -n --arg text "$TEXT" '{text: $text}')
 
           HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
             -H "Content-Type: application/json; charset=UTF-8" \
