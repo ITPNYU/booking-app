@@ -1,0 +1,80 @@
+name: PR Approved Notify
+
+# When a review approves a PR, tell the PR author in Google Chat so they can
+# merge it. Uses the same webhook and user map as dev-test-request.yml.
+#
+# Configuration:
+#   secrets.GCHAT_WEBHOOK_URL  Incoming webhook of the team space.
+#   vars.GCHAT_USER_MAP        Optional JSON object mapping GitHub logins to
+#                              Google Chat numeric user IDs (see dev-test-request.yml).
+
+permissions:
+  contents: read
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  notify:
+    name: Tell the author the PR was approved
+    if: >-
+      github.event.review.state == 'approved' &&
+      github.event.review.user.type != 'Bot' &&
+      github.event.pull_request.user.type != 'Bot' &&
+      github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post the approval to Google Chat
+        env:
+          GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
+          GCHAT_USER_MAP: ${{ vars.GCHAT_USER_MAP }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          TITLE: ${{ github.event.pull_request.title }}
+          URL: ${{ github.event.pull_request.html_url }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          REVIEWER: ${{ github.event.review.user.login }}
+        run: |
+          if [ -z "${GCHAT_WEBHOOK_URL}" ]; then
+            echo "Error: GCHAT_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+          USER_MAP='{}'
+          if [ -n "${GCHAT_USER_MAP}" ]; then
+            USER_MAP=$(jq -c '.' <<<"${GCHAT_USER_MAP}") || { echo "Error: GCHAT_USER_MAP is not valid JSON."; exit 1; }
+          fi
+          MENTION=$(jq -r --arg login "$AUTHOR" '.[$login] // empty' <<<"$USER_MAP")
+          if [ -n "$MENTION" ]; then
+            WHO="<users/${MENTION}>"
+          else
+            WHO="@${AUTHOR}"
+          fi
+
+          TEXT=$(printf '%s\n' \
+            "✅ ${WHO} PR #${NUMBER} was approved by ${REVIEWER}. It is ready to merge." \
+            "${TITLE}")
+
+          PAYLOAD=$(jq -n --arg text "$TEXT" --arg url "$URL" '{
+            text: $text,
+            cardsV2: [{
+              cardId: "pr-approved",
+              card: { sections: [{ widgets: [{ buttonList: { buttons: [
+                { text: "Open PR", onClick: { openLink: { url: $url } } }
+              ] } }] }] }
+            }]
+          }')
+
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            --data "${PAYLOAD}" \
+            "${GCHAT_WEBHOOK_URL}" \
+            --connect-timeout 10 --max-time 30 || echo "000")
+
+          if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
+            echo "Approval notice for PR #${NUMBER} sent (HTTP ${HTTP_STATUS})"
+          else
+            echo "Failed to send approval notice for PR #${NUMBER} (HTTP ${HTTP_STATUS})"
+            cat /tmp/response.txt
+            exit 1
+          fi
