@@ -1,14 +1,21 @@
 import {
   AlertColor,
+  Box,
+  Button,
   IconButton,
   MenuItem,
+  Popover,
   Portal,
   Select,
+  TextField,
+  Tooltip,
 } from "@mui/material";
 import { useContext, useMemo, useState } from "react";
 import Check from "@mui/icons-material/Check";
+import NoteAddOutlined from "@mui/icons-material/NoteAddOutlined";
 import { Timestamp } from "firebase/firestore";
 import { BookingStatusLabel, PageContextLevel } from "../../../../types";
+import { MAX_ACTION_NOTE_LENGTH } from "../../../../utils/bookingHistoryNotes";
 import { ApprovedWithWarningError } from "../../../bookingActionClient";
 import useBookingActions, {
   ActionDefinition,
@@ -17,6 +24,7 @@ import useBookingActions, {
 
 import ActionNoteDialog from "../../components/ActionNoteDialog";
 import AlertToast from "../../components/AlertToast";
+import ConfirmDialog from "../../components/ConfirmDialog";
 import Loading from "../../components/Loading";
 import { DatabaseContext } from "../../components/Provider";
 import shouldDisableCheckIn from "../hooks/shouldDisableCheckIn";
@@ -25,9 +33,6 @@ const DEFAULT_ERROR_MESSAGE = "Failed to perform action on booking";
 
 const LATE_CANCEL_WARNING =
   "Are you sure? This action can't be undone. This will be counted as a Late Cancelation if canceled less than 24 hours before the reservation start time.";
-
-const OPTIONAL_NOTE_MESSAGE =
-  "You can add a note. It will appear in the booking history.";
 
 // Edit and Modification open another page. Send to Equipment goes through
 // /api/equipment, which takes no note, and Equipment Approve does nothing.
@@ -41,25 +46,6 @@ const ACTIONS_WITHOUT_NOTE = new Set<Actions>([
 const isDeclineAction = (action: Actions) =>
   action === Actions.DECLINE ||
   (typeof action === "string" && action.startsWith("Decline "));
-
-/** Title, message and whether a note is required for an action's dialog. */
-const noteDialogFor = (action: Actions) => {
-  if (isDeclineAction(action)) {
-    return {
-      title: action === Actions.DECLINE ? "Decline Booking" : action,
-      message: "Please give a reason for declining this request.",
-      required: true,
-    };
-  }
-  if (action === Actions.CANCEL) {
-    return {
-      title: "Cancel Booking",
-      message: `${LATE_CANCEL_WARNING} ${OPTIONAL_NOTE_MESSAGE}`,
-      required: false,
-    };
-  }
-  return { title: action, message: OPTIONAL_NOTE_MESSAGE, required: false };
-};
 
 interface Props {
   calendarEventId: string;
@@ -88,6 +74,7 @@ export default function BookingActions(props: Props) {
   const [errorMessage, setErrorMessage] = useState(DEFAULT_ERROR_MESSAGE);
   const [toastSeverity, setToastSeverity] = useState<AlertColor>("error");
   const [note, setNote] = useState("");
+  const [noteAnchor, setNoteAnchor] = useState<HTMLElement | null>(null);
 
   const { actions, updateActions, options } = useBookingActions({
     status,
@@ -155,31 +142,43 @@ export default function BookingActions(props: Props) {
   };
 
   const onAction = useMemo(() => {
-    if (
-      selectedAction !== Actions.PLACEHOLDER &&
-      !ACTIONS_WITHOUT_NOTE.has(selectedAction)
-    ) {
-      const { title, message, required } = noteDialogFor(selectedAction);
+    const confirmLabel =
+      selectedAction === Actions.DECLINE
+        ? "Confirm decline"
+        : `Confirm ${selectedAction}`;
+
+    // Declines need a reason, asked for in a dialog.
+    if (isDeclineAction(selectedAction)) {
       return (
         <ActionNoteDialog
-          title={title}
-          message={message}
-          required={required}
+          title={
+            selectedAction === Actions.DECLINE
+              ? "Decline Booking"
+              : selectedAction
+          }
+          message="Please give a reason for declining this request."
+          required
           callback={handleDialogChoice}
           value={note}
           setValue={setNote}
         >
-          <IconButton
-            color={"primary"}
-            aria-label={
-              selectedAction === Actions.DECLINE
-                ? "Confirm decline"
-                : `Confirm ${selectedAction}`
-            }
-          >
+          <IconButton color={"primary"} aria-label={confirmLabel}>
             <Check />
           </IconButton>
         </ActionNoteDialog>
+      );
+    }
+
+    if (selectedAction === Actions.CANCEL) {
+      return (
+        <ConfirmDialog
+          message={LATE_CANCEL_WARNING}
+          callback={handleDialogChoice}
+        >
+          <IconButton color={"primary"} aria-label={confirmLabel}>
+            <Check />
+          </IconButton>
+        </ConfirmDialog>
       );
     }
 
@@ -190,12 +189,22 @@ export default function BookingActions(props: Props) {
         onClick={() => {
           handleDialogChoice(true);
         }}
-        aria-label={`Confirm ${selectedAction}`}
+        aria-label={confirmLabel}
       >
         <Check />
       </IconButton>
     );
   }, [selectedAction, note]);
+
+  // Staff can attach an optional note to the selected action. It is saved on
+  // the history entry the action writes. Declines take their reason in the
+  // dialog instead.
+  const canAddActionNote =
+    pageContext !== PageContextLevel.USER &&
+    selectedAction !== Actions.PLACEHOLDER &&
+    !isDeclineAction(selectedAction) &&
+    !ACTIONS_WITHOUT_NOTE.has(selectedAction);
+  const hasNote = note.trim().length > 0;
 
   const disabledActions = useMemo(() => {
     const shouldDisable = shouldDisableCheckIn({
@@ -236,7 +245,11 @@ export default function BookingActions(props: Props) {
         size="small"
         displayEmpty
         onFocus={onFocus}
-        onChange={(e) => setSelectedAction(e.target.value as Actions)}
+        onChange={(e) => {
+          setSelectedAction(e.target.value as Actions);
+          // A note belongs to the action it was written for.
+          setNote("");
+        }}
         renderValue={(selected) => {
           if (selected === Actions.PLACEHOLDER) {
             return <em style={{ color: "gray" }}>Action</em>;
@@ -260,6 +273,45 @@ export default function BookingActions(props: Props) {
           </MenuItem>
         ))}
       </Select>
+      {!uiLoading && canAddActionNote && (
+        <>
+          <Tooltip title={hasNote ? "Edit note" : "Add a note (optional)"}>
+            <IconButton
+              size="small"
+              color={hasNote ? "primary" : "default"}
+              aria-label={hasNote ? "Edit note" : "Add a note"}
+              onClick={(e) => setNoteAnchor(e.currentTarget)}
+            >
+              <NoteAddOutlined fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Popover
+            open={noteAnchor != null}
+            anchorEl={noteAnchor}
+            onClose={() => setNoteAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+          >
+            <Box sx={{ p: 2, width: 320 }}>
+              <TextField
+                label={`Note for ${selectedAction} (optional)`}
+                helperText="Saved in the booking history. The requester can see it."
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                multiline
+                minRows={2}
+                fullWidth
+                autoFocus
+                inputProps={{ maxLength: MAX_ACTION_NOTE_LENGTH }}
+              />
+              <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+                <Button size="small" onClick={() => setNoteAnchor(null)}>
+                  Done
+                </Button>
+              </Box>
+            </Box>
+          </Popover>
+        </>
+      )}
       {uiLoading ? (
         <Loading style={{ height: "24px", width: "24px", margin: 8 }} />
       ) : (

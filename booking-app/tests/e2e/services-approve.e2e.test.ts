@@ -11,7 +11,6 @@ import {
   Timestamp,
 } from "../../lib/firebase/stubs/firebaseFirestoreStub";
 import { registerBookingMocks } from "./helpers/mock-routes";
-import { confirmActionDialog } from "./helpers/test-utils";
 
 const jsonHeaders = { "content-type": "application/json" };
 
@@ -896,7 +895,6 @@ test.describe("Services approval flow (mocked Firestore)", () => {
       );
       await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
       await confirmButton.click();
-      await confirmActionDialog(page);
 
       const approveRequest = await requestPromise;
       await responsePromise;

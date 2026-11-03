@@ -1,5 +1,5 @@
 import { ThemeProvider, createTheme } from "@mui/material/styles";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Timestamp } from "firebase/firestore";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,7 +29,7 @@ vi.mock(
 // Each action reports the note the hook was given when it ran.
 const mockRunAction = vi.fn();
 
-const renderActions = () => {
+const renderActions = (pageContext = PageContextLevel.ADMIN) => {
   vi.mocked(useBookingActions).mockImplementation(({ note }) => {
     const action = (name: string) => ({
       action: async () => mockRunAction(name, note),
@@ -69,7 +69,7 @@ const renderActions = () => {
         <BookingActions
           calendarEventId="evt-1"
           onSelect={vi.fn()}
-          pageContext={PageContextLevel.ADMIN}
+          pageContext={pageContext}
           setOptimisticStatus={vi.fn()}
           status={BookingStatusLabel.APPROVED}
           startDate={Timestamp.fromDate(new Date("2026-11-02T15:00:00Z"))}
@@ -79,14 +79,21 @@ const renderActions = () => {
   );
 };
 
-const chooseAction = async (
+const choose = async (
   user: ReturnType<typeof userEvent.setup>,
   name: string,
-  confirmLabel = `Confirm ${name}`,
 ) => {
   await user.click(screen.getByRole("combobox"));
   await user.click(screen.getByRole("option", { name }));
-  await user.click(screen.getByRole("button", { name: confirmLabel }));
+};
+
+const addNote = async (
+  user: ReturnType<typeof userEvent.setup>,
+  text: string,
+) => {
+  await user.click(screen.getByRole("button", { name: "Add a note" }));
+  await user.type(await screen.findByRole("textbox"), text);
+  await user.click(screen.getByRole("button", { name: "Done" }));
 };
 
 describe("BookingActions notes", () => {
@@ -94,52 +101,43 @@ describe("BookingActions notes", () => {
     vi.clearAllMocks();
   });
 
-  it("runs Check Out with the optional note typed in the dialog", async () => {
+  it("runs an action straight away, with no dialog and no note", async () => {
     const user = userEvent.setup();
     renderActions();
 
-    await chooseAction(user, "Check Out");
-    expect(
-      screen.getByText(
-        "You can add a note. It will appear in the booking history.",
-      ),
-    ).toBeInTheDocument();
-    await user.type(
-      screen.getByLabelText("Note (optional)"),
-      "Room left tidy",
-    );
-    await user.click(screen.getByRole("button", { name: "Ok" }));
-
-    expect(mockRunAction).toHaveBeenCalledWith(
-      "Check Out",
-      "Room left tidy",
-    );
-  });
-
-  it("lets Check Out go ahead without a note", async () => {
-    const user = userEvent.setup();
-    renderActions();
-
-    await chooseAction(user, "Check Out");
-    await user.click(screen.getByRole("button", { name: "Ok" }));
+    await choose(user, "Check Out");
+    await user.click(screen.getByRole("button", { name: "Confirm Check Out" }));
 
     expect(mockRunAction).toHaveBeenCalledWith("Check Out", "");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("keeps the late-cancelation warning in the cancel dialog and sends its note", async () => {
+  it("sends the optional note added next to the check button", async () => {
     const user = userEvent.setup();
     renderActions();
 
-    await chooseAction(user, "Cancel");
-    expect(screen.getByText("Cancel Booking")).toBeInTheDocument();
+    await choose(user, "Check Out");
+    await addNote(user, "Room left tidy");
     expect(
-      screen.getByText(/counted as a Late Cancelation/),
+      screen.getByRole("button", { name: "Edit note" }),
     ).toBeInTheDocument();
-    await user.type(
-      screen.getByLabelText("Note (optional)"),
-      "Requester asked by email",
-    );
-    await user.click(screen.getByRole("button", { name: "Ok" }));
+    await user.click(screen.getByRole("button", { name: "Confirm Check Out" }));
+
+    expect(mockRunAction).toHaveBeenCalledWith("Check Out", "Room left tidy");
+  });
+
+  it("keeps the late-cancelation confirmation for Cancel and sends its note", async () => {
+    const user = userEvent.setup();
+    renderActions();
+
+    await choose(user, "Cancel");
+    await addNote(user, "Requester asked by email");
+    await user.click(screen.getByRole("button", { name: "Confirm Cancel" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/counted as a Late Cancelation/),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Ok" }));
 
     expect(mockRunAction).toHaveBeenCalledWith(
       "Cancel",
@@ -147,14 +145,19 @@ describe("BookingActions notes", () => {
     );
   });
 
-  it("still requires a reason to decline", async () => {
+  it("still requires a reason to decline, with no separate note button", async () => {
     const user = userEvent.setup();
     renderActions();
 
-    await chooseAction(user, "Decline", "Confirm decline");
-    expect(screen.getByRole("button", { name: "Ok" })).toBeDisabled();
-    await user.type(screen.getByLabelText(/Reason/), "Room is closed");
-    await user.click(screen.getByRole("button", { name: "Ok" }));
+    await choose(user, "Decline");
+    expect(
+      screen.queryByRole("button", { name: "Add a note" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Confirm decline" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Ok" })).toBeDisabled();
+    await user.type(within(dialog).getByRole("textbox"), "Room is closed");
+    await user.click(within(dialog).getByRole("button", { name: "Ok" }));
 
     expect(mockRunAction).toHaveBeenCalledWith("Decline", "Room is closed");
   });
@@ -163,33 +166,61 @@ describe("BookingActions notes", () => {
     const user = userEvent.setup();
     renderActions();
 
-    await chooseAction(user, "Decline Catering");
+    await choose(user, "Decline Catering");
+    await user.click(
+      screen.getByRole("button", { name: "Confirm Decline Catering" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Decline Catering")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Ok" })).toBeDisabled();
+  });
+
+  it("drops a note when a different action is chosen", async () => {
+    const user = userEvent.setup();
+    renderActions();
+
+    await choose(user, "Check Out");
+    await addNote(user, "Meant for check out");
+    await choose(user, "Cancel");
+
     expect(
-      within(screen.getByRole("dialog")).getByText("Decline Catering"),
+      screen.getByRole("button", { name: "Add a note" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Ok" })).toBeDisabled();
   });
 
   it("clears the note after the action runs", async () => {
     const user = userEvent.setup();
     renderActions();
 
-    await chooseAction(user, "Check Out");
-    await user.type(screen.getByLabelText("Note (optional)"), "First note");
-    await user.click(screen.getByRole("button", { name: "Ok" }));
-    await screen.findByRole("combobox");
+    await choose(user, "Check Out");
+    await addNote(user, "First note");
+    await user.click(screen.getByRole("button", { name: "Confirm Check Out" }));
+    await waitFor(() => expect(mockRunAction).toHaveBeenCalledTimes(1));
 
-    await chooseAction(user, "Cancel");
-    expect(screen.getByLabelText("Note (optional)")).toHaveValue("");
+    await choose(user, "Check Out");
+    await user.click(screen.getByRole("button", { name: "Confirm Check Out" }));
+    expect(mockRunAction).toHaveBeenLastCalledWith("Check Out", "");
   });
 
-  it("runs Edit straight away, without a note dialog", async () => {
+  it("offers no note for Edit, which opens another page", async () => {
     const user = userEvent.setup();
     renderActions();
 
-    await chooseAction(user, "Edit");
+    await choose(user, "Edit");
 
-    expect(mockRunAction).toHaveBeenCalledWith("Edit", "");
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add a note" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers no note button on the requester's own page", async () => {
+    const user = userEvent.setup();
+    renderActions(PageContextLevel.USER);
+
+    await choose(user, "Cancel");
+
+    expect(
+      screen.queryByRole("button", { name: "Add a note" }),
+    ).not.toBeInTheDocument();
   });
 });

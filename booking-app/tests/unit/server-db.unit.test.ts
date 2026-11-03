@@ -61,6 +61,7 @@ vi.mock("@/components/src/types", () => ({
     APPROVED: "APPROVED",
     CANCELED: "CANCELED",
     NO_SHOW: "NO_SHOW",
+    NOTE: "NOTE",
   },
   PagePermission: {
     ADMIN: "ADMIN",
@@ -295,6 +296,31 @@ describe("server/db", () => {
       "mc",
       "Waited 30 minutes",
     );
+
+    expect(mockServerSaveDataToFirestore).toHaveBeenCalledWith(
+      "bookingLogs",
+      expect.objectContaining({
+        status: "CANCELED",
+        changedBy: "System",
+        note: "Canceled due to no show",
+      }),
+      "mc",
+    );
+  });
+
+  it("processCancelBooking looks past history notes to find the previous status", async () => {
+    mockServerFetchAllDataFromCollection.mockImplementation(
+      async (tableName: string) =>
+        tableName === "bookingLogs"
+          ? [
+              { status: "NO_SHOW", changedAt: { seconds: 100 } },
+              { status: "NOTE", changedAt: { seconds: 200 } },
+            ]
+          : [],
+    );
+
+    const { processCancelBooking } = await import("@/components/src/server/db");
+    await processCancelBooking("cal-note-3", "pa@nyu.edu", "netX", "mc");
 
     expect(mockServerSaveDataToFirestore).toHaveBeenCalledWith(
       "bookingLogs",

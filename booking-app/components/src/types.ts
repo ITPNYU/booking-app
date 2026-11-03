@@ -102,6 +102,8 @@ export enum BookingStatusLabel {
   CLOSED = "CLOSED",
   EQUIPMENT = "EQUIPMENT",
   NO_SHOW = "NO-SHOW",
+  /** A history note added by staff; not a booking status (#1409). */
+  NOTE = "NOTE",
   PENDING = "PENDING",
   PRE_APPROVED = "PRE-APPROVED",
   DECLINED = "DECLINED",

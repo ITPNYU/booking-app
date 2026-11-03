@@ -11,7 +11,6 @@ import {
   Timestamp,
 } from "../../lib/firebase/stubs/firebaseFirestoreStub";
 import { registerBookingMocks } from "./helpers/mock-routes";
-import { confirmActionDialog } from "./helpers/test-utils";
 
 const jsonHeaders = { "content-type": "application/json" };
 
@@ -646,7 +645,6 @@ test.describe("Status Transitions", () => {
     );
     await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
     await confirmButton.click();
-    await confirmActionDialog(page);
 
     const transitionRequest = await transitionRequestPromise;
     await transitionResponsePromise;
@@ -718,7 +716,6 @@ test.describe("Status Transitions", () => {
     );
     await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
     await confirmButton.click();
-    await confirmActionDialog(page);
 
     const transitionRequest = await transitionRequestPromise;
     await transitionResponsePromise;
@@ -790,7 +787,6 @@ test.describe("Status Transitions", () => {
     );
     await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
     await confirmButton.click();
-    await confirmActionDialog(page);
 
     const transitionRequest = await transitionRequestPromise;
     await transitionResponsePromise;

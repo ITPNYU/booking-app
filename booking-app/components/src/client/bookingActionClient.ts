@@ -384,6 +384,32 @@ export const clientApproveBooking = async (
 };
 
 /**
+ * Add a note to a booking's history without changing its status (#1409).
+ * Throws with the server's message when the note isn't saved.
+ */
+export const clientAddBookingNote = async (
+  calendarEventId: string,
+  note: string,
+  tenant?: string,
+) => {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-notes`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify({ calendarEventId, note }),
+    },
+  );
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.error || "Failed to add note");
+  }
+};
+
+/**
  * The server refused an approve or decline (403): the caller is not one of
  * the booking's approvers (see authorizeBookingDecision).
  */

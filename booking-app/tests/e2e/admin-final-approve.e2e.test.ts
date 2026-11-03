@@ -13,7 +13,6 @@ import {
   Timestamp,
 } from "../../lib/firebase/stubs/firebaseFirestoreStub";
 import { registerBookingMocks } from "./helpers/mock-routes";
-import { confirmActionDialog } from "./helpers/test-utils";
 
 const jsonHeaders = { "content-type": "application/json" };
 
@@ -603,7 +602,6 @@ test.describe("Admin final approval flow", () => {
     );
     await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
     await confirmButton.click();
-    await confirmActionDialog(page);
 
     const approveRequest = await approveRequestPromise;
     await approveResponsePromise;
@@ -668,7 +666,6 @@ test.describe("Admin final approval flow", () => {
     );
     await confirmButton.waitFor({ state: "visible", timeout: 5_000 });
     await confirmButton.click();
-    await confirmActionDialog(page);
 
     const warning = page.getByRole("alert").filter({ hasText: calendarError });
     await expect(warning).toBeVisible();

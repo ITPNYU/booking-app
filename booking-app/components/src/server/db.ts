@@ -490,8 +490,11 @@ export const processCancelBooking = async (
     if (timeB == null) return -1;
     return timeB - timeA;
   });
+  // Notes aren't status changes, so they never decide this.
   const previousLog = sortedLogs.find(
-    (log: any) => log.status !== BookingStatusLabel.CANCELED,
+    (log: any) =>
+      log.status !== BookingStatusLabel.CANCELED &&
+      log.status !== BookingStatusLabel.NOTE,
   );
   const previousStatus = previousLog?.status;
 
