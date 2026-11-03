@@ -1,0 +1,113 @@
+name: Release Notify
+
+# After a release deploys successfully, post the issues it resolves to the
+# client-facing Google Chat space:
+#   staging  -> "Now on staging" with each linked issue's title and link
+#   prod     -> "Released to production" with each linked issue's title and link
+# Only issues linked to the released PRs (Development section / closing
+# keywords) are listed; PRs without a linked issue are not mentioned. Nothing is
+# posted when the release has no linked issues.
+#
+# Configuration:
+#   secrets.GCHAT_RELEASE_WEBHOOK_URL  Incoming webhook of the client-facing space
+#                                      (separate from the team space webhook).
+
+permissions:
+  contents: read
+
+on:
+  workflow_run:
+    workflows:
+      - "Deploy STAGING to App Engine"
+      - "Deploy PRODUCTION to App Engine"
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Release branch"
+        type: choice
+        options: [staging, prod]
+        required: true
+      head_sha:
+        description: "Merge commit of a release PR into that branch (defaults to the branch tip)"
+        required: false
+      dry_run:
+        description: "Print the message in the job log instead of posting it"
+        type: boolean
+        default: true
+
+jobs:
+  notify:
+    name: Announce the released issues
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       (github.event.workflow_run.head_branch == 'staging' ||
+        github.event.workflow_run.head_branch == 'prod'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Find the issues in this release
+        id: issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.workflow_run.head_branch || github.event.inputs.branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.inputs.head_sha }}
+        run: |
+          if [ -z "${HEAD_SHA}" ]; then
+            HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/branches/${BRANCH}" --jq '.commit.sha')
+          fi
+          NUMBERS=$(.github/scripts/list_release_prs.sh "${HEAD_SHA}" "${BRANCH}" | tr '\n' ' ')
+          echo "PRs: ${NUMBERS:-none}"
+          .github/scripts/list_release_issues.sh "${NUMBERS}" > issues.json
+          echo "count=$(jq length issues.json)" >> "$GITHUB_OUTPUT"
+          jq -r '.[] | "#\(.number) \(.title)"' issues.json
+
+      - name: Post to Google Chat
+        if: steps.issues.outputs.count != '0'
+        env:
+          GCHAT_RELEASE_WEBHOOK_URL: ${{ secrets.GCHAT_RELEASE_WEBHOOK_URL }}
+          BRANCH: ${{ github.event.workflow_run.head_branch || github.event.inputs.branch }}
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+        run: |
+          case "$BRANCH" in
+            staging) HEADER="🧪 *Now on staging*" ;;
+            prod)    HEADER="🚀 *Released to production*" ;;
+            *) echo "Unknown release branch: ${BRANCH}"; exit 1 ;;
+          esac
+          # <URL|text> renders as a link in Google Chat; "<", ">" and "|" inside the
+          # title would end the link early, so they are swapped for full-width forms.
+          LIST=$(jq -r '.[] | "• <\(.url)|\(.title | gsub("<"; "＜") | gsub(">"; "＞") | gsub("\\|"; "｜"))>"' issues.json)
+          TEXT=$(printf '%s\n' "${HEADER}" "${LIST}")
+          PAYLOAD=$(jq -n --arg text "$TEXT" '{text: $text}')
+
+          if [ "${DRY_RUN}" = "1" ]; then
+            echo "--- DRY RUN: message not sent ---"
+            printf '%s\n' "${TEXT}"
+            exit 0
+          fi
+          if [ -z "${GCHAT_RELEASE_WEBHOOK_URL}" ]; then
+            echo "Error: GCHAT_RELEASE_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            --data "${PAYLOAD}" \
+            "${GCHAT_RELEASE_WEBHOOK_URL}" \
+            --connect-timeout 10 --max-time 30 || echo "000")
+
+          if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
+            echo "Release notification sent (HTTP ${HTTP_STATUS})"
+          else
+            echo "Failed to send release notification (HTTP ${HTTP_STATUS})"
+            cat /tmp/response.txt
+            exit 1
+          fi
