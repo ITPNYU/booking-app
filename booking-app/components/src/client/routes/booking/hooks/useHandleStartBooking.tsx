@@ -17,6 +17,7 @@ export default function useHandleStartBooking() {
     setCheckedAgreements,
     setAnnexByRoom,
     setServiceDecisions,
+    setViewDate,
   } = useContext(BookingContext);
 
   const handleStartBooking = () => {
@@ -34,6 +35,11 @@ export default function useHandleStartBooking() {
     resetServiceRuleMemory();
     setCheckedAgreements({});
     setServiceDecisions({});
+    // viewDate lives in BookingProvider (so the calendar fetch window follows
+    // it) and the provider stays mounted across client-side navigation, so a
+    // month browsed during a previous booking would otherwise leak into the
+    // next one.
+    setViewDate(new Date());
 
     setHasShownMocapModal(false);
   };

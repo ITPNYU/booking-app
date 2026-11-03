@@ -91,6 +91,7 @@ export function getXStateContext(
  */
 export class XStateChecker {
   private currentValue: string | null;
+
   private parsedValue: any;
 
   constructor(booking: Booking) {

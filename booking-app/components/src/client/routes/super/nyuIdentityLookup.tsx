@@ -85,11 +85,15 @@ export default function NyuIdentityLookup() {
     setQueriedNetId(trimmed);
 
     try {
-      const response = await fetch(`/api/nyu/identity/${encodeURIComponent(trimmed)}`);
+      const response = await fetch(
+        `/api/nyu/identity/${encodeURIComponent(trimmed)}`,
+      );
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data?.error ?? `Request failed with status ${response.status}`);
+        setError(
+          data?.error ?? `Request failed with status ${response.status}`,
+        );
       } else if (!data) {
         setError("No identity record found for this NetID.");
       } else {
@@ -141,7 +145,9 @@ export default function NyuIdentityLookup() {
           variant="contained"
           onClick={handleLookup}
           disabled={loading || !netId.trim()}
-          startIcon={loading ? <CircularProgress size={16} color="inherit" /> : undefined}
+          startIcon={
+            loading ? <CircularProgress size={16} color="inherit" /> : undefined
+          }
         >
           {loading ? "Looking up…" : "Look Up"}
         </Button>
@@ -157,7 +163,10 @@ export default function NyuIdentityLookup() {
         <Box sx={{ mt: 1 }}>
           <Typography variant="body2" color="text.secondary">
             Results for{" "}
-            <Box component="span" sx={{ fontFamily: "monospace", fontWeight: 600 }}>
+            <Box
+              component="span"
+              sx={{ fontFamily: "monospace", fontWeight: 600 }}
+            >
               {queriedNetId}
             </Box>
           </Typography>

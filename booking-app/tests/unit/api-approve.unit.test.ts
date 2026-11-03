@@ -9,19 +9,43 @@ vi.mock("@/lib/stateMachines/xstateUtilsV5", () => ({
   executeXStateTransition: vi.fn(),
 }));
 
-vi.mock("@/components/src/server/admin", () => ({
-  serverApproveBooking: vi.fn(),
-  finalApprove: vi.fn(),
-  serverFirstApproveOnly: vi.fn(),
-  serverBookingContents: vi.fn(),
-}));
+vi.mock("@/components/src/server/admin", async () => {
+  const { firstApprovalHistoryNote, isSystemHistoryActor } =
+    await import("@/components/src/utils/bookingHistoryNotes");
+  const { resolveCallerRole } = await import("@/lib/api/authz");
+  class ApprovalFollowUpError extends Error {}
+  return {
+    ApprovalFollowUpError,
+    serverApproveBooking: vi.fn(),
+    finalApprove: vi.fn(),
+    serverFirstApproveOnly: vi.fn(),
+    serverBookingContents: vi.fn(),
+    resolveFirstApprovalHistoryNote: async (
+      email?: string,
+      tenant?: string,
+    ) => {
+      if (isSystemHistoryActor(email) || !email) {
+        return undefined;
+      }
+      try {
+        const role = await resolveCallerRole(
+          { email, netId: email.split("@")[0] },
+          tenant,
+        );
+        return firstApprovalHistoryNote(email, role);
+      } catch {
+        return undefined;
+      }
+    },
+  };
+});
 
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   logServerBookingChange: vi.fn(),
   serverGetDataByCalendarEventId: vi.fn(),
   serverFetchAllDataFromCollection: vi.fn(),
   serverGetFinalApproverEmail: vi.fn(),
-  serverListResourceApproversByEmail: vi.fn(),
+  serverResolveResourceApproverEmails: vi.fn(),
 }));
 
 vi.mock("@/lib/api/requireSession", () => ({
@@ -47,6 +71,7 @@ import { POST } from "@/app/api/approve/route";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { PagePermission } from "@/components/src/types";
 import {
+  ApprovalFollowUpError,
   finalApprove,
   serverApproveBooking,
   serverBookingContents,
@@ -58,7 +83,7 @@ import {
   serverFetchAllDataFromCollection,
   serverGetFinalApproverEmail,
   serverGetDataByCalendarEventId,
-  serverListResourceApproversByEmail,
+  serverResolveResourceApproverEmails,
 } from "@/lib/firebase/server/adminDb";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
@@ -93,8 +118,8 @@ const mockServerFetchAllDataFromCollection = vi.mocked(
   serverFetchAllDataFromCollection,
 );
 const mockServerGetFinalApproverEmail = vi.mocked(serverGetFinalApproverEmail);
-const mockServerListResourceApproversByEmail = vi.mocked(
-  serverListResourceApproversByEmail,
+const mockServerResolveResourceApproverEmails = vi.mocked(
+  serverResolveResourceApproverEmails,
 );
 const mockRequireSession = vi.mocked(requireSession);
 const mockResolveCallerRole = vi.mocked(resolveCallerRole);
@@ -120,7 +145,7 @@ describe("POST /api/approve", () => {
     } as any);
     mockResolveCallerRole.mockResolvedValue(PagePermission.ADMIN);
     mockServerGetFinalApproverEmail.mockResolvedValue(null);
-    mockServerListResourceApproversByEmail.mockResolvedValue([]);
+    mockServerResolveResourceApproverEmails.mockResolvedValue([]);
     mockIsMediaCommons.mockReturnValue(false);
     mockGetMediaCommonsServices.mockReturnValue({
       staff: false,
@@ -232,25 +257,49 @@ describe("POST /api/approve", () => {
     expect(response.status).toBe(200);
   });
 
-  it("allows a resource approver to final approve only when assigned to every booking resource", async () => {
+  it.each([
+    ["missing", {}],
+    ["blank", { id: "  " }],
+    ["not a string", { id: 42 }],
+  ])("returns 400 when the booking id is %s", async (_label, body) => {
+    const response = await POST(createRequest(body as any) as any);
+
+    expect(response.status).toBe(400);
+    expect(mockServerGetDataByCalendarEventId).not.toHaveBeenCalled();
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a body that isn't JSON", async () => {
+    const response = await POST({
+      json: async () => {
+        throw new SyntaxError("Unexpected end of JSON input");
+      },
+      headers: new Headers(),
+    } as any);
+
+    expect(response.status).toBe(400);
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it("allows an approver of any booked room to final approve", async () => {
     mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
     mockServerGetDataByCalendarEventId.mockResolvedValue({
       id: "booking-db-id",
       firstApprovedAt: "2026-06-14T12:00:00Z",
       roomId: "room-1, room-2",
     } as any);
-    mockServerListResourceApproversByEmail.mockResolvedValue([
-      { resourceId: "room-1", email: sessionEmail },
-      { resourceId: "room-2", email: sessionEmail.toUpperCase() },
-    ] as any);
+    mockServerResolveResourceApproverEmails.mockResolvedValue([
+      sessionEmail,
+      "room-2-approver@nyu.edu",
+    ]);
     mockExecute.mockResolvedValue({ success: true, newState: "Approved" });
 
     const response = await POST(
       createRequest({ id: bookingId, email: bodyEmail }) as any,
     );
 
-    expect(mockServerListResourceApproversByEmail).toHaveBeenCalledWith(
-      sessionEmail,
+    expect(mockServerResolveResourceApproverEmails).toHaveBeenCalledWith(
+      ["room-1", "room-2"],
       DEFAULT_TENANT,
     );
     expect(mockFinalApprove).toHaveBeenCalledWith(
@@ -261,23 +310,42 @@ describe("POST /api/approve", () => {
     expect(response.status).toBe(200);
   });
 
-  it.each([
-    ["unrelated", [{ resourceId: "room-3", email: sessionEmail }]],
-    ["partially assigned", [{ resourceId: "room-1", email: sessionEmail }]],
-  ])("denies a resource approver who is %s", async (_label, assignments) => {
+  it("denies someone who approves none of the booked rooms", async () => {
     mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
     mockServerGetDataByCalendarEventId.mockResolvedValue({
       id: "booking-db-id",
       firstApprovedAt: "2026-06-14T12:00:00Z",
       roomId: "room-1, room-2",
     } as any);
-    mockServerListResourceApproversByEmail.mockResolvedValue(assignments as any);
+    mockServerResolveResourceApproverEmails.mockResolvedValue([
+      "room-1-approver@nyu.edu",
+    ]);
 
     const response = await POST(
       createRequest({ id: bookingId, email: bodyEmail }) as any,
     );
 
     expect(response.status).toBe(403);
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it("denies a non-admin resource approver before the first approval", async () => {
+    mockResolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-db-id",
+      roomId: "room-1",
+    } as any);
+    mockServerResolveResourceApproverEmails.mockResolvedValue([sessionEmail]);
+
+    const response = await POST(
+      createRequest({ id: bookingId, email: bodyEmail }) as any,
+    );
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 403,
+      data: { error: "You are not authorized to approve this booking" },
+    });
+    expect(mockServerResolveResourceApproverEmails).not.toHaveBeenCalled();
     expect(mockExecute).not.toHaveBeenCalled();
   });
 
@@ -303,7 +371,7 @@ describe("POST /api/approve", () => {
       sessionEmail,
       DEFAULT_TENANT,
     );
-    expect(mockServerListResourceApproversByEmail).not.toHaveBeenCalled();
+    expect(mockServerResolveResourceApproverEmails).not.toHaveBeenCalled();
   });
 
   it.each([PagePermission.ADMIN, PagePermission.SUPER_ADMIN])(
@@ -358,12 +426,13 @@ describe("POST /api/approve", () => {
   it("returns 409 and does not fall back when Media Commons booking has unprocessed services", async () => {
     mockExecute.mockResolvedValue({
       success: false,
-      error: "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
+      error:
+        "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
     });
     mockIsMediaCommons.mockReturnValue(true);
     mockServerGetDataByCalendarEventId.mockResolvedValue({
       id: "booking-db-id",
-      staffingServicesDetails: "yes",  // requested
+      staffingServicesDetails: "yes", // requested
       staffServiceApproved: undefined, // not yet processed
     } as any);
     mockGetMediaCommonsServices.mockReturnValue({
@@ -391,7 +460,8 @@ describe("POST /api/approve", () => {
   it("falls back to serverApproveBooking when Media Commons XState fails but all requested services are already processed", async () => {
     mockExecute.mockResolvedValue({
       success: false,
-      error: "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
+      error:
+        "Invalid transition: Cannot execute 'approve' from state 'Services Request'",
     });
     mockIsMediaCommons.mockReturnValue(true);
     mockServerGetDataByCalendarEventId.mockResolvedValue({
@@ -488,6 +558,91 @@ describe("POST /api/approve", () => {
     });
   });
 
+  it("reports a failed calendar title update after XState reaches Approved", async () => {
+    mockExecute.mockResolvedValue({ success: true, newState: "Approved" });
+    mockFinalApprove.mockRejectedValueOnce(
+      new Error(
+        "Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
+      ),
+    );
+
+    const response = await POST(
+      createRequest({ id: bookingId, email: bodyEmail }) as any,
+    );
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 500,
+      data: {
+        error:
+          "Booking was approved, but a follow-up step failed: Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
+        approved: true,
+      },
+    });
+  });
+
+  it("flags a fallback approval whose calendar title update failed as approved", async () => {
+    mockExecute.mockResolvedValue({ success: false, error: "state error" });
+    mockServerApproveBooking.mockRejectedValueOnce(
+      new ApprovalFollowUpError(
+        "Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
+      ),
+    );
+
+    const response = await POST(
+      createRequest({ id: bookingId, email: bodyEmail }) as any,
+    );
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 500,
+      data: {
+        error:
+          "Booking was approved, but a follow-up step failed: Google Calendar event title was not updated to [APPROVED] (calendar update returned 500)",
+        approved: true,
+      },
+    });
+  });
+
+  it("flags any follow-up failure of a fallback final approval as approved", async () => {
+    mockExecute.mockResolvedValue({ success: false, error: "state error" });
+    mockServerApproveBooking.mockRejectedValueOnce(
+      new ApprovalFollowUpError(
+        "Failed to invite secondary contact (status 500 Internal Server Error)",
+      ),
+    );
+
+    const response = await POST(
+      createRequest({ id: bookingId, email: bodyEmail }) as any,
+    );
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 500,
+      data: {
+        error:
+          "Booking was approved, but a follow-up step failed: Failed to invite secondary contact (status 500 Internal Server Error)",
+        approved: true,
+      },
+    });
+  });
+
+  it("returns the message of a { status, message } fallback error", async () => {
+    mockExecute.mockResolvedValue({ success: false, error: "state error" });
+    mockServerApproveBooking.mockRejectedValueOnce({
+      status: 500,
+      message: "Google Calendar event title was not updated to [APPROVED]",
+    });
+
+    const response = await POST(
+      createRequest({ id: bookingId, email: bodyEmail }) as any,
+    );
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 500,
+      data: {
+        error: "Google Calendar event title was not updated to [APPROVED]",
+      },
+    });
+  });
+
   it("runs serverFirstApproveOnly when XState reaches Pre-approved", async () => {
     mockExecute.mockResolvedValue({ success: true, newState: "Pre-approved" });
 
@@ -527,12 +682,113 @@ describe("POST /api/approve", () => {
       status: "PRE-APPROVED",
       changedBy: sessionEmail,
       requestNumber: 42,
+      note: "Admin Policy Approved",
       tenant: "itp",
     });
     expect(mockFetch).not.toHaveBeenCalledWith(
       "https://booking.test/api/booking-logs",
       expect.anything(),
     );
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 200,
+      data: { message: "Approved successfully" },
+    });
+  });
+
+  it("logs services request as admin policy when a final approver sends Pre-approved into services", async () => {
+    mockResolveCallerRole.mockResolvedValue(PagePermission.LIAISON);
+    mockServerGetDataByCalendarEventId.mockResolvedValue({
+      id: "booking-db-id",
+      requestNumber: 42,
+      title: "Media Commons Session",
+      email: "requester@nyu.edu",
+      firstApprovedAt: "2026-06-14T12:00:00Z",
+    } as any);
+    mockServerGetFinalApproverEmail.mockResolvedValue(sessionEmail);
+    mockExecute.mockResolvedValue({
+      success: true,
+      newState: { "Services Request": "pending" },
+    });
+
+    const response = await POST(
+      createRequest(
+        { id: bookingId, email: bodyEmail },
+        { "x-tenant": "itp" },
+      ) as any,
+    );
+
+    expect(mockLogServerBookingChange).toHaveBeenCalledWith({
+      bookingId: "booking-db-id",
+      calendarEventId: bookingId,
+      status: "PRE-APPROVED",
+      changedBy: sessionEmail,
+      requestNumber: 42,
+      note: "Admin Policy Approved",
+      tenant: "itp",
+    });
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 200,
+      data: { message: "Approved successfully" },
+    });
+  });
+
+  it("logs services request transitions with a liaison note for liaison approvers", async () => {
+    mockResolveCallerRole.mockResolvedValue(PagePermission.LIAISON);
+    mockExecute.mockResolvedValue({
+      success: true,
+      newState: { "Services Request": "pending" },
+    });
+
+    const response = await POST(
+      createRequest(
+        { id: bookingId, email: bodyEmail },
+        { "x-tenant": "itp" },
+      ) as any,
+    );
+
+    expect(mockLogServerBookingChange).toHaveBeenCalledWith({
+      bookingId: "booking-db-id",
+      calendarEventId: bookingId,
+      status: "PRE-APPROVED",
+      changedBy: sessionEmail,
+      requestNumber: 42,
+      note: "Departmental Liaison Approved",
+      tenant: "itp",
+    });
+
+    await expect(parseJson(response)).resolves.toEqual({
+      status: 200,
+      data: { message: "Approved successfully" },
+    });
+  });
+
+  it("logs services request transitions without a note if role lookup fails", async () => {
+    mockResolveCallerRole
+      .mockResolvedValueOnce(PagePermission.ADMIN)
+      .mockRejectedValueOnce(new Error("firestore unavailable"));
+    mockExecute.mockResolvedValue({
+      success: true,
+      newState: { "Services Request": "pending" },
+    });
+
+    const response = await POST(
+      createRequest(
+        { id: bookingId, email: bodyEmail },
+        { "x-tenant": "itp" },
+      ) as any,
+    );
+
+    expect(mockLogServerBookingChange).toHaveBeenCalledWith({
+      bookingId: "booking-db-id",
+      calendarEventId: bookingId,
+      status: "PRE-APPROVED",
+      changedBy: sessionEmail,
+      requestNumber: 42,
+      note: undefined,
+      tenant: "itp",
+    });
 
     await expect(parseJson(response)).resolves.toEqual({
       status: 200,

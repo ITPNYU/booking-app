@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  getBookingServiceRooms,
+  getMediaCommonsAutoCloseout,
   getMediaCommonsServices,
   isServiceRequested,
 } from "@/components/src/utils/tenantUtils";
@@ -14,6 +16,11 @@ import {
   isPassiveSetupSelection,
   mergeRoomIdsWithAnnex,
   resolveAnnexCalendarIds,
+  resolveSelectedRoomCalendars,
+  roomCalendarResolutionError,
+  roomsForIds,
+  ROOM_CALENDAR_ID_NOT_FOUND,
+  TENANT_RESOURCES_UNAVAILABLE,
 } from "@/components/src/utils/resourceServicesUtils";
 import { MC_TEST_RESOURCE_SERVICES } from "@/components/src/testHelpers/mcResourceServicesFixture";
 import { migrateResourceServices } from "@/lib/tenant/migrateResourceServices";
@@ -127,6 +134,70 @@ describe("getMediaCommonsServices", () => {
         setupDetails: "Need extra tables for the adjacent room",
       }).setup,
     ).toBe(true);
+  });
+});
+
+describe("getMediaCommonsAutoCloseout", () => {
+  const rooms = [
+    {
+      resourceId: "221",
+      services: {
+        setup: { label: "Setup", autoCloseout: true },
+        staffing: { label: "Staffing", autoCloseout: true, sections: {} },
+        equipment: { label: "Equipment", autoCloseout: false },
+        catering: { label: "Catering" },
+      },
+    },
+    {
+      resourceId: "222",
+      services: {
+        setup: { label: "Setup" },
+        cleaning: { label: "Cleaning", autoCloseout: true },
+      },
+    },
+    { resourceId: "223", services: ["setup", "equipment"] },
+    {
+      resourceId: "1202",
+      parentResourceId: "1201",
+      services: { security: { label: "Security", autoCloseout: true } },
+    },
+    { resourceId: "1201", services: { annex: { label: "Breakout" } } },
+  ];
+
+  it("flags a service when its booked room sets autoCloseout, mapping staff to staffing", () => {
+    expect(getMediaCommonsAutoCloseout({ roomId: "221" }, rooms)).toEqual({
+      setup: true,
+      staff: true,
+    });
+  });
+
+  it("flags a service when any of several booked rooms sets it", () => {
+    expect(getMediaCommonsAutoCloseout({ roomId: "222, 221" }, rooms)).toEqual({
+      setup: true,
+      staff: true,
+      cleaning: true,
+    });
+  });
+
+  it("returns nothing for unknown rooms, legacy string[] services, or a missing roomId", () => {
+    expect(getMediaCommonsAutoCloseout({ roomId: "999" }, rooms)).toEqual({});
+    expect(getMediaCommonsAutoCloseout({ roomId: "223" }, rooms)).toEqual({});
+    expect(getMediaCommonsAutoCloseout({}, rooms)).toEqual({});
+  });
+
+  it("includes annex spaces picked under a booked room", () => {
+    expect(
+      getMediaCommonsAutoCloseout(
+        { roomId: "1201", annexByRoom: { "1201": ["1202"] } },
+        rooms,
+      ),
+    ).toEqual({ security: true });
+    expect(
+      getBookingServiceRooms(
+        { roomId: "1201", annexByRoom: { "1201": ["1202"] } },
+        rooms,
+      ).map((r) => r.resourceId),
+    ).toEqual(["1201", "1202"]);
   });
 });
 
@@ -395,6 +466,44 @@ describe("migrateResourceServices", () => {
     expect(result.staffing?.sections).toBeUndefined();
   });
 
+  it("keeps autoCloseout on sections and staffing, reading the old autoCloseoutOnCancel spelling too", () => {
+    const result = migrateResourceServices({
+      services: {
+        setup: {
+          label: "Setup",
+          options: [{ value: "a", label: "A" }],
+          autoCloseout: true,
+        },
+        equipment: {
+          label: "Equipment",
+          chartField: {},
+          autoCloseout: "false",
+        },
+        cleaning: {
+          label: "Cleaning",
+          toggle: "optional",
+          autoCloseoutOnCancel: true,
+        },
+        catering: { label: "Catering", toggle: "optional" },
+        staffing: {
+          label: "Staffing",
+          autoCloseout: true,
+          sections: {
+            default: {
+              label: "Staffing",
+              options: [{ value: "x", label: "X" }],
+            },
+          },
+        },
+      },
+    });
+    expect(result.setup?.autoCloseout).toBe(true);
+    expect(result.equipment?.autoCloseout).toBe(false);
+    expect(result.cleaning?.autoCloseout).toBe(true);
+    expect(result.catering).not.toHaveProperty("autoCloseout");
+    expect(result.staffing?.autoCloseout).toBe(true);
+  });
+
   it("preserves staffing mode hidden when there are no sections", () => {
     const result = migrateResourceServices({
       services: {
@@ -577,6 +686,90 @@ describe("annex parent-child resources", () => {
     expect(mergeRoomIdsWithAnnex("202, 1201", undefined)).toBe("202, 1201");
     expect(mergeRoomIdsWithAnnex("202", { "202": ["202"] })).toBe("202");
     expect(mergeRoomIdsWithAnnex(undefined, undefined)).toBe("");
+  });
+
+  it("finds existing booking rooms on the schema resource list", () => {
+    expect(
+      roomsForIds(
+        [
+          { resourceId: "202", calendarId: "cal-202" },
+          { resourceId: "203", calendarId: "cal-203" },
+          { roomId: "204" },
+        ],
+        ["203", "204", "missing"],
+      ),
+    ).toEqual([
+      { roomId: "203", calendarId: "cal-203" },
+      { roomId: "204", calendarId: "" },
+    ]);
+    expect(roomsForIds([], ["202"])).toEqual([]);
+  });
+
+  it("uses the schema calendar id and ignores the client-supplied one", () => {
+    const resources = [
+      { resourceId: "202", calendarId: "server-cal-202" },
+      { resourceId: "203", calendarId: "server-cal-203" },
+    ];
+    expect(
+      resolveSelectedRoomCalendars(
+        [
+          { roomId: "202", calendarId: "stale-client-cal", name: "202" },
+          { roomId: 203, calendarId: "also-stale" },
+        ],
+        resources,
+      ),
+    ).toEqual({
+      rooms: [
+        { roomId: "202", calendarId: "server-cal-202", name: "202" },
+        { roomId: "203", calendarId: "server-cal-203" },
+      ],
+    });
+  });
+
+  it("reports a room that has no schema calendar", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const missing = resolveSelectedRoomCalendars(
+      [{ roomId: "999", calendarId: "client-cal" }],
+      [{ resourceId: "202", calendarId: "server-cal-202" }],
+    );
+    expect(missing).toEqual({ rooms: [], missingRoomId: "999" });
+    expect(roomCalendarResolutionError(missing)).toBe(
+      ROOM_CALENDAR_ID_NOT_FOUND,
+    );
+    expect(resolveSelectedRoomCalendars(undefined, [])).toEqual({ rooms: [] });
+    expect(resolveSelectedRoomCalendars([], [])).toEqual({ rooms: [] });
+    error.mockRestore();
+  });
+
+  it("does not blame a room when the resource catalog is empty", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const selected = [{ roomId: "202", calendarId: "client-cal" }];
+    const empty = resolveSelectedRoomCalendars(selected, []);
+    expect(empty).toEqual({ rooms: [], resourcesUnavailable: true });
+    expect(empty.missingRoomId).toBeUndefined();
+    expect(roomCalendarResolutionError(empty)).toBe(
+      TENANT_RESOURCES_UNAVAILABLE,
+    );
+    expect(resolveSelectedRoomCalendars(selected, undefined)).toEqual({
+      rooms: [],
+      resourcesUnavailable: true,
+    });
+    error.mockRestore();
+  });
+
+  it("reports the room itself when the catalog loaded but that room has no calendar", () => {
+    const missingCalendar = resolveSelectedRoomCalendars(
+      [
+        { roomId: "202", calendarId: "client-cal" },
+        { roomId: "annex", calendarId: "client-annex" },
+      ],
+      [
+        { resourceId: "202", calendarId: "server-cal-202" },
+        { resourceId: "annex", calendarId: "" },
+      ],
+    );
+    expect(missingCalendar).toEqual({ rooms: [], missingRoomId: "annex" });
+    expect(missingCalendar.resourcesUnavailable).toBeUndefined();
   });
 
   it("dedupes calendar IDs across parents", () => {

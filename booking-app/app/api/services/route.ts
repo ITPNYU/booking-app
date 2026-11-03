@@ -1,41 +1,84 @@
-import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import {
+  DEFAULT_TENANT,
+  isValidTenant,
+} from "@/components/src/constants/tenants";
 import { NextRequest, NextResponse } from "next/server";
 
+import { TableNames } from "@/components/src/policy";
+import { BookingStatusLabel, PagePermission } from "@/components/src/types";
+import {
+  APPROVER_SERVICES,
+  type ApproverService,
+  isApproverService,
+} from "@/components/src/utils/approversResources";
+import {
+  serviceHistoryDisplayName,
+  serviceHistoryNote,
+} from "@/components/src/utils/bookingHistoryNotes";
 import { shouldUseXState } from "@/components/src/utils/tenantUtils";
+import { resolveCallerRole } from "@/lib/api/authz";
+import { requireSession, type SessionContext } from "@/lib/api/requireSession";
+import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import { serverResolveServiceApproverEmails } from "@/lib/firebase/server/serviceApprovers";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 
+/** Admins decide any service; everyone else must approve it for one of the booked rooms. */
+async function authorizeServiceAction(
+  session: SessionContext,
+  tenant: string,
+  roomId: unknown,
+  serviceType: ApproverService,
+): Promise<boolean> {
+  const role = await resolveCallerRole(session, tenant);
+  if (role === PagePermission.ADMIN || role === PagePermission.SUPER_ADMIN) {
+    return true;
+  }
+  const approvers = await serverResolveServiceApproverEmails(
+    roomId,
+    serviceType,
+    tenant,
+    "act",
+  );
+  return approvers.includes(session.email);
+}
+
 export async function POST(req: NextRequest) {
-  const { calendarEventId, serviceType, action, email, reason } =
-    await req.json();
+  const session = await requireSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // The acting email comes from the session; a body `email` is ignored.
+  let body: Record<string, any>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const { calendarEventId, serviceType, action, reason } = body ?? {};
+  const email = session.email;
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
+  if (!isValidTenant(tenant)) {
+    return NextResponse.json({ error: "Invalid tenant" }, { status: 400 });
+  }
 
   // Validate input
-  if (!calendarEventId || !serviceType || !action || !email) {
+  if (!calendarEventId || !serviceType || !action) {
     return NextResponse.json(
       {
-        error:
-          "Missing required fields: calendarEventId, serviceType, action, email",
+        error: "Missing required fields: calendarEventId, serviceType, action",
       },
       { status: 400 },
     );
   }
 
   // Validate serviceType
-  const validServices = [
-    "staff",
-    "equipment",
-    "catering",
-    "cleaning",
-    "security",
-    "setup",
-    "furnishings",
-  ];
-  if (!validServices.includes(serviceType)) {
+  if (!isApproverService(serviceType)) {
     return NextResponse.json(
       {
-        error: `Invalid serviceType. Must be one of: ${validServices.join(", ")}`,
+        error: `Invalid serviceType. Must be one of: ${APPROVER_SERVICES.join(", ")}`,
       },
       { status: 400 },
     );
@@ -50,6 +93,28 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const booking = await serverGetDataByCalendarEventId<
+      Record<string, unknown>
+    >(TableNames.BOOKING, calendarEventId, tenant);
+    if (!booking) {
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+    if (
+      !(await authorizeServiceAction(
+        session,
+        tenant,
+        booking.roomId,
+        serviceType,
+      ))
+    ) {
+      return NextResponse.json(
+        {
+          error: `You are not an approver for the ${serviceHistoryDisplayName(serviceType)} service on this request`,
+        },
+        { status: 403 },
+      );
+    }
+
     console.log(
       `🎯 SERVICE ${action.toUpperCase()} REQUEST [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
       {
@@ -120,11 +185,6 @@ export async function POST(req: NextRequest) {
       const transitionedToClosed = xstateResult.newState === "Closed";
 
       // Add history logging for individual service approve/decline since XState doesn't handle history
-      const { serverGetDataByCalendarEventId } =
-        await import("@/lib/firebase/server/adminDb");
-      const { TableNames } = await import("@/components/src/policy");
-      const { BookingStatusLabel } = await import("@/components/src/types");
-
       const doc = await serverGetDataByCalendarEventId<{
         id: string;
         requestNumber: number;
@@ -132,19 +192,7 @@ export async function POST(req: NextRequest) {
 
       if (doc) {
         // Create service-specific note for history
-        const serviceDisplayName =
-          serviceType.charAt(0).toUpperCase() + serviceType.slice(1);
-        const actionDisplayName =
-          action === "approve"
-            ? "Approved"
-            : action === "decline"
-              ? "Declined"
-              : "Closed Out";
-        const baseServiceNote = `${serviceDisplayName} Service ${actionDisplayName}`;
-        const serviceNote =
-          action === "decline" && reason && String(reason).trim().length > 0
-            ? `${baseServiceNote}: ${reason}`
-            : baseServiceNote;
+        const serviceNote = serviceHistoryNote(serviceType, action, reason);
 
         // Determine appropriate status for history log
         const historyStatus =
@@ -166,7 +214,7 @@ export async function POST(req: NextRequest) {
               status: historyStatus, // PRE-APPROVED for approve/decline, CHECKED_OUT for closeout
               changedBy: email,
               requestNumber: doc.requestNumber,
-              note: serviceNote, // e.g., "Staff Service Declined: out of stock"
+              note: serviceNote, // e.g., "Staffing Service Declined: out of stock"
             }),
           },
         );
@@ -214,8 +262,8 @@ export async function POST(req: NextRequest) {
                 requestNumber: doc.requestNumber,
                 note:
                   reason && String(reason).trim().length > 0
-                    ? `Overall declined due to service: ${serviceDisplayName}. Reason: ${reason}`
-                    : `Overall declined due to service: ${serviceDisplayName}`,
+                    ? `Overall declined due to service: ${serviceHistoryDisplayName(serviceType)}. Reason: ${reason}`
+                    : `Overall declined due to service: ${serviceHistoryDisplayName(serviceType)}`,
               }),
             },
           );

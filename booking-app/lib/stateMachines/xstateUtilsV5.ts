@@ -1,1 +1,4 @@
-export { executeXStateTransition, getAvailableXStateTransitions } from "./xstateTransitions";
+export {
+  executeXStateTransition,
+  getAvailableXStateTransitions,
+} from "./xstateTransitions";

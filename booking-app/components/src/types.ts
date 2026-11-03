@@ -19,8 +19,12 @@ export enum AttendeeAffiliation {
 }
 
 export type Ban = {
+  id?: string;
   email: string;
   bannedAt: string;
+  /** Absent on a permanent ban. Timed bans block only while now is in [startsAt, endsAt). */
+  startsAt?: unknown;
+  endsAt?: unknown;
 };
 
 export type Booking = Inputs &
@@ -119,6 +123,7 @@ export type CalendarEvent = {
   end: string;
   id: string;
   resourceId: string;
+  calendarEventId?: string;
   display?: string;
   overlap?: boolean;
   url?: string;
@@ -174,6 +179,8 @@ export type Inputs = {
   sponsorEmail: string;
   title: string;
   description: string;
+  /** Free-text production schedule; required when duration exceeds schema threshold. */
+  productionSchedule?: string;
   bookingType: string;
   attendeeAffiliation: string;
   roomSetup: string;
@@ -211,6 +218,8 @@ export type Inputs = {
   /** Selected auxiliary spaces keyed by parent room id → option values. */
   annexByRoom?: Record<string, string[]>;
   webcheckoutCartNumber?: string;
+  /** Staff-only free-text note (e.g. work order confirmation number). Shown in the booking detail modal per `schema.detailsModal.showMemo`, `memoViewRoles`, and `memoEditRoles`. */
+  memo?: string;
   // Individual service fields for pregame parsing
   equipment?: string;
   staffing?: string;
@@ -355,7 +364,9 @@ export type RoomSetting = {
   isWalkIn?: boolean;
   isWalkInCanBookTwo?: boolean;
   isEquipment?: boolean;
-  services?: string[] | import("@/components/src/client/routes/components/schemaTypes").ResourceServicesConfig;
+  services?:
+    | string[]
+    | import("@/components/src/client/routes/components/schemaTypes").ResourceServicesConfig;
   staffingServices?: string[]; // Specific staffing service options for this room
   staffingSections?: { name: string; indexes: number[] }[];
   // Auto-approval configuration

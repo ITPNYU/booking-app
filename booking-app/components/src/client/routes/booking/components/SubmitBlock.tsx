@@ -38,10 +38,7 @@ export default function SubmitBlock({
   const { formData, checkedAgreements, setCheckedAgreements } =
     useContext(BookingContext);
   const blocked = useRequestBlocked();
-  const { isMod, isBooking } = getRequestOrigin(
-    formContext,
-    formData?.origin,
-  );
+  const { isMod, isBooking } = getRequestOrigin(formContext, formData?.origin);
 
   // The Agreement section is only rendered for the regular booking form. VIP
   // and walk-in flows never show the attestations, so they must not be

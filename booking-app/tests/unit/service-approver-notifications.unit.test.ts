@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockServerGetDataByCalendarEventId = vi.fn();
-const mockServerFetchAllDataFromCollection = vi.fn();
+const mockServerResolveServiceApproverEmails = vi.fn();
 const mockServerBookingContents = vi.fn();
 const mockGetTenantEmailConfig = vi.fn();
 const mockServerGetTenantResources = vi.fn();
@@ -9,8 +9,11 @@ const mockServerGetTenantResources = vi.fn();
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverGetDataByCalendarEventId: (...args: any[]) =>
     mockServerGetDataByCalendarEventId(...args),
-  serverFetchAllDataFromCollection: (...args: any[]) =>
-    mockServerFetchAllDataFromCollection(...args),
+}));
+
+vi.mock("@/lib/firebase/server/serviceApprovers", () => ({
+  serverResolveServiceApproverEmails: (...args: any[]) =>
+    mockServerResolveServiceApproverEmails(...args),
 }));
 
 vi.mock("@/components/src/server/admin", () => ({
@@ -43,11 +46,14 @@ describe("notifyServiceApproversForRequestedServices", () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue({ ok: true });
     mockServerGetTenantResources.mockResolvedValue([]);
-    mockServerFetchAllDataFromCollection.mockResolvedValue([
-      { email: "staff-approver@nyu.edu", isStaffing: true },
-      { email: "catering-approver@nyu.edu", isCatering: true },
-      { email: "security-approver@nyu.edu", isSecurity: true },
-    ]);
+    mockServerResolveServiceApproverEmails.mockImplementation(
+      async (_roomId: unknown, service: string) =>
+        ({
+          staff: ["staff-approver@nyu.edu"],
+          catering: ["catering-approver@nyu.edu"],
+          security: ["security-approver@nyu.edu"],
+        })[service] ?? [],
+    );
     mockServerBookingContents.mockResolvedValue({
       title: "Demo",
       requestNumber: 7,
@@ -58,12 +64,20 @@ describe("notifyServiceApproversForRequestedServices", () => {
 
   it("notifies the approvers of every pending requested service", async () => {
     mockServerGetDataByCalendarEventId.mockResolvedValue({
+      roomId: "202, 1201",
       staffingServices: "audio_tech",
       catering: "yes",
       hireSecurity: "yes",
     });
 
     await notifyServiceApproversForRequestedServices("cal-1", "mc");
+
+    expect(mockServerResolveServiceApproverEmails).toHaveBeenCalledWith(
+      "202, 1201",
+      "catering",
+      "mc",
+      "notify",
+    );
 
     expect(sentSubjects().sort()).toEqual([
       "CATERING REQUESTED → catering-approver@nyu.edu",

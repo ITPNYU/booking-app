@@ -28,6 +28,7 @@ import useRequestFormState from "../hooks/useRequestFormState";
 import useSubmitRequest from "../hooks/useSubmitRequest";
 import { buildBookingUrl } from "../utils/bookingUrlParser";
 import { formContextToFlowType } from "../utils/formSteps";
+import { isProductionScheduleRequired } from "../utils/productionSchedule";
 import { RequestFormShell, Section } from "./RequestFormShell";
 import SubmitBlock, { useRequestBlocked } from "./SubmitBlock";
 
@@ -48,8 +49,12 @@ export default function DetailsInput({
   userApiData,
 }: Props) {
   const { userEmail, settings } = useContext(DatabaseContext);
-  const { selectedRooms, formData, setIsDetailsValid } =
-    useContext(BookingContext);
+  const {
+    selectedRooms,
+    formData,
+    setIsDetailsValid,
+    bookingCalendarInfo,
+  } = useContext(BookingContext);
   const blocked = useRequestBlocked();
   const router = useRouter();
   const { tenant } = useParams();
@@ -66,7 +71,7 @@ export default function DetailsInput({
   );
 
   const {
-    form: { showNNumber, showSponsor, showBookingType },
+    form: { showNNumber, showSponsor, showBookingType, productionSchedule },
     mappings: { role: roleMapping },
   } = useTenantSchema();
 
@@ -409,6 +414,42 @@ export default function DetailsInput({
               </p>
             }
             dataTestId="attendee-affiliation-select"
+            {...{ control, errors, trigger }}
+          />
+        )}
+        {productionSchedule?.enabled && (
+          <BookingFormTextField
+            id="productionSchedule"
+            label={productionSchedule.label || "Production Schedule"}
+            required={
+              !!bookingCalendarInfo?.start &&
+              !!bookingCalendarInfo?.end &&
+              isProductionScheduleRequired(
+                bookingCalendarInfo.start,
+                bookingCalendarInfo.end,
+                productionSchedule.requiredAboveHours,
+              )
+            }
+            description={
+              <>
+                {productionSchedule.description}{" "}
+                {productionSchedule.templateLink && (
+                  <a
+                    href={productionSchedule.templateLink}
+                    className="text-blue-600 hover:underline dark:text-blue-500"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {productionSchedule.templateLinkText ||
+                      "Click here for schedule templates"}
+                  </a>
+                )}
+              </>
+            }
+            fieldProps={{
+              multiline: true,
+              minRows: 3,
+            }}
             {...{ control, errors, trigger }}
           />
         )}

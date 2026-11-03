@@ -3,17 +3,22 @@
  */
 
 import { TENANTS } from "../constants/tenants";
+import type { MediaCommonsServiceFlags } from "../types";
 import {
+  getServiceRooms,
+  getServiceSectionConfig,
+  getServiceResourceId,
   isPassiveSetupSelection,
   type ServiceResourceLike,
 } from "./resourceServicesUtils";
+import type { ResourceServiceKey } from "../client/routes/components/schemaTypes";
 
 /**
  * NYU Identity API dept_code values that identify ITP / IMA / Low Res affiliated users.
  */
 export const ITP_DEPT_CODES = [
   "GTITPG", // Interactive Telecommunications
-  "TIIMA",  // Low Res anomaly
+  "TIIMA", // Low Res anomaly
   "TS1001", // Interactive Telecommunications Program (Administrators)
   "TS1067", // Interactive Telecommunications Program (Staff)
   "TS1068", // Interactive Telecommunications Program (Student Workers)
@@ -135,9 +140,9 @@ export const getMediaCommonsServices = (
       String(data.roomSetup).trim().toLowerCase() !== "yes");
   // Additional event furniture is its own service region in the MC machine
   // ("Furnishings Request" / "Furnishings Closeout").
-  const furnishingsRequested = Object.values(
-    data.furnishingsByRoom ?? {},
-  ).some((v: unknown) => isServiceRequested(v));
+  const furnishingsRequested = Object.values(data.furnishingsByRoom ?? {}).some(
+    (v: unknown) => isServiceRequested(v),
+  );
 
   return {
     staff: isServiceRequested(data.staffingServices),
@@ -154,4 +159,71 @@ export const getMediaCommonsServices = (
     cleaning: isServiceRequested(data.cleaningService),
     security: isServiceRequested(data.hireSecurity),
   };
+};
+
+/** Machine context key → key of the room's `services` config. */
+const SERVICE_SCHEMA_KEYS: Record<
+  keyof MediaCommonsServiceFlags,
+  ResourceServiceKey
+> = {
+  staff: "staffing",
+  equipment: "equipment",
+  catering: "catering",
+  cleaning: "cleaning",
+  security: "security",
+  setup: "setup",
+  furnishings: "furnishings",
+};
+
+/**
+ * Rooms whose service config applies to a saved booking: every room in
+ * `roomId` plus every annex space picked under them (annex spaces carry their
+ * own `services`). Unknown ids resolve to nothing.
+ */
+export const getBookingServiceRooms = (
+  data: Record<string, unknown> | null | undefined,
+  resources: ServiceResourceLike[],
+): ServiceResourceLike[] => {
+  const roomIds = new Set(
+    String(data?.roomId ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean),
+  );
+  const selectedRooms = resources.filter((r) =>
+    roomIds.has(getServiceResourceId(r)),
+  );
+  const annexByRoom =
+    data?.annexByRoom && typeof data.annexByRoom === "object"
+      ? (data.annexByRoom as Record<string, string[]>)
+      : undefined;
+  return getServiceRooms(selectedRooms, annexByRoom, resources);
+};
+
+/**
+ * Which MC services the system closes out on its own once the booking
+ * reaches Service Closeout: a service is flagged when any booked room sets
+ * `autoCloseout: true` for it in the tenant schema. Only flagged services are
+ * returned; the machine reads an absent key as "manual closeout".
+ */
+export const getMediaCommonsAutoCloseout = (
+  data: Record<string, unknown> | null | undefined,
+  resources: ServiceResourceLike[],
+): MediaCommonsServiceFlags => {
+  const rooms = getBookingServiceRooms(data, resources);
+  const flags: MediaCommonsServiceFlags = {};
+  for (const [service, schemaKey] of Object.entries(SERVICE_SCHEMA_KEYS) as [
+    keyof MediaCommonsServiceFlags,
+    ResourceServiceKey,
+  ][]) {
+    if (
+      rooms.some(
+        (room) =>
+          getServiceSectionConfig(room, schemaKey)?.autoCloseout === true,
+      )
+    ) {
+      flags[service] = true;
+    }
+  }
+  return flags;
 };

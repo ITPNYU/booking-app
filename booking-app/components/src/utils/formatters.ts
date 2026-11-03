@@ -31,11 +31,11 @@ export const getSecondaryContactName = (bookingContents: any): string => {
   const firstName = bookingContents.secondaryFirstName?.toString() || "";
   const lastName = bookingContents.secondaryLastName?.toString() || "";
   const fullName = `${firstName} ${lastName}`.trim();
-  
+
   if (fullName) {
     return fullName;
   }
-  
+
   // Fallback to old format
   return bookingContents.secondaryName?.toString() || "";
 };

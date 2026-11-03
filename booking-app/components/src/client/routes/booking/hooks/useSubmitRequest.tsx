@@ -5,6 +5,7 @@ import { SubmitHandler, UseFormHandleSubmit } from "react-hook-form";
 import { FormContextLevel, Inputs } from "../../../../types";
 import { getRequestOrigin } from "../../../../utils/serviceSections";
 import { BookingContext } from "../bookingProvider";
+import { claimDashboardReturn } from "../../components/bookingTable/dashboardView";
 import { buildBookingUrl } from "../utils/bookingUrlParser";
 import useCheckAutoApproval from "./useCheckAutoApproval";
 import useSubmitBooking from "./useSubmitBooking";
@@ -23,7 +24,7 @@ export default function useSubmitRequest(
     useContext(BookingContext);
   const registerEvent = useSubmitBooking(formContext);
 
-  const { isWalkIn, isVIP, isMod } = getRequestOrigin(
+  const { isWalkIn, isVIP, isMod, isEdit } = getRequestOrigin(
     formContext,
     formData?.origin,
   );
@@ -62,22 +63,44 @@ export default function useSubmitRequest(
       formDataOtherSchool: formData?.otherSchool,
     });
 
-    // An edit lands on the flow's confirmation page; there is no edit/confirmation.
+    // A declined VIP booking is edited under the EDIT context, but it is still
+    // a VIP request, so it confirms on the VIP page. Other edits use /edit,
+    // where View Bookings can return to the dashboard the edit started from.
     const confirmationFlow = isMod
       ? "modification"
       : isWalkIn
         ? "walk-in"
         : isVIP
           ? "vip"
-          : "book";
+          : isEdit
+            ? "edit"
+            : "book";
 
+    const tenantId = String(tenant ?? "");
     registerEvent(data, isAutoApproval, calendarEventId)
       .catch((error) => {
         console.error("Error submitting booking:", error);
+        return "error" as const;
       })
-      .finally(() => {
+      .then((outcome) => {
+        // A staff modification goes back to the dashboard it came from.
+        // Other requests still land on the confirmation page; an edit's
+        // claimed return is read there by View Bookings.
+        if (outcome === "success" && isEdit) {
+          claimDashboardReturn("edit", tenantId, calendarEventId);
+        }
+        // Only a modification that started from a dashboard skips confirmation.
+        // A modification opened some other way still shows the confirmation page.
+        const modificationReturn =
+          outcome === "success" && isMod
+            ? claimDashboardReturn("modification", tenantId, calendarEventId)
+            : null;
+        if (outcome === "success" && isMod && modificationReturn != null) {
+          router.replace(modificationReturn);
+          return;
+        }
         router.push(
-          buildBookingUrl(String(tenant), confirmationFlow, "confirmation"),
+          buildBookingUrl(tenantId, confirmationFlow, "confirmation"),
         );
       });
   };

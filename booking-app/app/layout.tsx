@@ -1,19 +1,16 @@
 // app/layout.tsx
 
 import "@/components/src/client/styles.css";
+import "@fontsource/roboto/latin-300.css";
+import "@fontsource/roboto/latin-400.css";
+import "@fontsource/roboto/latin-500.css";
+import "@fontsource/roboto/latin-700.css";
 
 import { ThemeProvider } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
-import { Roboto } from "next/font/google";
 import { SessionProvider } from "@/components/src/client/routes/components/SessionProvider";
 import { AuthProvider } from "@/components/src/client/routes/components/AuthProvider";
 import theme from "./theme/theme";
-
-const roboto = Roboto({
-  weight: ["300", "400", "500", "700"],
-  subsets: ["latin"],
-  display: "swap",
-});
 
 export const metadata = {
   title: "NYU room booking",
@@ -27,7 +24,7 @@ type LayoutProps = {
 const RootLayout: React.FC<LayoutProps> = ({ children }) => (
   <html lang="en">
     <head></head>
-    <body className={roboto.className}>
+    <body>
       <SessionProvider>
         <AuthProvider>
           <ThemeProvider theme={theme}>

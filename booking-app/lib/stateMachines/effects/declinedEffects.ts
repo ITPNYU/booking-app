@@ -2,6 +2,7 @@ import type { SchemaContextType } from "@/components/src/client/routes/component
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
+import { sendDeclineCcEmails } from "@/components/src/server/declineCcEmails";
 import { BookingStatusLabel } from "@/components/src/types";
 import { serverGetDocumentById } from "@/lib/firebase/server/adminDb";
 import * as admin from "firebase-admin";
@@ -14,7 +15,8 @@ import type { HandlerContext, StateHandler } from "./types";
  * 1. Stamps declinedAt / declinedBy onto firestoreUpdates
  * 2. Composes and sends a decline email to the guest, including the
  *    tenant-specific grace period and — for parallel state declines —
- *    the list of specific services that were declined
+ *    the list of specific services that were declined, plus a copy to each
+ *    of the tenant's `ccEmails.declined` addresses
  * 3. PUTs /api/calendarEvents to prefix the Google Calendar event title
  *    with `[DECLINED]`
  */
@@ -99,14 +101,17 @@ export const handleDeclinedEntry: StateHandler = async (
         });
       }
 
-      // Use decline reason from XState context if available, fallback to reason parameter
+      // A reason on the request means an admin declined the whole booking, so
+      // it wins over the services summary. Without one the decline came from
+      // a service decision, and context.declineReason may be stale: it
+      // persists in the snapshot from any decline before the last edit.
+      const explicitReason = reason?.trim();
       let declineReason =
+        explicitReason ||
         newSnapshot.context?.declineReason ||
-        reason ||
         "Service requirements could not be fulfilled";
 
-      // If specific services were declined, include them in the reason
-      if (declinedServices.length > 0) {
+      if (!explicitReason && declinedServices.length > 0) {
         const servicesList = declinedServices.join(", ");
         declineReason = `The following service(s) could not be fulfilled: ${servicesList}`;
       }
@@ -129,6 +134,14 @@ export const handleDeclinedEntry: StateHandler = async (
           reason: declineReason,
         },
       );
+
+      // Same email to each ccEmails.declined address
+      await sendDeclineCcEmails({
+        calendarEventId,
+        guestEmail,
+        headerMessage,
+        tenant,
+      });
     } else {
       console.warn(
         `⚠️ XSTATE DECLINE EMAIL SKIPPED - NO EMAIL IN CONTEXT [${tenant?.toUpperCase() || "UNKNOWN"}]:`,

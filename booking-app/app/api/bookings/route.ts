@@ -21,15 +21,18 @@ import {
   BookingOrigin,
   BookingStatusLabel,
   FormContextLevel,
-  RoomSetting,
 } from "@/components/src/types";
 import {
   formatOrigin,
   getSecondaryContactName,
 } from "@/components/src/utils/formatters";
-import { resolveAnnexCalendarIds } from "@/components/src/utils/resourceServicesUtils";
 import { canRequestAuxiliarySpaces } from "@/components/src/utils/roleUtils";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
+import {
+  getProductionScheduleRequiredErrorMessage,
+  isProductionScheduleMissingWhenRequired,
+} from "@/components/src/client/routes/booking/utils/productionSchedule";
 import {
   logServerBookingChange,
   serverGetNextSequentialId,
@@ -43,7 +46,7 @@ import { createActor } from "xstate";
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
 
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import { CALENDAR_HIDE_STATUS, TableNames } from "@/components/src/policy";
+import { TableNames } from "@/components/src/policy";
 import {
   getMediaCommonsServices,
   isMediaCommons,
@@ -52,12 +55,16 @@ import {
   enforceRequestLimits,
   getRequestLimitRoleKey,
 } from "@/lib/bookingRequestLimits";
-import { getCalendarClient } from "@/lib/googleClient";
 import { getMaintenanceModeSettings } from "@/lib/maintenanceModeServer";
-import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
+import {
+  BANNED_FROM_BOOKING_MESSAGE,
+  requesterIsBanned,
+} from "@/lib/bookingBan";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
 import { Timestamp } from "firebase-admin/firestore";
 import { DateSelectArg } from "fullcalendar";
+import { prepareBookingCalendars } from "./checkOverlap";
+import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
 import {
   extractTenantFromRequest,
   getAffiliationDisplayValues,
@@ -110,38 +117,6 @@ function cleanObjectForFirestore(obj: any): any {
   return cleaned;
 }
 
-// Helper function to extract tenant from request
-
-// Helper function to get tenant-specific room information
-const getTenantRooms = async (tenant?: string) => {
-  try {
-    const schema = await serverGetDocumentById(
-      TableNames.TENANT_SCHEMA,
-      tenant || DEFAULT_TENANT,
-    );
-
-    if (!schema || !schema.resources) {
-      console.log("No schema or resources found for tenant:", tenant);
-      return [];
-    }
-
-    // Apply environment-based calendar ID selection
-    const resourcesWithCorrectCalendarIds = applyEnvironmentCalendarIds(
-      schema.resources,
-    );
-
-    return resourcesWithCorrectCalendarIds.map((resource: any) => ({
-      roomId: String(resource.resourceId ?? resource.roomId),
-      name: resource.name,
-      capacity: resource.capacity?.toString(),
-      calendarId: resource.calendarId,
-    }));
-  } catch (error) {
-    console.error("Error fetching tenant rooms:", error);
-    return [];
-  }
-};
-
 // Helper functions for tenant-specific logic
 const getTenantFlags = (tenant: string) => ({
   isITP: tenant === "itp",
@@ -186,7 +161,7 @@ const buildBookingContents = (
   }) as unknown as BookingFormDetails;
 
 async function createBookingCalendarEvent(
-  selectedRooms: RoomSetting[],
+  selectedRooms: Array<{ roomId: string; calendarId: string }>,
   _department: string,
   title: string,
   bookingCalendarInfo: DateSelectArg,
@@ -196,17 +171,13 @@ async function createBookingCalendarEvent(
   const [room, ...otherRooms] = selectedRooms;
   const { calendarId } = room;
 
-  if (calendarId == null) {
-    throw Error(`calendarId not found for room ${room.roomId}`);
-  }
-
   const selectedRoomIds = selectedRooms.map(r => r.roomId);
   const otherRoomEmails = [
     ...new Set([
       ...otherRooms.map((r: { calendarId: string }) => r.calendarId),
       ...annexCalendarIds,
     ]),
-  ].filter((email) => email && email !== calendarId);
+  ].filter(email => email && email !== calendarId);
 
   // Limit title to 25 characters
   const truncatedTitle =
@@ -423,78 +394,16 @@ async function handleBookingApprovalEmails(
   }
 }
 
-async function checkOverlap(
-  selectedRooms: RoomSetting[],
-  bookingCalendarInfo: DateSelectArg,
-  calendarEventId?: string,
-) {
-  const calendar = await getCalendarClient();
-
-  // Google requires RFC3339 with mandatory offset for timeMin/timeMax;
-  // bookingCalendarStrToDate also absorbs offset-less strings from stale
-  // client bundles.
-  const timeMin = bookingCalendarStrToDate(
-    bookingCalendarInfo.startStr,
-  ).toISOString();
-  const timeMax = bookingCalendarStrToDate(
-    bookingCalendarInfo.endStr,
-  ).toISOString();
-
-  // Check each selected room for overlaps
-  for (const room of selectedRooms) {
-    const events = await calendar.events.list({
-      calendarId: room.calendarId,
-      timeMin,
-      timeMax,
-      singleEvents: true,
-    });
-
-    const hasOverlap = events.data.items?.some(event => {
-      // Skip the event being edited in case of modification
-      if (
-        calendarEventId &&
-        (calendarEventId === event.id ||
-          calendarEventId === event.id.split(":")[0])
-      ) {
-        console.log("calendarEventId", calendarEventId);
-        console.log("event.id", event.id);
-        return false;
-      }
-
-      // Skip events with CALENDAR_HIDE_STATUS
-      const eventTitle = event.summary || "";
-      if (CALENDAR_HIDE_STATUS.some(status => eventTitle.includes(status))) {
-        return false;
-      }
-
-      const eventStart = new Date(event.start.dateTime || event.start.date);
-      const eventEnd = new Date(event.end.dateTime || event.end.date);
-      const requestStart = new Date(timeMin);
-      const requestEnd = new Date(timeMax);
-      // log the event that overlaps and then return
-      if (
-        (eventStart >= requestStart && eventStart < requestEnd) ||
-        (eventEnd > requestStart && eventEnd <= requestEnd) ||
-        (eventStart <= requestStart && eventEnd >= requestEnd)
-      ) {
-        console.log("event that overlaps", event);
-      }
-      return (
-        (eventStart >= requestStart && eventStart < requestEnd) ||
-        (eventEnd > requestStart && eventEnd <= requestEnd) ||
-        (eventStart <= requestStart && eventEnd >= requestEnd)
-      );
-    });
-
-    if (hasOverlap) return true;
-  }
-
-  return false;
-}
-
 export async function POST(request: NextRequest) {
-  const { email, selectedRooms, bookingCalendarInfo, data: rawData, isAutoApproval } =
-    await request.json();
+  const {
+    email,
+    selectedRooms,
+    bookingCalendarInfo,
+    data: postedData,
+    isAutoApproval,
+  } = await request.json();
+  // memo and the cart number are written only through their dedicated routes.
+  const rawData = omitStaffOnlyBookingFieldWrites(postedData);
 
   // Students cannot request auxiliary spaces — strip even if posted directly.
   const data =
@@ -517,13 +426,40 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (await requesterIsBanned(email, tenant)) {
+    return NextResponse.json(
+      { error: BANNED_FROM_BOOKING_MESSAGE },
+      { status: 403 },
+    );
+  }
+
+  // Enforce production-schedule requirement server-side (schema-driven).
+  const tenantSchema = await getCachedTenantSchema(tenant ?? DEFAULT_TENANT);
+  const productionScheduleConfig = tenantSchema?.form?.productionSchedule;
+  if (
+    isProductionScheduleMissingWhenRequired({
+      enabled: productionScheduleConfig?.enabled,
+      requiredAboveHours: productionScheduleConfig?.requiredAboveHours,
+      start: bookingCalendarInfo?.start ?? bookingCalendarInfo?.startStr,
+      end: bookingCalendarInfo?.end ?? bookingCalendarInfo?.endStr,
+      productionSchedule: data?.productionSchedule,
+    })
+  ) {
+    return NextResponse.json(
+      {
+        error: getProductionScheduleRequiredErrorMessage(
+          productionScheduleConfig?.requiredAboveHours,
+        ),
+      },
+      { status: 400 },
+    );
+  }
+
   // Annex resources can only be requested via a parent room's annex
   // checkboxes (annexByRoom); reject them if posted as bookable rooms.
   const tenantResources = await serverGetTenantResources(tenant);
   const annexResourceIds = new Set(
-    tenantResources
-      .filter((r) => r.parentResourceId)
-      .map((r) => r.resourceId),
+    tenantResources.filter(r => r.parentResourceId).map(r => r.resourceId),
   );
   const requestedAnnexRoom = Array.isArray(selectedRooms)
     ? selectedRooms.find((r: any) => annexResourceIds.has(String(r?.roomId)))
@@ -536,10 +472,15 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const annexCalendarIds = resolveAnnexCalendarIds(
-    data?.annexByRoom,
-    tenantResources,
-  );
+  const prepared = await prepareBookingCalendars({
+    tenant,
+    selectedRooms,
+    resources: tenantResources,
+    annexByRoom: data?.annexByRoom,
+    bookingCalendarInfo,
+  });
+  if ("response" in prepared) return prepared.response;
+  const { rooms: bookedRooms, annexCalendarIds } = prepared;
 
   // Get tenant-specific flags
   const { isITP, isMediaCommons, usesXState } = getTenantFlags(tenant);
@@ -575,34 +516,6 @@ export async function POST(request: NextRequest) {
       hireSecurity: data?.hireSecurity,
     },
   });
-
-  let hasOverlap: boolean;
-  try {
-    hasOverlap = await checkOverlap(selectedRooms, bookingCalendarInfo);
-  } catch (err: any) {
-    console.error(
-      `🚨 OVERLAP CHECK FAILED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
-      {
-        googleStatus: err?.response?.status ?? err?.code,
-        googleError: JSON.stringify(
-          err?.response?.data ?? err?.errors ?? err?.message,
-        ),
-        roomIds: selectedRooms?.map((r: any) => r.roomId),
-        startStr: bookingCalendarInfo?.startStr,
-        endStr: bookingCalendarInfo?.endStr,
-      },
-    );
-    return NextResponse.json(
-      { error: "Unable to verify room availability. Please try again." },
-      { status: 500 },
-    );
-  }
-  if (hasOverlap) {
-    return NextResponse.json(
-      { error: "Time slot no longer available" },
-      { status: 409 },
-    );
-  }
 
   // Enforce per-resource request limits (per user email + role)
   try {
@@ -894,7 +807,7 @@ export async function POST(request: NextRequest) {
   let calendarEventId: string;
   try {
     calendarEventId = await createBookingCalendarEvent(
-      selectedRooms,
+      bookedRooms,
       data.department,
       data.title,
       bookingCalendarInfo,

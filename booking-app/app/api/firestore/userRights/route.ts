@@ -64,9 +64,7 @@ export async function POST(req: NextRequest) {
       TableNames.USERS_RIGHTS,
       body.tenant,
     );
-    const usersRightsRef = admin
-      .firestore()
-      .collection(usersRightsCollection);
+    const usersRightsRef = admin.firestore().collection(usersRightsCollection);
 
     if (body.action === "save") {
       const isLegacy = USER_COLLECTIONS.includes(body.collection as TableNames);
@@ -87,9 +85,7 @@ export async function POST(req: NextRequest) {
             { status: 400 },
           );
         }
-        const existing = await usersRightsRef
-          .where("email", "==", email)
-          .get();
+        const existing = await usersRightsRef.where("email", "==", email).get();
         if (!existing.empty) {
           await usersRightsRef
             .doc(existing.docs[0].id)
@@ -150,19 +146,14 @@ export async function POST(req: NextRequest) {
     if (body.action === "upsertFlag") {
       const trimmedEmail = body.email.trim();
       if (!trimmedEmail) {
-        return NextResponse.json(
-          { error: "email required" },
-          { status: 400 },
-        );
+        return NextResponse.json({ error: "email required" }, { status: 400 });
       }
       const flag = body.flag as UserRightFlagField;
       const existing = await usersRightsRef
         .where("email", "==", trimmedEmail)
         .get();
       if (!existing.empty) {
-        await usersRightsRef
-          .doc(existing.docs[0].id)
-          .update({ [flag]: true });
+        await usersRightsRef.doc(existing.docs[0].id).update({ [flag]: true });
         return NextResponse.json({ id: existing.docs[0].id, updated: true });
       }
       const docRef = await usersRightsRef.add({
@@ -195,9 +186,7 @@ export async function POST(req: NextRequest) {
         },
         {} as Record<UserRightFlagField, boolean>,
       );
-      const shouldDelete = USER_RIGHT_FLAG_FIELDS.every(
-        (f) => !updatedFlags[f],
-      );
+      const shouldDelete = USER_RIGHT_FLAG_FIELDS.every(f => !updatedFlags[f]);
       if (shouldDelete) {
         await targetRef.delete();
         return NextResponse.json({ deleted: true });

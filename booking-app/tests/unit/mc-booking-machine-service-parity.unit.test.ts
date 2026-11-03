@@ -61,6 +61,9 @@ describe("mcBookingMachine service regions stay in parity", () => {
       expect(impl.guards, service.alreadyDeclinedGuard).toHaveProperty(
         service.alreadyDeclinedGuard,
       );
+      expect(impl.guards, service.autoCloseoutGuard).toHaveProperty(
+        service.autoCloseoutGuard,
+      );
       expect(impl.actions, service.approveAction).toHaveProperty(
         service.approveAction,
       );
@@ -68,6 +71,7 @@ describe("mcBookingMachine service regions stay in parity", () => {
         service.declineAction,
       );
     }
+    expect(impl.actions).toHaveProperty("queueAutoCloseout");
   });
 
   it.each(MC_SERVICE_CONFIGS)(
@@ -102,6 +106,83 @@ describe("mcBookingMachine service regions stay in parity", () => {
         [service.contextKey]: false,
       });
       expect(declining.getSnapshot().value).toBe("Declined");
+    },
+  );
+
+  // Issue #1592: every region honors the booked rooms' `autoCloseout` flag
+  // the same way, on both paths into Service Closeout.
+  describe.each(MC_SERVICE_CONFIGS)(
+    "$name closeout honors servicesAutoCloseout.$contextKey",
+    (service) => {
+      const startApproved = (autoCloseout: boolean) =>
+        createActor(mcBookingMachine, {
+          snapshot: mcBookingMachine.resolveState({
+            value: "Approved",
+            context: {
+              tenant: "mc",
+              servicesRequested: { [service.contextKey]: true },
+              servicesApproved: { [service.contextKey]: true },
+              servicesAutoCloseout: autoCloseout
+                ? { [service.contextKey]: true }
+                : {},
+            },
+          }),
+        }).start();
+
+      const closeoutRegion = (actor: ReturnType<typeof startApproved>) =>
+        (actor.getSnapshot().value as any)?.["Service Closeout"]?.[
+          `${service.name} Closeout`
+        ];
+
+      it("closes out on its own after cancel and queues the history effect", () => {
+        const actor = startApproved(true);
+        actor.send({ type: "cancel" });
+        expect(actor.getSnapshot().value).toBe("Closed");
+        expect(actor.getSnapshot().context.pendingSideEffects).toEqual([
+          "cancelProcessing",
+          `autoCloseout:${service.contextKey}`,
+        ]);
+      });
+
+      it("closes out on its own after check out", () => {
+        const actor = startApproved(true);
+        actor.send({ type: "checkIn" });
+        actor.send({ type: "checkOut" });
+        expect(actor.getSnapshot().value).toBe("Closed");
+        expect(actor.getSnapshot().context.pendingSideEffects).toEqual([
+          `autoCloseout:${service.contextKey}`,
+        ]);
+      });
+
+      it("waits for the manual closeout event when the flag is off", () => {
+        const actor = startApproved(false);
+        actor.send({ type: "cancel" });
+        expect(closeoutRegion(actor)).toBe(`${service.name} Closeout Pending`);
+        expect(actor.getSnapshot().context.pendingSideEffects).toEqual([
+          "cancelProcessing",
+        ]);
+        actor.send({ type: service.closeoutEvent } as any);
+        expect(actor.getSnapshot().value).toBe("Closed");
+      });
+
+      it("does not queue a history effect for a service that was never approved", () => {
+        const actor = createActor(mcBookingMachine, {
+          snapshot: mcBookingMachine.resolveState({
+            value: "Approved",
+            context: {
+              tenant: "mc",
+              servicesRequested: { [service.contextKey]: true },
+              servicesApproved: {},
+              servicesAutoCloseout: { [service.contextKey]: true },
+            },
+          }),
+        }).start();
+        actor.send({ type: "cancel" });
+        expect(actor.getSnapshot().value).toBe("Closed");
+        expect(actor.getSnapshot().context.pendingSideEffects).toEqual([
+          "cancelProcessing",
+        ]);
+      });
     },
   );
 });

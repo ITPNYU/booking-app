@@ -31,6 +31,12 @@ export interface MediaCommonsBookingContext {
   automationReason?: AutomaticCancellationReason; // Tracks automatic transitions
   servicesRequested?: MediaCommonsServiceFlags;
   servicesApproved?: MediaCommonsServiceFlags;
+  /**
+   * Services the system closes out on entering Service Closeout, from the
+   * booked rooms' `autoCloseout` schema flags (see getMediaCommonsAutoCloseout).
+   * Derived from the schema on every restore, not persisted as truth.
+   */
+  servicesAutoCloseout?: MediaCommonsServiceFlags;
   // Flag to indicate this XState was created from existing booking without prior xstateData
   _restoredFromStatus?: boolean;
   // Queue of side effects declared by state entry actions. Machine stays pure

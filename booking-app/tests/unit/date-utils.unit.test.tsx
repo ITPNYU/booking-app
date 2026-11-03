@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
   bookingCalendarStrToDate,
+  formatHistoryDateTime,
   formatTimeAmPm,
   toBookingCalendarStr,
 } from "@/components/src/client/utils/date";
 
 describe("Date Utils", () => {
+  describe("formatHistoryDateTime", () => {
+    it("shows seconds in Eastern Time and hides milliseconds", () => {
+      expect(formatHistoryDateTime(new Date("2026-09-20T16:14:58.123Z"))).toBe(
+        "09/20/26 12:14:58 PM",
+      );
+    });
+  });
+
   describe("toBookingCalendarStr", () => {
     it("formats 9:00 AM Eastern as local calendar string with offset", () => {
       // 9:00 AM EDT on 2026-04-07 = 13:00 UTC

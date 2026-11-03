@@ -6,8 +6,11 @@ import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 
 /**
  * Fetch a tenant's resources with environment-specific calendar IDs applied.
- * Returns [] when the schema document or its resources are missing so callers
- * can degrade gracefully (e.g. skip annex invitations).
+ * A resource missing its production calendar id is omitted by
+ * applyEnvironmentCalendarIds; that does not drop the rest of the tenant.
+ * Returns [] only when the schema document or its resources are missing, or
+ * when the fetch itself fails, so callers can tell an empty catalog from a
+ * single room that has no calendar.
  */
 export async function serverGetTenantResources(
   tenant?: string,

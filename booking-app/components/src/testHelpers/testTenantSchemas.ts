@@ -1,5 +1,6 @@
 import {
   generateDefaultSchema,
+  defaultProductionSchedule,
   type SchemaContextType,
 } from "../client/routes/components/SchemaProvider";
 import { TENANTS } from "../constants/tenants";
@@ -47,6 +48,18 @@ const baseMediaCommonsSchema: SchemaContextType = {
       showSetup: true,
       showStaffing: true,
     },
+    productionSchedule: {
+      ...defaultProductionSchedule,
+      enabled: true,
+    },
+  },
+  detailsModal: {
+    showWebCheckout: true,
+    webCheckoutViewRoles: ["PA", "ADMIN", "SUPER_ADMIN"],
+    webCheckoutEditRoles: ["PA", "ADMIN", "SUPER_ADMIN"],
+    showMemo: false,
+    memoViewRoles: ["SERVICES", "ADMIN", "SUPER_ADMIN"],
+    memoEditRoles: ["SERVICES", "ADMIN", "SUPER_ADMIN"],
   },
   attestations: [
     { id: "checklist", html: "<p>Mock checklist agreement.</p>" },
@@ -157,7 +170,11 @@ const baseMediaCommonsSchema: SchemaContextType = {
       resourceId: "230",
       isEquipment: false,
       calendarId: "mock-calendar-230",
-      training: { required: true, formId: "https://docs.google.com/forms/d/e/mock/viewform", infoUrl: "" },
+      training: {
+        required: true,
+        formId: "https://docs.google.com/forms/d/e/mock/viewform",
+        infoUrl: "",
+      },
       isWalkIn: false,
       isWalkInCanBookTwo: false,
       services: ["equipment", "catering", "cleaning", "security"],

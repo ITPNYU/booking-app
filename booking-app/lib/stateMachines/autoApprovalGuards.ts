@@ -53,8 +53,7 @@ export function evaluateMcShouldAutoApprove(
   if (context.bookingCalendarInfo) {
     const startDate = new Date(context.bookingCalendarInfo.startStr);
     const endDate = new Date(context.bookingCalendarInfo.endStr);
-    durationHours =
-      (endDate.getTime() - startDate.getTime()) / ONE_HOUR_IN_MS;
+    durationHours = (endDate.getTime() - startDate.getTime()) / ONE_HOUR_IN_MS;
 
     if (context.selectedRooms) {
       const { maxHours, minHours } = getBookingHourLimits(
@@ -83,8 +82,7 @@ export function evaluateMcShouldAutoApprove(
 
   if (context.isVip) {
     const hasServices =
-      context.servicesRequested &&
-      typeof context.servicesRequested === "object"
+      context.servicesRequested && typeof context.servicesRequested === "object"
         ? Object.values(context.servicesRequested).some(Boolean)
         : false;
     if (hasServices) {
@@ -126,8 +124,7 @@ export function evaluateItpShouldAutoApprove(
   if (context.bookingCalendarInfo) {
     const startDate = new Date(context.bookingCalendarInfo.startStr);
     const endDate = new Date(context.bookingCalendarInfo.endStr);
-    durationHours =
-      (endDate.getTime() - startDate.getTime()) / ONE_HOUR_IN_MS;
+    durationHours = (endDate.getTime() - startDate.getTime()) / ONE_HOUR_IN_MS;
   }
 
   const servicesRequested = context.formData

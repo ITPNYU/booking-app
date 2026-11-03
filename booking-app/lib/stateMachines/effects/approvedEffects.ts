@@ -13,7 +13,14 @@ import type { HandlerContext, StateHandler } from "./types";
 export const handleApprovedEntry: StateHandler = async (
   ctx: HandlerContext,
 ) => {
-  const { calendarEventId, email, tenant, previousState, newState, firestoreUpdates } = ctx;
+  const {
+    calendarEventId,
+    email,
+    tenant,
+    previousState,
+    newState,
+    firestoreUpdates,
+  } = ctx;
 
   firestoreUpdates.finalApprovedAt = admin.firestore.Timestamp.now();
   if (email) {

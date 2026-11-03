@@ -1,8 +1,11 @@
 "use client";
 
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   Alert,
   Box,
+  Breadcrumbs,
   Button,
   Chip,
   CircularProgress,
@@ -11,19 +14,66 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControl,
+  IconButton,
   InputLabel,
+  List,
+  ListItemButton,
+  ListItemText,
+  ListSubheader,
   MenuItem,
   Select,
   Snackbar,
   Typography,
 } from "@mui/material";
-import type { ChangeEvent } from "react";
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { computeDiff, formatValue, type DiffEntry } from "@/lib/utils/schemaDiff";
+import type { ChangeEvent, ReactNode } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  computeDiff,
+  formatValue,
+  type DiffEntry,
+} from "@/lib/utils/schemaDiff";
+import { isTemplateSchemaId, TEMPLATE_SCHEMA_ID } from "@/lib/tenant/resourceDefault";
+import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
+import { isValidTenant } from "@/components/src/constants/tenants";
 import { DatabaseContext } from "../components/Provider";
 import type { SchemaContextType } from "../components/SchemaProvider";
 import { defaultScheme } from "../components/SchemaProvider";
+import {
+  getSlice,
+  isDirtyUnder,
+  isSameSelection,
+  pathPrefix,
+  resourceLabelForPath,
+  resourceLabels,
+  SELECT_ALL,
+  sectionKeys,
+  selectionId,
+  setSlice,
+  sortKeysDeep,
+  type Selection,
+} from "./schemaEditorNav";
+import SchemaResourceForm, {
+  initializeResourceDefault,
+} from "./schemaResourceForm";
+import { SchemaValueFields } from "./schemaResourceFields";
+import SchemaCreateForm from "./schemaCreateForm";
+
+const BUILTIN_SCHEMA_TARGETS = ["mc", "itp", TEMPLATE_SCHEMA_ID];
+
+function mergeSchemaTargets(ids: string[]): string[] {
+  return [...new Set([...BUILTIN_SCHEMA_TARGETS, ...ids])].sort((a, b) =>
+    a.localeCompare(b),
+  );
+}
 
 type SnackState = {
   open: boolean;
@@ -31,17 +81,23 @@ type SnackState = {
   severity: "success" | "error";
 };
 
+type AnyRecord = Record<string, unknown>;
+
+const DEFAULTS = defaultScheme as unknown as AnyRecord;
+
 // ─── Diff Confirmation Dialog ───
 function DiffDialog({
   open,
   diffs,
   saving,
+  labelFor,
   onConfirm,
   onCancel,
 }: {
   open: boolean;
   diffs: DiffEntry[];
   saving: boolean;
+  labelFor: (path: string) => string | undefined;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -52,70 +108,133 @@ function DiffDialog({
         {diffs.length === 0 ? (
           <Typography>No changes detected.</Typography>
         ) : (
-          <Box component="table" sx={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <Box
+            component="table"
+            sx={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}
+          >
             <thead>
               <tr>
-                <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "1px solid #ddd" }}>Field</Box>
-                <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "1px solid #ddd" }}>Change</Box>
-                <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "1px solid #ddd" }}>Before</Box>
-                <Box component="th" sx={{ textAlign: "left", p: 1, borderBottom: "1px solid #ddd" }}>After</Box>
+                <Box
+                  component="th"
+                  sx={{
+                    textAlign: "left",
+                    p: 1,
+                    borderBottom: "1px solid #ddd",
+                  }}
+                >
+                  Field
+                </Box>
+                <Box
+                  component="th"
+                  sx={{
+                    textAlign: "left",
+                    p: 1,
+                    borderBottom: "1px solid #ddd",
+                  }}
+                >
+                  Change
+                </Box>
+                <Box
+                  component="th"
+                  sx={{
+                    textAlign: "left",
+                    p: 1,
+                    borderBottom: "1px solid #ddd",
+                  }}
+                >
+                  Before
+                </Box>
+                <Box
+                  component="th"
+                  sx={{
+                    textAlign: "left",
+                    p: 1,
+                    borderBottom: "1px solid #ddd",
+                  }}
+                >
+                  After
+                </Box>
               </tr>
             </thead>
             <tbody>
-              {diffs.map((d, i) => (
-                <tr key={i}>
-                  <Box
-                    component="td"
-                    sx={{ p: 1, borderBottom: "1px solid #eee", fontFamily: "monospace", fontSize: 12 }}
-                  >
-                    {d.path}
-                  </Box>
-                  <Box
-                    component="td"
-                    sx={{
-                      p: 1,
-                      borderBottom: "1px solid #eee",
-                      color:
-                        d.type === "added"
-                          ? "success.main"
-                          : d.type === "removed"
-                            ? "error.main"
-                            : "warning.main",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {d.type}
-                  </Box>
-                  <Box
-                    component="td"
-                    sx={{
-                      p: 1,
-                      borderBottom: "1px solid #eee",
-                      fontFamily: "monospace",
-                      fontSize: 12,
-                      backgroundColor: d.type === "removed" || d.type === "changed" ? "#fff0f0" : undefined,
-                      wordBreak: "break-all",
-                      maxWidth: 300,
-                    }}
-                  >
-                    {d.type !== "added" ? formatValue(d.oldValue) : ""}
-                  </Box>
-                  <Box
-                    component="td"
-                    sx={{
-                      p: 1,
-                      borderBottom: "1px solid #eee",
-                      fontFamily: "monospace",
-                      fontSize: 12,
-                      backgroundColor: d.type === "added" || d.type === "changed" ? "#f0fff0" : undefined,
-                      wordBreak: "break-all",
-                      maxWidth: 300,
-                    }}
-                  >
-                    {d.type !== "removed" ? formatValue(d.newValue) : ""}
-                  </Box>
-                </tr>
-              ))}
+              {diffs.map((d, i) => {
+                const label = labelFor(d.path);
+                return (
+                  <tr key={i}>
+                    <Box
+                      component="td"
+                      sx={{
+                        p: 1,
+                        borderBottom: "1px solid #eee",
+                        fontFamily: "monospace",
+                        fontSize: 12,
+                      }}
+                    >
+                      {d.path}
+                      {label && (
+                        <Typography
+                          component="div"
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ fontFamily: "inherit" }}
+                        >
+                          {label}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Box
+                      component="td"
+                      sx={{
+                        p: 1,
+                        borderBottom: "1px solid #eee",
+                        color:
+                          d.type === "added"
+                            ? "success.main"
+                            : d.type === "removed"
+                              ? "error.main"
+                              : "warning.main",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {d.type}
+                    </Box>
+                    <Box
+                      component="td"
+                      sx={{
+                        p: 1,
+                        borderBottom: "1px solid #eee",
+                        fontFamily: "monospace",
+                        fontSize: 12,
+                        backgroundColor:
+                          d.type === "removed" || d.type === "changed"
+                            ? "#fff0f0"
+                            : undefined,
+                        wordBreak: "break-all",
+                        maxWidth: 300,
+                      }}
+                    >
+                      {d.type !== "added" ? formatValue(d.oldValue) : ""}
+                    </Box>
+                    <Box
+                      component="td"
+                      sx={{
+                        p: 1,
+                        borderBottom: "1px solid #eee",
+                        fontFamily: "monospace",
+                        fontSize: 12,
+                        backgroundColor:
+                          d.type === "added" || d.type === "changed"
+                            ? "#f0fff0"
+                            : undefined,
+                        wordBreak: "break-all",
+                        maxWidth: 300,
+                      }}
+                    >
+                      {d.type !== "removed" ? formatValue(d.newValue) : ""}
+                    </Box>
+                  </tr>
+                );
+              })}
             </tbody>
           </Box>
         )}
@@ -129,44 +248,60 @@ function DiffDialog({
           onClick={onConfirm}
           disabled={saving || diffs.length === 0}
         >
-          {saving ? <CircularProgress size={20} /> : `Save (${diffs.length} changes)`}
+          {saving ? (
+            <CircularProgress size={20} />
+          ) : (
+            `Save (${diffs.length} changes)`
+          )}
         </Button>
       </DialogActions>
     </Dialog>
   );
 }
 
-// ─── JSON Editor ───
+// ─── JSON Editor (one slice of the schema) ───
+/** Keys sorted at every level to match the Firestore console's field order. */
+function toEditorText(value: unknown): string {
+  return JSON.stringify(sortKeysDeep(value), null, 2);
+}
+
 function JsonEditor({
-  schema,
-  onSchemaChange,
+  value,
+  onChange,
+  onParseErrorChange,
+  minHeight = 500,
 }: {
-  schema: SchemaContextType;
-  onSchemaChange: (schema: SchemaContextType) => void;
+  value: unknown;
+  onChange: (value: unknown) => void;
+  /** Reports whether the textarea currently holds text that does not parse. */
+  onParseErrorChange?: (hasError: boolean) => void;
+  minHeight?: number;
 }) {
-  const [text, setText] = useState(() => JSON.stringify(schema, null, 2));
+  const [text, setText] = useState(() => toEditorText(value));
   const [parseError, setParseError] = useState<string | null>(null);
 
-  // Sync external schema changes into the text (e.g. on tenant switch)
-  const lastExternalRef = useRef(JSON.stringify(schema));
+  // Sync external value changes into the text (e.g. on reset)
+  const lastExternalRef = useRef(JSON.stringify(value));
   useEffect(() => {
-    const incoming = JSON.stringify(schema);
+    const incoming = JSON.stringify(value);
     if (incoming !== lastExternalRef.current) {
       lastExternalRef.current = incoming;
-      setText(JSON.stringify(schema, null, 2));
+      setText(toEditorText(value));
       setParseError(null);
     }
-  }, [schema]);
+  }, [value]);
 
-  const handleChange = (value: string) => {
-    setText(value);
+  const handleChange = (next: string) => {
+    setText(next);
     try {
-      const parsed = JSON.parse(value);
+      const parsed = JSON.parse(next);
       setParseError(null);
+      onParseErrorChange?.(false);
       lastExternalRef.current = JSON.stringify(parsed);
-      onSchemaChange(parsed);
+      onChange(parsed);
     } catch (e: any) {
       setParseError(e.message);
+      onParseErrorChange?.(true);
     }
   };
 
@@ -184,9 +319,10 @@ function JsonEditor({
           handleChange(e.target.value)
         }
         spellCheck={false}
+        aria-label="Schema JSON"
         sx={{
           width: "100%",
-          minHeight: 500,
+          minHeight,
           fontFamily: "monospace",
           fontSize: 13,
           lineHeight: 1.5,
@@ -204,16 +340,149 @@ function JsonEditor({
   );
 }
 
-function UnconfiguredFieldsBanner({
+function DirtyDot() {
+  return (
+    <Box
+      component="span"
+      title="Unsaved changes"
+      sx={{
+        display: "inline-block",
+        width: 8,
+        height: 8,
+        borderRadius: "50%",
+        bgcolor: "warning.main",
+        ml: 1,
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+// ─── Sidebar ───
+function SectionNav({
   schema,
+  diffs,
+  selected,
+  onSelect,
 }: {
-  schema: SchemaContextType;
+  schema: AnyRecord;
+  diffs: DiffEntry[];
+  selected: Selection;
+  onSelect: (sel: Selection) => void;
 }) {
+  const [resourcesOpen, setResourcesOpen] = useState(true);
+  const keys = useMemo(() => sectionKeys(schema, DEFAULTS), [schema]);
+  const resources = useMemo(() => resourceLabels(schema), [schema]);
+
+  const item = (
+    sel: Selection,
+    primary: string,
+    opts: {
+      secondary?: string;
+      muted?: boolean;
+      indent?: number;
+      trailing?: ReactNode;
+    } = {},
+  ) => (
+    <ListItemButton
+      key={selectionId(sel)}
+      selected={isSameSelection(sel, selected)}
+      onClick={() => onSelect(sel)}
+      sx={{ pl: 2 + (opts.indent ?? 0), py: 0.5 }}
+    >
+      <ListItemText
+        primary={primary}
+        secondary={opts.secondary}
+        primaryTypographyProps={{
+          fontFamily: opts.indent ? undefined : "monospace",
+          fontSize: 13,
+          color: opts.muted ? "text.disabled" : undefined,
+          noWrap: true,
+        }}
+        secondaryTypographyProps={{ fontSize: 11, noWrap: true }}
+      />
+      {opts.trailing}
+      {isDirtyUnder(diffs, pathPrefix(sel)) && <DirtyDot />}
+    </ListItemButton>
+  );
+
+  return (
+    <List
+      dense
+      disablePadding
+      subheader={
+        <ListSubheader disableSticky sx={{ lineHeight: "32px" }}>
+          Sections
+        </ListSubheader>
+      }
+    >
+      {item(SELECT_ALL, "All (raw JSON)")}
+      <Divider sx={{ my: 0.5 }} />
+      {keys.map(({ key, present }) => {
+        if (key !== "resources") {
+          return item(
+            { kind: "section", key },
+            key,
+            present
+              ? {}
+              : { muted: true, secondary: "not configured (code default)" },
+          );
+        }
+        return (
+          <Box key="resources-group">
+            {item({ kind: "section", key }, key, {
+              secondary: `${resources.length} items`,
+              trailing: (
+                <IconButton
+                  size="small"
+                  edge="end"
+                  aria-label={
+                    resourcesOpen ? "Collapse resources" : "Expand resources"
+                  }
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setResourcesOpen((o) => !o);
+                  }}
+                >
+                  {resourcesOpen ? (
+                    <ExpandLessIcon fontSize="small" />
+                  ) : (
+                    <ExpandMoreIcon fontSize="small" />
+                  )}
+                </IconButton>
+              ),
+            })}
+            <Collapse in={resourcesOpen}>
+              {resources.map((r) =>
+                item({ kind: "resource", index: r.index }, r.name, {
+                  indent: r.parentResourceId ? 4 : 2,
+                  secondary: [
+                    r.resourceId ? `id ${r.resourceId}` : null,
+                    r.isEquipment ? "equipment" : null,
+                    r.parentResourceId
+                      ? `annex of ${r.parentResourceId}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · "),
+                }),
+              )}
+            </Collapse>
+          </Box>
+        );
+      })}
+    </List>
+  );
+}
+
+function UnconfiguredFieldsBanner({ schema }: { schema: AnyRecord }) {
   const [expanded, setExpanded] = useState(false);
 
-  const allDefaultKeys = Object.keys(defaultScheme) as string[];
+  const allDefaultKeys = Object.keys(DEFAULTS);
   const schemaKeys = Object.keys(schema);
-  const unconfigured = allDefaultKeys.filter((key) => !schemaKeys.includes(key));
+  const unconfigured = allDefaultKeys.filter(
+    (key) => !schemaKeys.includes(key),
+  );
 
   if (unconfigured.length === 0) return null;
 
@@ -232,7 +501,8 @@ function UnconfiguredFieldsBanner({
       }
     >
       <Typography variant="body2">
-        {unconfigured.length} field(s) not configured in Firestore (using code defaults)
+        {unconfigured.length} field(s) not configured in Firestore (using code
+        defaults)
       </Typography>
       <Collapse in={expanded}>
         <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
@@ -255,32 +525,67 @@ function UnconfiguredFieldsBanner({
 export default function SchemaEditor() {
   const { userEmail } = useContext(DatabaseContext);
   const [tenant, setTenant] = useState<string>("");
-  const [schema, setSchema] = useState<SchemaContextType | null>(null);
+  const [schemaTargets, setSchemaTargets] = useState<string[]>(
+    BUILTIN_SCHEMA_TARGETS,
+  );
+  const [createOpen, setCreateOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [schema, setSchema] = useState<AnyRecord | null>(null);
   const [originalSchema, setOriginalSchema] = useState<string>("");
+  const [selected, setSelected] = useState<Selection>(SELECT_ALL);
+  // True while the textarea holds text that does not parse. Such text has
+  // not reached `schema`, so leaving the slice would discard it.
+  const [hasParseError, setHasParseError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [templateMissing, setTemplateMissing] = useState(false);
+  const [initializing, setInitializing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [diffDialogOpen, setDiffDialogOpen] = useState(false);
-  const [diffs, setDiffs] = useState<DiffEntry[]>([]);
   const [snack, setSnack] = useState<SnackState>({
     open: false,
     message: "",
     severity: "success",
   });
+  const fetchGeneration = useRef(0);
 
   const fetchSchema = useCallback(async (tenantId: string) => {
+    const generation = ++fetchGeneration.current;
     setLoading(true);
+    setTemplateMissing(false);
     try {
       const res = await fetch(`/api/tenantSchema/${tenantId}?raw=1`);
+      if (generation !== fetchGeneration.current) return;
+      if (res.status === 404 && isTemplateSchemaId(tenantId)) {
+        setSchema(null);
+        setOriginalSchema("");
+        setTemplateMissing(true);
+        return;
+      }
       if (!res.ok) throw new Error(`Failed to fetch schema: ${res.status}`);
       const data = await res.json();
       setSchema(data);
       setOriginalSchema(JSON.stringify(data));
     } catch (err: any) {
+      if (generation !== fetchGeneration.current) return;
       setSnack({ open: true, message: err.message, severity: "error" });
     } finally {
-      setLoading(false);
+      if (generation === fetchGeneration.current) setLoading(false);
     }
   }, []);
+
+  const handleInitializeTemplate = async () => {
+    setInitializing(true);
+    try {
+      await initializeResourceDefault();
+      await fetchSchema(TEMPLATE_SCHEMA_ID);
+    } catch (err: any) {
+      setSnack({ open: true, message: err.message, severity: "error" });
+    } finally {
+      setInitializing(false);
+    }
+  };
 
   useEffect(() => {
     if (tenant) {
@@ -291,16 +596,52 @@ export default function SchemaEditor() {
     }
   }, [tenant, fetchSchema]);
 
-  // Open diff dialog instead of saving directly
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/tenantSchema");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data.ids)) {
+          setSchemaTargets(
+            mergeSchemaTargets(data.ids.filter((id) => typeof id === "string")),
+          );
+        }
+      } catch {
+        // Keep mc, itp, and _template when the directory cannot be loaded.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const original = useMemo<AnyRecord | null>(
+    () => (originalSchema ? JSON.parse(originalSchema) : null),
+    [originalSchema],
+  );
+
+  const diffs = useMemo<DiffEntry[]>(
+    () => (schema && original ? computeDiff(original, schema) : []),
+    [schema, original],
+  );
+
+  // A resource selection can go stale (tenant switch, item removed in the
+  // raw view); fall back to the resources section in that case.
+  const effectiveSelected = useMemo<Selection>(() => {
+    if (selected.kind !== "resource" || !schema) return selected;
+    const list = Array.isArray(schema.resources) ? schema.resources : [];
+    return selected.index < list.length
+      ? selected
+      : { kind: "section", key: "resources" };
+  }, [selected, schema]);
+
   const handleSaveClick = () => {
-    if (!schema || !originalSchema) return;
-    const original = JSON.parse(originalSchema);
-    const d = computeDiff(original, schema);
-    setDiffs(d);
+    if (!schema || !original || hasParseError) return;
     setDiffDialogOpen(true);
   };
 
-  // Actual save after confirmation
   const handleConfirmSave = async () => {
     if (!tenant || !userEmail || !schema) return;
 
@@ -337,15 +678,120 @@ export default function SchemaEditor() {
   };
 
   const handleReset = () => {
-    if (originalSchema) {
-      setSchema(JSON.parse(originalSchema));
+    if (!original) return;
+    setSchema(original);
+    setHasParseError(false);
+  };
+
+  /** Leaving a slice remounts the editor; confirm first if it holds unparsed text. */
+  const confirmLeaveSlice = (): boolean => {
+    if (!hasParseError) return true;
+    const ok = window.confirm(
+      "The JSON in the editor has a syntax error. Text typed since it last parsed has not been kept and will be discarded if you switch. Switch anyway?",
+    );
+    if (ok) setHasParseError(false);
+    return ok;
+  };
+
+  const handleSelect = (sel: Selection) => {
+    if (isSameSelection(sel, effectiveSelected)) return;
+    if (!confirmLeaveSlice()) return;
+    setSelected(sel);
+  };
+
+  const handleTenantChange = (next: string) => {
+    if (next === tenant) return;
+    if (!confirmLeaveSlice()) return;
+    setSelected(SELECT_ALL);
+    setTenant(next);
+  };
+
+  const canDeleteSchema =
+    isCreatableTenantSlug(tenant) && !isValidTenant(tenant);
+
+  const handleConfirmDelete = async () => {
+    const target = deleteTarget;
+    if (!target || !isCreatableTenantSlug(target) || isValidTenant(target)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/tenantSchema/${target}`, { method: "DELETE" });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(result.error || `Failed: ${res.status}`);
+      }
+      setSchemaTargets((current) => current.filter((id) => id !== target));
+      if (tenant === target) {
+        setSelected(SELECT_ALL);
+        setTenant("");
+      }
+      setDeleteOpen(false);
+      setSnack({
+        open: true,
+        message: `Schema for "${target}" deleted. A backup was saved first.`,
+        severity: "success",
+      });
+    } catch (err: any) {
+      setSnack({ open: true, message: err.message, severity: "error" });
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const isDirty = schema
-    ? computeDiff(JSON.parse(originalSchema), schema).length > 0
-    : false;
+  const isDirty = diffs.length > 0;
   const canSave = isDirty && !saving && !!tenant;
+  const storedDefault = (schema as { resourceDefault?: unknown } | null)
+    ?.resourceDefault;
+  const templateNeedsDefault =
+    isTemplateSchemaId(tenant) &&
+    !templateMissing &&
+    !!schema &&
+    (!storedDefault ||
+      typeof storedDefault !== "object" ||
+      Array.isArray(storedDefault));
+
+  const labelFor = useCallback(
+    (path: string) =>
+      schema && original
+        ? resourceLabelForPath(path, original, schema)
+        : undefined,
+    [schema, original],
+  );
+
+  const sliceValue = schema
+    ? getSlice(schema, effectiveSelected, DEFAULTS)
+    : undefined;
+  const currentResource =
+    effectiveSelected.kind === "resource" && schema
+      ? resourceLabels(schema)[effectiveSelected.index]
+      : undefined;
+  const sectionUnconfigured =
+    effectiveSelected.kind === "section" && schema
+      ? !(effectiveSelected.key in schema)
+      : false;
+  const showResourceForm =
+    !isTemplateSchemaId(tenant) &&
+    (effectiveSelected.kind === "resource" ||
+      (effectiveSelected.kind === "section" &&
+        effectiveSelected.key === "resources"));
+  const showFieldForm = effectiveSelected.kind !== "all" && !showResourceForm;
+  const sliceFieldKey =
+    effectiveSelected.kind === "section" ? effectiveSelected.key : "schema";
+
+  const writeSlice = (updated: unknown) => {
+    setSchema((prev) =>
+      prev
+        ? setSlice(prev, effectiveSelected, updated, {
+            original: original ?? undefined,
+            fallback: DEFAULTS,
+          })
+        : prev,
+    );
+  };
+
+  const applySlice = (updated: unknown) => {
+    if (!confirmLeaveSlice()) return;
+    writeSlice(updated);
+  };
 
   return (
     <Box>
@@ -353,7 +799,8 @@ export default function SchemaEditor() {
         Tenant Schema Editor
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        A backup is created automatically before each save.
+        Edits stay on this page until you confirm Save. A backup is created
+        automatically before each save and before a created schema is deleted.
       </Typography>
 
       <Box display="flex" gap={2} alignItems="center" mb={2} flexWrap="wrap">
@@ -362,30 +809,51 @@ export default function SchemaEditor() {
           <Select
             value={tenant}
             label="Tenant"
-            onChange={(e) => setTenant(e.target.value)}
+            onChange={(e) => handleTenantChange(e.target.value)}
           >
-            {["mc", "itp"].map((t) => (
+            {schemaTargets.map((t) => (
               <MenuItem key={t} value={t}>
-                {t}
+                {t === TEMPLATE_SCHEMA_ID ? "_template (defaults)" : t}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
+        <Button variant="outlined" onClick={() => setCreateOpen(true)}>
+          New tenant
+        </Button>
+        {canDeleteSchema && (
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={() => {
+              setDeleteTarget(tenant);
+              setDeleteOpen(true);
+            }}
+            disabled={deleting}
+          >
+            Delete schema
+          </Button>
+        )}
 
         {canSave && (
           <>
             <Button
               variant="contained"
               onClick={handleSaveClick}
-              disabled={saving}
+              disabled={saving || hasParseError}
             >
               Save
             </Button>
             <Button variant="outlined" color="secondary" onClick={handleReset}>
               Reset
             </Button>
-            <Typography variant="body2" color="warning.main">
-              Unsaved changes
+            <Typography
+              variant="body2"
+              color={hasParseError ? "error.main" : "warning.main"}
+            >
+              {hasParseError
+                ? "Fix the JSON syntax error in the editor to save"
+                : `${diffs.length} unsaved change${diffs.length === 1 ? "" : "s"}`}
             </Typography>
           </>
         )}
@@ -398,24 +866,190 @@ export default function SchemaEditor() {
         </Box>
       )}
 
-      {schema && !loading && (
+      {(templateMissing || templateNeedsDefault) && !loading && (
+        <Alert
+          severity="info"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={handleInitializeTemplate}
+              disabled={initializing}
+            >
+              Initialize resource default
+            </Button>
+          }
+        >
+          No resource default is stored in the database yet.
+        </Alert>
+      )}
+
+      {schema && !loading && !isTemplateSchemaId(tenant) && (
         <UnconfiguredFieldsBanner schema={schema} />
       )}
 
       {schema && !loading && (
-        <JsonEditor
-          schema={schema}
-          onSchemaChange={(updated) => setSchema(updated)}
-        />
+        <Box display="flex" gap={2} alignItems="flex-start">
+          <Box
+            sx={{
+              width: 280,
+              flexShrink: 0,
+              position: "sticky",
+              top: 16,
+              maxHeight: "calc(100vh - 32px)",
+              overflowY: "auto",
+              border: "1px solid #ddd",
+              borderRadius: 1,
+            }}
+          >
+            <SectionNav
+              schema={schema}
+              diffs={diffs}
+              selected={effectiveSelected}
+              onSelect={handleSelect}
+            />
+          </Box>
+
+          <Box flex={1} minWidth={0}>
+            <Box
+              sx={{
+                position: "sticky",
+                top: 16,
+                zIndex: 1,
+                bgcolor: "background.paper",
+                border: "1px solid #ddd",
+                borderRadius: 1,
+                px: 2,
+                py: 1,
+                mb: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                flexWrap: "wrap",
+              }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                Editing:
+              </Typography>
+              <Breadcrumbs
+                separator="›"
+                sx={{ fontFamily: "monospace", fontSize: 14 }}
+              >
+                <span>{tenant}</span>
+                {effectiveSelected.kind === "all" && (
+                  <strong>(entire schema)</strong>
+                )}
+                {effectiveSelected.kind === "section" && (
+                  <strong>{effectiveSelected.key}</strong>
+                )}
+                {effectiveSelected.kind === "resource" && (
+                  <span>resources</span>
+                )}
+                {currentResource && (
+                  <strong>
+                    {currentResource.name}
+                    {currentResource.resourceId
+                      ? ` (resourceId ${currentResource.resourceId})`
+                      : ""}
+                  </strong>
+                )}
+              </Breadcrumbs>
+              {currentResource?.isEquipment && (
+                <Chip label="equipment" size="small" variant="outlined" />
+              )}
+              {currentResource?.parentResourceId && (
+                <Chip
+                  label={`annex of ${currentResource.parentResourceId}`}
+                  size="small"
+                  variant="outlined"
+                />
+              )}
+              {sectionUnconfigured && (
+                <Chip
+                  label="not in Firestore, showing code default"
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                />
+              )}
+            </Box>
+
+            {showResourceForm && (
+              <SchemaResourceForm
+                schema={schema as SchemaContextType}
+                beforeSchemaChange={confirmLeaveSlice}
+                onSchemaChange={(updated) => setSchema(updated)}
+              />
+            )}
+            {showFieldForm && (
+              <Box component="section" aria-label="Schema fields" sx={{ mb: 2 }}>
+                <SchemaValueFields
+                  fieldKey={sliceFieldKey}
+                  value={sliceValue}
+                  onChange={applySlice}
+                />
+              </Box>
+            )}
+
+            <JsonEditor
+              key={`${tenant}:${selectionId(effectiveSelected)}`}
+              value={sliceValue}
+              onChange={writeSlice}
+              onParseErrorChange={setHasParseError}
+              minHeight={effectiveSelected.kind === "all" ? 600 : 400}
+            />
+          </Box>
+        </Box>
       )}
 
       <DiffDialog
         open={diffDialogOpen}
         diffs={diffs}
         saving={saving}
+        labelFor={labelFor}
         onConfirm={handleConfirmSave}
         onCancel={() => setDiffDialogOpen(false)}
       />
+
+      <SchemaCreateForm
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(tenantId) => {
+          setSchemaTargets((current) => mergeSchemaTargets([...current, tenantId]));
+          setCreateOpen(false);
+          handleTenantChange(tenantId);
+        }}
+      />
+
+      <Dialog
+        open={deleteOpen}
+        onClose={deleting ? undefined : () => setDeleteOpen(false)}
+        TransitionProps={{ onExited: () => setDeleteTarget(null) }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete tenant schema</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2">
+            This deletes the Firestore schema for &quot;{deleteTarget}&quot;. A
+            backup is saved first. Media Commons, ITP, and the resource default
+            cannot be deleted.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteOpen(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDelete}
+            disabled={deleting}
+          >
+            {deleting ? <CircularProgress size={20} /> : "Delete tenant schema"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snack.open}

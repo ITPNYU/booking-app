@@ -12,17 +12,27 @@ import React, { useContext } from "react";
 import dayjs from "dayjs";
 
 import { FormContextLevel } from "@/components/src/types";
+import { formatBanInstant } from "@/components/src/utils/banWindow";
 import { styled } from "@mui/system";
 import { usePathname } from "next/navigation";
+import type { FormAlert } from "../../components/schemaTypes";
 import { BookingContext } from "../bookingProvider";
 import useCalculateOverlap from "../hooks/useCalculateOverlap";
 import useCheckAutoApproval from "../hooks/useCheckAutoApproval";
 import useCheckDurationLimits from "../hooks/useCheckDurationLimits";
 import useCheckRequestLimits from "../hooks/useCheckRequestLimits";
 import {
+  formAlertOrigin,
+  resolveFormAlerts,
+} from "../utils/formAlerts";
+import {
   defaultSafetyTrainingInfoUrl,
   useTenantSchema,
 } from "../../components/SchemaProvider";
+import { isProductionScheduleRequired } from "../utils/productionSchedule";
+
+const formatHours = (hours: number) =>
+  `${hours} ${hours === 1 ? "hour" : "hours"}`;
 
 interface Props {
   formContext: FormContextLevel;
@@ -40,6 +50,99 @@ const NavGrid = styled(Box)`
   padding-right: 18px;
 `;
 
+const noticeAlertSx = {
+  padding: "0px 16px",
+  width: "100%",
+  margin: "5px 0px",
+};
+
+const SETUP_BREAKDOWN_MESSAGE =
+  "Please include all setup and breakdown time in your reservation request.";
+
+function ApprovalWhyButton({ errorMessage }: { errorMessage: string }) {
+  return (
+    <Tooltip title={errorMessage}>
+      <button
+        type="button"
+        style={{
+          background: "none",
+          border: "none",
+          padding: 0,
+          color: "inherit",
+          textDecoration: "underline",
+          cursor: "help",
+          font: "inherit",
+        }}
+        aria-label={`Why? ${errorMessage}`}
+      >
+        Why?
+      </button>
+    </Tooltip>
+  );
+}
+
+function userApprovalStatus(
+  isAutoApproval: boolean,
+  errorMessage: string | null,
+) {
+  if (isAutoApproval) {
+    return {
+      btnDisabled: false,
+      btnDisabledMessage: null,
+      message: <p>Yay! This request is eligible for automatic approval</p>,
+      severity: "success" as const,
+      icon: <Check fontSize="inherit" />,
+    };
+  }
+  return {
+    btnDisabled: false,
+    btnDisabledMessage: null,
+    message: (
+      <p>
+        This request will require approval.
+        {errorMessage && (
+          <>
+            {" "}
+            <ApprovalWhyButton errorMessage={errorMessage} />
+          </>
+        )}
+      </p>
+    ),
+    severity: "warning" as const,
+  };
+}
+
+function NoticeAlerts({
+  alertsConfigured,
+  notices,
+}: {
+  alertsConfigured: boolean;
+  notices: FormAlert[];
+}) {
+  if (!alertsConfigured) {
+    return (
+      <Alert severity="warning" variant="filled" sx={noticeAlertSx}>
+        {SETUP_BREAKDOWN_MESSAGE}
+      </Alert>
+    );
+  }
+
+  return (
+    <>
+      {notices.map((notice, index) => (
+        <Alert
+          key={notice.id || `${notice.message}-${index}`}
+          severity={notice.severity}
+          variant="filled"
+          sx={noticeAlertSx}
+        >
+          {notice.message}
+        </Alert>
+      ))}
+    </>
+  );
+}
+
 export default function BookingStatusBar({ formContext, ...props }: Props) {
   const isWalkIn = formContext === FormContextLevel.WALK_IN;
   const isVIP = formContext === FormContextLevel.VIP;
@@ -56,6 +159,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     bookingCalendarInfo,
     selectedRooms,
     isBanned,
+    banEndsAt,
     needsSafetyTraining,
     isInBlackoutPeriod,
     role,
@@ -65,6 +169,16 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
   const schema = useTenantSchema();
   const timeSensitiveRequestWarning =
     schema.calendarConfig?.timeSensitiveRequestWarning;
+  const configuredAlerts = schema.form?.alerts;
+  const alertsConfigured = Array.isArray(configuredAlerts);
+  const resolvedAlerts = alertsConfigured
+    ? resolveFormAlerts(configuredAlerts, {
+        origin: formAlertOrigin(formContext),
+        isAutoApproval,
+        allowStatus: !isModification,
+      })
+    : null;
+  const productionScheduleConfig = schema.form?.productionSchedule;
   const safetyTrainingInfoUrl =
     selectedRooms.find(
       (room) => room.needsSafetyTraining && room.trainingInfoUrl,
@@ -86,13 +200,26 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
     hoursUntilStart >= 0 &&
     hoursUntilStart <= warningThresholdHours,
   );
+  const shouldShowProductionScheduleBanner = Boolean(
+    isSelectRoomPage &&
+    productionScheduleConfig?.enabled &&
+    bookingCalendarInfo?.start &&
+    bookingCalendarInfo?.end &&
+    isProductionScheduleRequired(
+      bookingCalendarInfo.start,
+      bookingCalendarInfo.end,
+      productionScheduleConfig.requiredAboveHours,
+    ),
+  );
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
+  const blocksOnSafetyTraining = needsSafetyTraining && !isModification;
+
   const showAlert =
     isBanned ||
-    needsSafetyTraining ||
+    blocksOnSafetyTraining ||
     isInBlackoutPeriod ||
     durationError !== null ||
     requestLimitError != null ||
@@ -111,7 +238,9 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         btnDisabledMessage?: string;
       }
     | undefined = (() => {
-    if (isBanned)
+    if (isBanned) {
+      const untilLabel = banEndsAt ? formatBanInstant(banEndsAt) : "";
+      const until = untilLabel ? ` until ${untilLabel} ET` : "";
       return {
         btnDisabled: true,
         btnDisabledMessage: isWalkIn
@@ -120,13 +249,14 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         message: (
           <p>
             {isWalkIn
-              ? `The walk-in visitor (${formData?.walkInNetId || "user"}) is banned from booking with the Media Commons`
-              : "You are banned from booking with the Media Commons"}
+              ? `The walk-in visitor (${formData?.walkInNetId || "user"}) is banned from booking with the Media Commons${until}`
+              : `You are banned from booking with the Media Commons${until}`}
           </p>
         ),
         severity: "error",
         variant: "filled",
       };
+    }
     if (requestLimitChecking)
       return {
         btnDisabled: true,
@@ -135,7 +265,7 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         severity: "info",
         variant: "filled",
       };
-    if (needsSafetyTraining)
+    if (blocksOnSafetyTraining)
       return {
         btnDisabled: true,
         btnDisabledMessage: isWalkIn
@@ -191,91 +321,87 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
         severity: "error",
         variant: "filled",
       };
-    if (durationError)
+    if (durationError) {
+      const isBelowMin = durationError.errorType === "min";
+      const limit = formatHours(
+        isBelowMin ? durationError.minDuration : durationError.maxDuration,
+      );
       return {
         btnDisabled: true,
-        btnDisabledMessage: `Duration exceeds maximum allowed for your role (${durationError.maxDuration} hours)`,
+        btnDisabledMessage: isBelowMin
+          ? `Duration is below minimum required for your role (${limit})`
+          : `Duration exceeds maximum allowed for your role (${limit})`,
         message: (
           <p>
-            Event duration ({durationError.currentDuration.toFixed(1)} hours)
-            exceeds the maximum allowed duration ({durationError.maxDuration}{" "}
-            hours) for {durationError.roomName} based on your{" "}
-            {durationError.role} role. Please select a shorter time slot.
-          </p>
-        ),
-        severity: "error",
-      };
-    if ((isWalkIn || isVIP) && !isAutoApproval && errorMessage) {
-      // Show actual error from auto-approval check (e.g., duration limits, services requested, multiple rooms, etc.)
-      return {
-        btnDisabled: true,
-        btnDisabledMessage: errorMessage,
-        message: (
-          <p>
-            This request will require approval.{" "}
-            <Tooltip title={errorMessage}>
-              <button
-                type="button"
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  color: "inherit",
-                  textDecoration: "underline",
-                  cursor: "help",
-                  font: "inherit",
-                }}
-                aria-label={`Why? ${errorMessage}`}
-              >
-                Why?
-              </button>
-            </Tooltip>
+            Event duration ({durationError.currentDuration.toFixed(1)} hours){" "}
+            {isBelowMin
+              ? `is shorter than the minimum required duration (${limit})`
+              : `exceeds the maximum allowed duration (${limit})`}{" "}
+            for {durationError.roomName} based on your {durationError.role}{" "}
+            role. Please select a {isBelowMin ? "longer" : "shorter"} time slot.
           </p>
         ),
         severity: "error",
       };
     }
-    if (isAutoApproval && formContext !== FormContextLevel.MODIFICATION)
-      return {
-        btnDisabled: false,
-        btnDisabledMessage: null,
-        message: <p>Yay! This request is eligible for automatic approval</p>,
-        severity: "success",
-        icon: <Check fontSize="inherit" />,
-      };
-    if (formContext !== FormContextLevel.MODIFICATION)
-      return {
-        btnDisabled: false,
-        btnDisabledMessage: null,
-        message: (
-          <p>
-            This request will require approval.
-            {errorMessage && (
-              <>
-                {" "}
-                <Tooltip title={errorMessage}>
-                  <button
-                    type="button"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      color: "inherit",
-                      textDecoration: "underline",
-                      cursor: "help",
-                      font: "inherit",
-                    }}
-                    aria-label={`Why? ${errorMessage}`}
-                  >
-                    Why?
-                  </button>
-                </Tooltip>
-              </>
-            )}
-          </p>
-        ),
-        severity: "warning",
-      };
+    // Walk-in and VIP cannot continue when auto-approval fails. The status
+    // copy comes from the schema when one matches; this only keeps Next disabled.
+    const walkInOrVipBlocked =
+      (isWalkIn || isVIP) && !isAutoApproval && !!errorMessage;
+    const approvalRequiredBlock = walkInOrVipBlocked
+      ? {
+          btnDisabled: true,
+          btnDisabledMessage: errorMessage,
+          message: (
+            <p>
+              This request will require approval.{" "}
+              <ApprovalWhyButton errorMessage={errorMessage} />
+            </p>
+          ),
+          severity: "error" as const,
+        }
+      : null;
+    if (formContext !== FormContextLevel.MODIFICATION) {
+      if (!alertsConfigured) {
+        if (approvalRequiredBlock) return approvalRequiredBlock;
+        return userApprovalStatus(isAutoApproval, errorMessage);
+      }
+
+      const statusAlert = resolvedAlerts?.status;
+      if (statusAlert) {
+        const showWhy =
+          statusAlert.when?.autoApproval === "ineligible" && !!errorMessage;
+        return {
+          btnDisabled: walkInOrVipBlocked,
+          btnDisabledMessage: walkInOrVipBlocked ? errorMessage : null,
+          message: (
+            <p>
+              {statusAlert.message}
+              {showWhy && (
+                <>
+                  {" "}
+                  <ApprovalWhyButton errorMessage={errorMessage!} />
+                </>
+              )}
+            </p>
+          ),
+          severity: walkInOrVipBlocked ? "error" : statusAlert.severity,
+          icon:
+            !walkInOrVipBlocked && statusAlert.severity === "success" ? (
+              <Check fontSize="inherit" />
+            ) : undefined,
+        };
+      }
+
+      // A stored list can omit the status row for this approval state.
+      // Regular users still need the approval banner; walk-in and VIP can
+      // hide it by leaving their origin unmatched.
+      if (!isWalkIn && !isVIP) {
+        return userApprovalStatus(isAutoApproval, errorMessage);
+      }
+    }
+
+    if (approvalRequiredBlock) return approvalRequiredBlock;
 
     return undefined;
   })();
@@ -369,14 +495,20 @@ export default function BookingStatusBar({ formContext, ...props }: Props) {
               )}
             </Alert>
           )}
-          <Alert
-            severity="warning"
-            variant="filled"
-            sx={{ padding: "0px 16px", width: "100%", margin: "5px 0px" }}
-          >
-            Please include all setup and breakdown time in your reservation
-            request.
-          </Alert>
+          {shouldShowProductionScheduleBanner &&
+            productionScheduleConfig?.calendarBannerMessage && (
+              <Alert
+                severity="warning"
+                variant="filled"
+                sx={{ padding: "0px 16px", width: "100%", margin: "5px 0px" }}
+              >
+                {productionScheduleConfig.calendarBannerMessage}
+              </Alert>
+            )}
+          <NoticeAlerts
+            alertsConfigured={alertsConfigured}
+            notices={resolvedAlerts?.notices ?? []}
+          />
         </Box>
         <Box>{nextBtn}</Box>
       </NavGrid>

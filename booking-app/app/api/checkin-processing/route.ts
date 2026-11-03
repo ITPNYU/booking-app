@@ -86,13 +86,10 @@ export async function POST(req: NextRequest) {
           guestEmail,
         );
       } else {
-        BookingLogger.warning(
-          "No guest email found for checkin notification",
-          {
-            calendarEventId,
-            tenant,
-          },
-        );
+        BookingLogger.warning("No guest email found for checkin notification", {
+          calendarEventId,
+          tenant,
+        });
       }
     } catch (emailError) {
       BookingLogger.emailError(

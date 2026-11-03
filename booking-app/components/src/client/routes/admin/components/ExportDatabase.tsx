@@ -58,14 +58,12 @@ export default function ExportDatabase() {
         Export booking contents within an inclusive date range as a downloadable
         CSV file.
       </p>
-      <Box
-        sx={{ marginTop: 2, display: "flex", gap: 2, flexWrap: "wrap" }}
-      >
+      <Box sx={{ marginTop: 2, display: "flex", gap: 2, flexWrap: "wrap" }}>
         <TextField
           label="Start date"
           type="date"
           value={startDate}
-          onChange={event => setStartDate(event.target.value)}
+          onChange={(event) => setStartDate(event.target.value)}
           InputLabelProps={{ shrink: true }}
           inputProps={{ max: endDate || undefined }}
           required
@@ -74,7 +72,7 @@ export default function ExportDatabase() {
           label="End date"
           type="date"
           value={endDate}
-          onChange={event => setEndDate(event.target.value)}
+          onChange={(event) => setEndDate(event.target.value)}
           InputLabelProps={{ shrink: true }}
           inputProps={{ min: startDate || undefined }}
           required

@@ -152,11 +152,27 @@ const createMockDatabaseContext = (
   blackoutPeriods: [],
 });
 
+
+// The page each staff permission normally opens the modal from. WebCheckout
+// visibility and editing are scoped to the page context (detailsModal roles).
+const pageContextFor = (
+  permission: PagePermission,
+): PageContextLevel | undefined =>
+  ({
+    [PagePermission.PA]: PageContextLevel.PA,
+    [PagePermission.LIAISON]: PageContextLevel.LIAISON,
+    [PagePermission.SERVICES]: PageContextLevel.SERVICES,
+    [PagePermission.ADMIN]: PageContextLevel.ADMIN,
+    [PagePermission.SUPER_ADMIN]: PageContextLevel.ADMIN,
+  })[permission as string];
+
 const renderModal = (
   booking: BookingRow,
   databaseContext: any,
   closeModal = vi.fn(),
-  pageContext?: PageContextLevel
+  pageContext: PageContextLevel | undefined = pageContextFor(
+    databaseContext.pagePermission,
+  ),
 ) => {
   return render(
     <ThemeProvider theme={mockTheme}>
@@ -375,67 +391,143 @@ describe("MoreInfoModal - WebCheckout", () => {
       );
     });
 
-    it("handles save error gracefully", async () => {
-      const user = userEvent.setup();
-      // Clear the default mock and set error mock
+    // The cart lookup (/api/webcheckout/cart/...) succeeds; the save route
+    // answers with `saveResponse`.
+    const mockSaveResponse = (saveResponse: () => Promise<unknown>) => {
       mockFetch.mockReset();
+      mockFetch.mockImplementation((url: string) =>
+        url === "/api/updateWebcheckoutCart"
+          ? saveResponse()
+          : Promise.resolve({
+              ok: true,
+              json: () => Promise.resolve(mockWebCheckoutData),
+            }),
+      );
+    };
 
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        json: () => Promise.resolve({ error: "Failed to update" }),
-      });
+    const editAndSave = async (booking: BookingRow) => {
+      const user = userEvent.setup();
+      renderModal(booking, createMockDatabaseContext(PagePermission.PA));
 
-      const booking = createMockBooking({ webcheckoutCartNumber: "CART123" });
-      const context = createMockDatabaseContext(PagePermission.PA);
-
-      renderModal(booking, context);
-
-      const editButton = screen.getByLabelText("Edit cart number");
-      await user.click(editButton);
-
+      await user.click(screen.getByLabelText("Edit cart number"));
       const input = screen.getByDisplayValue("CART123");
       await user.clear(input);
       await user.type(input, "NEW_CART");
+      await user.click(screen.getByLabelText("Save cart number"));
+    };
 
-      const saveButton = screen.getByTestId("CheckIcon").closest("button");
-      await user.click(saveButton!);
+    // A failed save keeps the editor open with the draft, shows the server's
+    // error inline, and leaves the booking's cart number unchanged.
+    const expectNotSaved = (booking: BookingRow) => {
+      expect(screen.getByDisplayValue("NEW_CART")).toBeInTheDocument();
+      expect(screen.getByLabelText("Save cart number")).toBeEnabled();
+      expect(booking.webcheckoutCartNumber).toBe("CART123");
+      expect(global.alert).not.toHaveBeenCalled();
+    };
 
-      // Should show alert with error
-      await waitFor(() => {
-        expect(global.alert).toHaveBeenCalledWith(
-          "Failed to update cart number"
-        );
-      });
+    it("keeps the editor open and shows the error on a 500", async () => {
+      mockSaveResponse(() =>
+        Promise.resolve({
+          ok: false,
+          status: 500,
+          json: () => Promise.resolve({ error: "Internal server error" }),
+        }),
+      );
+      const booking = createMockBooking({ webcheckoutCartNumber: "CART123" });
+
+      await editAndSave(booking);
+
+      expect(await screen.findByTestId("cart-number-error")).toHaveTextContent(
+        "Internal server error",
+      );
+      expectNotSaved(booking);
+    });
+
+    it("shows the 404 error when the booking is not found", async () => {
+      mockSaveResponse(() =>
+        Promise.resolve({
+          ok: false,
+          status: 404,
+          json: () => Promise.resolve({ error: "Booking not found" }),
+        }),
+      );
+      const booking = createMockBooking({ webcheckoutCartNumber: "CART123" });
+
+      await editAndSave(booking);
+
+      expect(await screen.findByTestId("cart-number-error")).toHaveTextContent(
+        "Booking not found",
+      );
+      expectNotSaved(booking);
+    });
+
+    it("falls back to a generic error when the error body is not JSON", async () => {
+      mockSaveResponse(() =>
+        Promise.resolve({
+          ok: false,
+          status: 502,
+          json: () => Promise.reject(new SyntaxError("Unexpected token <")),
+        }),
+      );
+      const booking = createMockBooking({ webcheckoutCartNumber: "CART123" });
+
+      await editAndSave(booking);
+
+      expect(await screen.findByTestId("cart-number-error")).toHaveTextContent(
+        "Failed to update cart number",
+      );
+      expectNotSaved(booking);
     });
 
     it("handles network error gracefully", async () => {
-      const user = userEvent.setup();
-      // Clear the default mock and set network error mock
-      mockFetch.mockReset();
-
-      mockFetch.mockRejectedValueOnce(new Error("Network error"));
-
+      mockSaveResponse(() => Promise.reject(new Error("Network error")));
       const booking = createMockBooking({ webcheckoutCartNumber: "CART123" });
-      const context = createMockDatabaseContext(PagePermission.PA);
 
-      renderModal(booking, context);
+      await editAndSave(booking);
 
-      const editButton = screen.getByLabelText("Edit cart number");
-      await user.click(editButton);
+      expect(await screen.findByTestId("cart-number-error")).toHaveTextContent(
+        "Failed to update cart number",
+      );
+      expectNotSaved(booking);
+    });
 
-      const input = screen.getByDisplayValue("CART123");
-      await user.clear(input);
-      await user.type(input, "NEW_CART");
+    it("clears the error when editing is cancelled", async () => {
+      const user = userEvent.setup();
+      mockSaveResponse(() =>
+        Promise.resolve({
+          ok: false,
+          status: 500,
+          json: () => Promise.resolve({ error: "Internal server error" }),
+        }),
+      );
+      const booking = createMockBooking({ webcheckoutCartNumber: "CART123" });
 
-      const saveButton = screen.getByTestId("CheckIcon").closest("button");
-      await user.click(saveButton!);
+      await editAndSave(booking);
+      await screen.findByTestId("cart-number-error");
+      await user.click(screen.getByLabelText("Cancel editing cart number"));
 
-      // Should show alert with error
+      expect(screen.queryByTestId("cart-number-error")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Edit cart number")).toBeInTheDocument();
+      expect(booking.webcheckoutCartNumber).toBe("CART123");
+    });
+
+    it("closes the editor and updates the booking on a 2xx", async () => {
+      mockSaveResponse(() =>
+        Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ success: true }),
+        }),
+      );
+      const booking = createMockBooking({ webcheckoutCartNumber: "CART123" });
+
+      await editAndSave(booking);
+
       await waitFor(() => {
-        expect(global.alert).toHaveBeenCalledWith(
-          "Failed to update cart number"
-        );
+        expect(screen.getByLabelText("Edit cart number")).toBeInTheDocument();
       });
+      expect(screen.queryByTestId("cart-number-error")).not.toBeInTheDocument();
+      expect(booking.webcheckoutCartNumber).toBe("NEW_CART");
     });
   });
 

@@ -16,8 +16,7 @@ import { DatabaseContext } from "../../components/Provider";
 export default function SiteBannerSettings() {
   const { siteBanner, reloadAdminUsers } = useContext(DatabaseContext);
   const params = useParams<{ tenant: string }>();
-  const tenant =
-    typeof params?.tenant === "string" ? params.tenant : undefined;
+  const tenant = typeof params?.tenant === "string" ? params.tenant : undefined;
 
   const [enabled, setEnabled] = useState(siteBanner.enabled);
   const [message, setMessage] = useState(siteBanner.message);
@@ -64,8 +63,8 @@ export default function SiteBannerSettings() {
     <Box>
       <Typography variant="h6">Site banner</Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-        Show a short message at the top of this tenant for all signed-in
-        users. Plain text only.
+        Show a short message at the top of this tenant for all signed-in users.
+        Plain text only.
       </Typography>
 
       <FormControlLabel

@@ -13,6 +13,7 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import admin from "@/lib/firebase/server/firebaseAdmin";
+import { invalidateCalendarEventsCache } from "@/lib/calendarEventsCache";
 import { getCalendarClient } from "@/lib/googleClient";
 import { Timestamp } from "firebase/firestore";
 import { NextResponse } from "next/server";
@@ -112,9 +113,7 @@ const findRoomIds = (event: any, resources: any[]): string => {
   });
 
   // Resource IDs are opaque strings; numeric sorting is only a display aid.
-  return Array.from(roomIds)
-    .sort(compareResourceIds)
-    .join(",");
+  return Array.from(roomIds).sort(compareResourceIds).join(",");
 };
 
 export async function POST(request: Request) {
@@ -216,7 +215,10 @@ export async function POST(request: Request) {
                 ) as Timestamp,
                 calendarEventId: calendarEventId || "",
                 roomId: roomIds,
-                requestNumber: await serverGetNextSequentialId("bookings", tenant),
+                requestNumber: await serverGetNextSequentialId(
+                  "bookings",
+                  tenant,
+                ),
                 mediaServices: MediaServices.CHECKOUT_EQUIPMENT,
               });
               console.log("newBooking", newBooking);
@@ -253,6 +255,10 @@ export async function POST(request: Request) {
         );
       }
     }
+
+    // The loop above renames events through the Calendar API directly rather
+    // than through server/calendars.ts, so drop the events cache here.
+    invalidateCalendarEventsCache();
 
     console.log("targetBookings", targetBookings);
     console.log("totalNewBookings", totalNewBookings);

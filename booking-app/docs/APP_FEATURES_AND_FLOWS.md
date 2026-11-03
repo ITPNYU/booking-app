@@ -433,6 +433,8 @@ Service Closeout Pending → Closed Out
 
 All services must be closed out before the booking is fully closed.
 
+**Automatic closeout (`autoCloseout`):** a room's schema can mark a service section with `autoCloseout: true` (for example `resources[].services.setup.autoCloseout`). When the booking reaches Service Closeout, on either the cancel or the check-out path, every approved service flagged on any booked room (annex spaces included) is closed out by the system in the same transition: no Closeout button appears for it, and the booking history gets a `CHECKED-OUT` row from `System` with the note "<Service> Service Closed Out (automatic)". Services without the flag keep the manual closeout. The flag is read from the tenant schema each time the machine is restored, so changing it applies to existing bookings that have not yet reached Service Closeout. A declined or unrequested service is never logged as closed out.
+
 ### Pregame Bookings
 
 Bookings imported from the pregame calendar sync automatically have all their requested services approved when the final approval is granted.
@@ -546,7 +548,7 @@ Add or remove departments. Assign tier levels (Primary, Secondary, Tertiary) for
 View users with warning flags for late cancellations or no-shows. See detailed incident history. Clear warnings when appropriate.
 
 #### Ban
-Manage permanently banned users. Banned users cannot create any bookings.
+Manage banned users for this tenant. A ban blocks new bookings in this tenant only. The same person can still book in another tenant.
 
 #### Booking Types
 Configure the options available in the booking type dropdown.
@@ -729,10 +731,11 @@ Each violation is logged with a timestamp. Admins can:
 
 ### Full Ban
 
-- Banned users are completely blocked from creating bookings
+- A ban applies only in the tenant where it was added, the same way pre-ban logs do
+- Banned users are blocked from creating bookings in that tenant
 - The booking form shows a red alert: "You are banned from making bookings"
 - The submit button is disabled
-- Admins manage bans through the Settings panel
+- Admins manage bans through the Settings panel for the tenant they are in
 
 ---
 
@@ -770,6 +773,34 @@ Blackout periods are time ranges during which bookings are not allowed.
 - Equipment checkout status is tracked (checked out / returned)
 - Cart details are viewable from the booking detail modal
 - Authorized staff can update cart information
+
+### Booking detail modal configuration (`tenantSchema.detailsModal`)
+
+- `detailsModal.showWebCheckout` (default `true`) shows or hides the WebCheckout section in the booking detail modal and the cart number in the bookings table
+- `detailsModal.webCheckoutViewRoles` (default `["PA", "ADMIN", "SUPER_ADMIN"]`) lists the roles that can see the WebCheckout section
+- `detailsModal.webCheckoutEditRoles` (default `["PA", "ADMIN", "SUPER_ADMIN"]`) lists the roles that can edit the cart number; edit roles can always see it too
+- `detailsModal.showMemo` (default `false`) enables the Memo section
+- `detailsModal.memoViewRoles` (default `["SERVICES", "ADMIN", "SUPER_ADMIN"]`) lists the roles that can see the Memo
+- `detailsModal.memoEditRoles` (default `["SERVICES", "ADMIN", "SUPER_ADMIN"]`) lists the roles that can edit the Memo; edit roles can always see it too
+- Each role also unlocks its own page context (PA page, Liaison page, Services page, Admin page; SUPER_ADMIN uses the Admin page)
+- An unset role list gets the default; an explicit empty list, or one whose entries are all unknown, grants nobody (unknown entries are dropped, never replaced with the default)
+
+### WebCheckout cart
+
+- Users outside the WebCheckout view and edit roles, or viewing from a page outside those roles, do not see the WebCheckout section; on My Bookings the requester still sees an assigned cart read-only
+- The edit icon sits next to the section title and appears only for `webCheckoutEditRoles` on their own pages
+- Saved via `POST /api/updateWebcheckoutCart`; the route uses the caller's session role and refuses writes when `showWebCheckout` is off or the role is outside `webCheckoutEditRoles`
+- The dedicated route is the only path that writes `webcheckoutCartNumber`: `/api/firestore/mutate` refuses booking writes that touch it, and the booking create/edit routes strip it from their payloads
+
+### Memo (work order confirmation)
+
+- When enabled, the booking detail modal shows a **Memo** section directly under WebCheckout
+- Memo is a free-text field for staff notes such as a work order confirmation number
+- Users outside the view and edit roles, or viewing from a page outside those roles, do not see the Memo section
+- The edit icon sits next to the section title and appears only for `memoEditRoles` on their own pages; view-only roles see the memo text without it
+- Saved via `PUT /api/bookings/memo` onto the booking document (`memo` field); the route refuses writes when `showMemo` is off or the caller's role is outside `memoEditRoles`; it is never included in calendar event descriptions or emails
+- The `/api/firestore/*` read routes strip `memo` from booking documents for callers outside the view and edit roles, so regular users never receive it, even for their own bookings
+- The dedicated route is the only path that writes `memo`: the generic `/api/firestore/mutate` route refuses booking writes that touch it and refuses whole-document `set` on bookings (which would wipe it), and the booking create/edit routes (`/api/bookings`, `/api/bookings/edit`, `/api/bookings/modification`, `/api/bookingsDirect`) strip it from their payloads
 
 ### Equipment Approval
 

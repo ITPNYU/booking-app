@@ -331,6 +331,30 @@ describe("server/db", () => {
     expect(payload.contents.headerMessage).toBe("No show count: 2");
   });
 
+  it("finishes a no-show when the pre-ban log write fails", async () => {
+    mockClientSaveDataToFirestore.mockRejectedValueOnce(
+      new Error("firestore unavailable"),
+    );
+    mockGetTenantEmailConfig.mockResolvedValue({
+      schemaName: "Media Commons",
+      emailNotifications: {
+        noShow: "No show count: ${violationCount}",
+      },
+    });
+
+    const { executeTraditionalNoShow } =
+      await import("@/components/src/server/db");
+
+    await expect(
+      executeTraditionalNoShow("cal-noshow-1", "staff@nyu.edu", "netX", "mc"),
+    ).resolves.toBeUndefined();
+    expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledWith(
+      "preBanLogs",
+      undefined,
+      "mc",
+    );
+  });
+
   it("fetchAllBookings delegates to getPaginatedData", async () => {
     const { fetchAllBookings } = await import("@/components/src/server/db");
     const { PagePermission } = await import("@/components/src/types");

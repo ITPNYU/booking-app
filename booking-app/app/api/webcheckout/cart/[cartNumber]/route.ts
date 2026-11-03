@@ -72,6 +72,60 @@ async function authenticateWebCheckout(
   return { success: true, sessionToken };
 }
 
+type ContentsGroup = {
+  label?: string;
+  items?: unknown;
+};
+
+type ContentsItem = {
+  label?: string;
+  subitems?: unknown;
+};
+
+type ContentsSubitem = {
+  label?: string;
+  due?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object";
+}
+
+/**
+ * WebCheckout documents `allocationContentsSummary.groups` as a JSON object
+ * (a map of group name to `{ label, items }`, or one group with those keys).
+ * Older fixtures in tests use an array. All three have to become a list or
+ * `.map` throws and the details modal gets no cart contents.
+ */
+function toContentsGroups(groups: unknown): ContentsGroup[] {
+  if (Array.isArray(groups)) {
+    return groups.filter(isRecord) as ContentsGroup[];
+  }
+  if (!isRecord(groups)) return [];
+  if ("items" in groups) return [groups as ContentsGroup];
+  return Object.values(groups).filter(isRecord) as ContentsGroup[];
+}
+
+function toContentsItems(items: unknown): ContentsItem[] {
+  if (Array.isArray(items)) {
+    return items.filter(isRecord) as ContentsItem[];
+  }
+  if (!isRecord(items)) return [];
+  if ("label" in items || "subitems" in items) return [items as ContentsItem];
+  return Object.values(items).filter(isRecord) as ContentsItem[];
+}
+
+function toContentsSubitems(subitems: unknown): ContentsSubitem[] {
+  if (Array.isArray(subitems)) {
+    return subitems.filter(isRecord) as ContentsSubitem[];
+  }
+  if (!isRecord(subitems)) return [];
+  if ("label" in subitems || "due" in subitems) {
+    return [subitems as ContentsSubitem];
+  }
+  return Object.values(subitems).filter(isRecord) as ContentsSubitem[];
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ cartNumber: string }> },
@@ -397,16 +451,24 @@ export async function GET(
     // Generate WebCheckout URL
     const webCheckoutUrl = `https://engineering-nyu.webcheckout.net/sso/wco?method=show-entity&type=allocation&oid=${allocationOid}`;
 
-    // Extract equipment groups and items
-    const equipmentGroups = allocationContentsSummary?.groups || [];
+    const equipmentGroups = toContentsGroups(
+      allocationContentsSummary?.groups,
+    ).map((group) => ({
+      label: group.label,
+      items: toContentsItems(group.items).map((item) => ({
+        name: item.label,
+        subitems: toContentsSubitems(item.subitems).map((subitem) => ({
+          label: subitem.label,
+          due: subitem.due,
+        })),
+      })),
+    }));
 
-    // Calculate total item count
     const totalItems = equipmentGroups.reduce(
-      (total: number, group: any) =>
+      (total, group) =>
         total +
         group.items.reduce(
-          (groupTotal: number, item: any) =>
-            groupTotal + (item.subitems?.length || 0),
+          (groupTotal, item) => groupTotal + item.subitems.length,
           0,
         ),
       0,
@@ -421,17 +483,7 @@ export async function GET(
       dueTime: detailedAllocation.returnTime,
       totalItems,
       webCheckoutUrl,
-      equipmentGroups: equipmentGroups.map((group: any) => ({
-        label: group.label,
-        items: group.items.map((item: any) => ({
-          name: item.label,
-          subitems:
-            item.subitems?.map((subitem: any) => ({
-              label: subitem.label,
-              due: subitem.due,
-            })) || [],
-        })),
-      })),
+      equipmentGroups,
     };
 
     return NextResponse.json(responseData);

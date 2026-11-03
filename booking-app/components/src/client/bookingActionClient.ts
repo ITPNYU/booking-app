@@ -189,22 +189,43 @@ export const decline = async (
       }
       return;
     }
+    // The fallback applies the same check, so do not retry a refusal.
+    if (xstateResult.status === 403) {
+      throw new NotAnApproverError(
+        xstateResult.error || "You are not authorized to decline this booking",
+      );
+    }
+    if (xstateResult.status === 401) {
+      throw new Error(xstateResult.error || "Unauthorized");
+    }
   }
 
   // Full traditional fallback (Firestore + email + calendar) via server route
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/decline-processing`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/decline-processing`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify({
+        calendarEventId: id,
+        email,
+        reason,
+        tenant,
+      }),
     },
-    body: JSON.stringify({
-      calendarEventId: id,
-      email,
-      reason,
-      tenant,
-    }),
-  });
+  );
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    if (response.status === 403) {
+      throw new NotAnApproverError(
+        result.error || "You are not authorized to decline this booking",
+      );
+    }
+    throw new Error(result.error || "Failed to decline booking");
+  }
 };
 
 export const checkin = async (id: string, email: string, tenant?: string) => {
@@ -317,15 +338,55 @@ export const clientApproveBooking = async (
   email: string,
   tenant?: string,
 ) => {
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/approve`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/approve`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify({ id, email }),
     },
-    body: JSON.stringify({ id, email }),
-  });
+  );
+
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    if (result.approved === true) {
+      throw new ApprovedWithWarningError(
+        result.error || "Booking was approved, but a follow-up step failed",
+      );
+    }
+    if (response.status === 403) {
+      throw new NotAnApproverError(
+        result.error || "You are not authorized to approve this booking",
+      );
+    }
+    throw new Error(result.error || "Failed to approve booking");
+  }
 };
+
+/**
+ * The server refused an approve or decline (403): the caller is not one of
+ * the booking's approvers (see authorizeBookingDecision).
+ */
+export class NotAnApproverError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotAnApproverError";
+  }
+}
+
+/**
+ * The booking was approved, but a follow-up step (e.g. updating the Google
+ * Calendar title) failed. Callers should treat the booking as approved.
+ */
+export class ApprovedWithWarningError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApprovedWithWarningError";
+  }
+}
 
 export const clientEquipmentApprove = async (_id: string, _email: string) => {
   // Equipment approval is handled via dedicated API routes when enabled.

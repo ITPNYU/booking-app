@@ -111,6 +111,17 @@ describe("DetailsInput - Field Visibility by Form Context", () => {
       showNNumber: true,
       showSponsor: true,
       showBookingType: true,
+      productionSchedule: {
+        enabled: true,
+        requiredAboveHours: 4,
+        label: "Production Schedule",
+        description:
+          "Please provide a production schedule for your reservation.",
+        templateLink: "https://example.com/templates",
+        templateLinkText: "Click here for schedule templates",
+        calendarBannerMessage:
+          "This request is greater than four hours. You will need to provide a production schedule on the next page to continue.",
+      },
       services: {
         showSetup: true,
         showEquipment: true,
@@ -629,6 +640,65 @@ describe("DetailsInput - Field Visibility by Form Context", () => {
       );
 
       expect(screen.queryByText("Booking Type*")).not.toBeInTheDocument();
+    });
+
+    it("shows Production Schedule when enabled, optional under threshold", () => {
+      renderDetailsInput(FormContextLevel.FULL_FORM);
+
+      expect(screen.getByLabelText("Production Schedule")).toBeInTheDocument();
+      expect(
+        screen.queryByLabelText("Production Schedule*"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByText(/Click here for schedule templates/),
+      ).toBeInTheDocument();
+    });
+
+    it("requires Production Schedule when duration exceeds threshold", () => {
+      const start = new Date("2024-01-01T09:00:00");
+      const end = new Date("2024-01-01T14:00:00"); // 5 hours
+      renderDetailsInput(FormContextLevel.FULL_FORM, {
+        bookingCalendarInfo: {
+          startStr: start.toISOString(),
+          endStr: end.toISOString(),
+          start,
+          end,
+        },
+      });
+
+      expect(screen.getByLabelText("Production Schedule*")).toBeInTheDocument();
+    });
+
+    it("hides Production Schedule when disabled in schema", () => {
+      const schemaWithoutSchedule = coerceTenantSchema(
+        {
+          ...rawMockTenantSchema,
+          form: {
+            ...(rawMockTenantSchema.form as object),
+            productionSchedule: { enabled: false },
+          },
+        },
+        "media-commons",
+      );
+
+      render(
+        <ThemeProvider theme={theme}>
+          <DatabaseContext.Provider value={mockDatabaseContext}>
+            <SchemaProvider value={schemaWithoutSchedule}>
+              <BookingContext.Provider value={createBookingContext()}>
+                <DetailsInput
+                  formContext={FormContextLevel.FULL_FORM}
+                  userApiData={mockUserApiData}
+                />
+              </BookingContext.Provider>
+            </SchemaProvider>
+          </DatabaseContext.Provider>
+        </ThemeProvider>
+      );
+
+      expect(
+        screen.queryByLabelText(/Production Schedule/),
+      ).not.toBeInTheDocument();
     });
   });
 

@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { TableNames } from "@/components/src/policy";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { computeDiff } from "@/lib/utils/schemaDiff";
-import { getFirestoreForEnv, ENVIRONMENTS, type Environment } from "@/lib/firebase/server/multiDb";
+import {
+  getFirestoreForEnv,
+  ENVIRONMENTS,
+  type Environment,
+} from "@/lib/firebase/server/multiDb";
 import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
 
 const BACKUP_COLLECTION = "tenantSchemaBackup";

@@ -272,7 +272,10 @@ class BookingFilter {
           (row.firstName && row.firstName.toLowerCase().includes(query)) ||
           (row.lastName && row.lastName.toLowerCase().includes(query)) ||
           // Search in roomId
-          (row.roomId && row.roomId.toLowerCase().includes(query)),
+          (row.roomId && row.roomId.toLowerCase().includes(query)) ||
+          // Search in WebCheckout cart id
+          (row.webcheckoutCartNumber &&
+            row.webcheckoutCartNumber.toLowerCase().includes(query)),
       );
     }
     return this;
@@ -339,8 +342,7 @@ export function useBookingFilters(props: Props): BookingRow[] {
       dateRange: getDateRangeFromDateSelection(selectedDateRange),
       sortField: "startDate",
       sortDirection:
-        pageContext >= PageContextLevel.PA &&
-        selectedDateRange === "All Future"
+        pageContext >= PageContextLevel.PA && selectedDateRange === "All Future"
           ? "asc"
           : undefined,
       searchQuery,

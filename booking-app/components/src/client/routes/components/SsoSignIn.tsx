@@ -32,10 +32,7 @@ const SsoSignIn = () => {
     <div>
       <Center>
         {isOnTestEnv ? (
-          <AutoRedirectMessage
-            tenant={tenant}
-            searchParams={searchParams}
-          />
+          <AutoRedirectMessage tenant={tenant} searchParams={searchParams} />
         ) : (
           <p style={{ marginTop: 48 }}>Redirecting to NYU sign-in…</p>
         )}

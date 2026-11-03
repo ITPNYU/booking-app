@@ -1,0 +1,54 @@
+name: Review Request Notify
+
+permissions:
+  contents: read
+  pull-requests: read
+
+on:
+  pull_request:
+    types: [review_requested]
+
+jobs:
+  notify-google-chat:
+    # Only fire when Riho is the requested reviewer. Team reviews happen via GitHub notifications.
+    if: github.event.requested_reviewer.login == 'rlho'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Post review request to Google Chat
+        env:
+          GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
+          # Optional: Google Chat user ID (digits only) for an @mention. Leave unset to post without a mention.
+          GCHAT_REVIEWER_USER_ID: ${{ vars.GCHAT_REVIEWER_USER_ID }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -z "${GCHAT_WEBHOOK_URL}" ]; then
+            echo "Error: GCHAT_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+
+          MENTION=""
+          if [ -n "${GCHAT_REVIEWER_USER_ID}" ]; then
+            MENTION="<users/${GCHAT_REVIEWER_USER_ID}> "
+          fi
+
+          MESSAGE=$(printf '%s\n' \
+            "${MENTION}Riho was assigned as a reviewer on PR #${PR_NUMBER}." \
+            "${PR_URL}")
+
+          PAYLOAD=$(jq -n --arg text "${MESSAGE}" '{text: $text}')
+
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            --data "${PAYLOAD}" \
+            "${GCHAT_WEBHOOK_URL}" \
+            --connect-timeout 10 --max-time 30 || echo "000")
+
+          if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
+            echo "Notification sent (HTTP ${HTTP_STATUS})"
+          else
+            echo "Failed to send notification (HTTP ${HTTP_STATUS})"
+            cat /tmp/response.txt
+            exit 1
+          fi

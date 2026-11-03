@@ -54,7 +54,11 @@ export default function SchemaDriftBanner() {
     return () => clearInterval(id);
   }, [pagePermission, checkDrift]);
 
-  if (pagePermission !== PagePermission.SUPER_ADMIN || !checked || changedCount === 0) {
+  if (
+    pagePermission !== PagePermission.SUPER_ADMIN ||
+    !checked ||
+    changedCount === 0
+  ) {
     return null;
   }
 

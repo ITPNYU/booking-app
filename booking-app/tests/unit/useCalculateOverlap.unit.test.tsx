@@ -22,6 +22,7 @@ type CalendarEvent = {
   start: string;
   end: string;
   resourceId: string | number;
+  calendarEventId?: string;
 };
 
 describe("useCalculateOverlap", () => {
@@ -137,5 +138,79 @@ describe("useCalculateOverlap", () => {
     });
 
     expect(result.current).toBe(false);
+  });
+
+  it("ignores the current booking when modifying via nested path", () => {
+    const calendarEventId = "event789";
+    setMockPathname(`/tenant/modification/selectRoom/${calendarEventId}`);
+
+    const context = {
+      ...baseContext,
+      existingCalendarEvents: [
+        {
+          id: `${calendarEventId}:222:2025-07-06T15:00:00-04:00`,
+          calendarEventId,
+          start: "2025-07-06T15:00:00-04:00",
+          end: "2025-07-06T17:00:00-04:00",
+          resourceId: "222",
+        } as CalendarEvent,
+      ],
+    };
+
+    const { result } = renderHook(() => useCalculateOverlap(), {
+      wrapper: wrapper(context),
+    });
+
+    expect(result.current).toBe(false);
+  });
+
+  it("ignores a guest copy stamped with this booking's Firestore id", () => {
+    const calendarEventId = "event789";
+    setMockPathname(`/tenant/modification/selectRoom/${calendarEventId}`);
+
+    const context = {
+      ...baseContext,
+      existingCalendarEvents: [
+        {
+          id: "google-guest-copy:222:2025-07-06T15:00:00-04:00",
+          calendarEventId,
+          start: "2025-07-06T15:00:00-04:00",
+          end: "2025-07-06T17:00:00-04:00",
+          resourceId: "222",
+        } as CalendarEvent,
+      ],
+    };
+
+    const { result } = renderHook(() => useCalculateOverlap(), {
+      wrapper: wrapper(context),
+    });
+
+    expect(result.current).toBe(false);
+  });
+
+  it("still overlaps a different booking at the same slot", () => {
+    const calendarEventId = "event789";
+    setMockPathname(`/tenant/modification/selectRoom/${calendarEventId}`);
+
+    const start = "2025-07-06T15:00:00-04:00";
+    const end = "2025-07-06T17:00:00-04:00";
+    const context = {
+      ...baseContext,
+      existingCalendarEvents: [
+        {
+          id: `other-booking:222:${start}`,
+          calendarEventId: "other-booking",
+          start,
+          end,
+          resourceId: "222",
+        } as CalendarEvent,
+      ],
+    };
+
+    const { result } = renderHook(() => useCalculateOverlap(), {
+      wrapper: wrapper(context),
+    });
+
+    expect(result.current).toBe(true);
   });
 });

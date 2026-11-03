@@ -41,11 +41,12 @@ export async function logAutomaticCancellationTransition(
     const { TableNames } = await import("@/components/src/policy");
     const { BookingStatusLabel } = await import("@/components/src/types");
 
-    const bookingDoc = await serverGetDataByCalendarEventId<AutomaticCancellationBooking>(
-      TableNames.BOOKING,
-      context.calendarEventId,
-      context.tenant,
-    );
+    const bookingDoc =
+      await serverGetDataByCalendarEventId<AutomaticCancellationBooking>(
+        TableNames.BOOKING,
+        context.calendarEventId,
+        context.tenant,
+      );
 
     if (!bookingDoc) {
       console.error(

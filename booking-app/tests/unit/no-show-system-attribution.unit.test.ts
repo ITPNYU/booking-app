@@ -32,12 +32,33 @@ vi.mock("@/lib/firebase/server/adminDb", () => ({
   serverFetchAllDataFromCollection: mockServerFetchAllDataFromCollection,
 }));
 
-vi.mock("firebase-admin", () => ({
-  firestore: {
+vi.mock("firebase-admin", () => {
+  const firestoreNs = {
     Timestamp: {
       now: () => ({ toDate: () => new Date("2025-01-01T10:00:00Z") }),
     },
-  },
+  };
+  const adminMock = {
+    apps: [{}],
+    initializeApp: vi.fn(),
+    credential: { cert: vi.fn() },
+    firestore: Object.assign(() => ({
+      settings: vi.fn(),
+      collection: vi.fn(() => ({
+        where: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockReturnThis(),
+        get: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+      })),
+    }), firestoreNs),
+  };
+  return {
+    default: adminMock,
+    firestore: firestoreNs,
+  };
+});
+
+vi.mock("@/lib/api/authz", () => ({
+  resolveCallerRole: vi.fn(async () => "BOOKING"),
 }));
 
 vi.mock("@/components/src/policy", () => ({

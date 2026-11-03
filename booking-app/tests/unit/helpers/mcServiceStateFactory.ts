@@ -21,6 +21,8 @@ export interface McServiceConfig {
     | "furnishings";
   requestGuard: string;
   approvedGuard: string;
+  /** Guard that skips the manual closeout when the booked rooms flag the service `autoCloseout`. */
+  autoCloseoutGuard: string;
   /** Guards for a service that already holds a decision when the booking re-enters "Services Request". */
   alreadyApprovedGuard: string;
   alreadyDeclinedGuard: string;
@@ -37,6 +39,7 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "staff",
     requestGuard: "staffRequested",
     approvedGuard: "staffApproved",
+    autoCloseoutGuard: "staffAutoCloseout",
     alreadyApprovedGuard: "staffAlreadyApproved",
     alreadyDeclinedGuard: "staffAlreadyDeclined",
     approveEvent: "approveStaff",
@@ -50,6 +53,7 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "catering",
     requestGuard: "caterRequested",
     approvedGuard: "cateringApproved",
+    autoCloseoutGuard: "cateringAutoCloseout",
     alreadyApprovedGuard: "cateringAlreadyApproved",
     alreadyDeclinedGuard: "cateringAlreadyDeclined",
     approveEvent: "approveCatering",
@@ -63,6 +67,7 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "setup",
     requestGuard: "setupRequested",
     approvedGuard: "setupApproved",
+    autoCloseoutGuard: "setupAutoCloseout",
     alreadyApprovedGuard: "setupAlreadyApproved",
     alreadyDeclinedGuard: "setupAlreadyDeclined",
     approveEvent: "approveSetup",
@@ -76,6 +81,7 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "cleaning",
     requestGuard: "cleanRequested",
     approvedGuard: "cleanApproved",
+    autoCloseoutGuard: "cleaningAutoCloseout",
     alreadyApprovedGuard: "cleaningAlreadyApproved",
     alreadyDeclinedGuard: "cleaningAlreadyDeclined",
     approveEvent: "approveCleaning",
@@ -89,6 +95,7 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "security",
     requestGuard: "securityRequested",
     approvedGuard: "securityApproved",
+    autoCloseoutGuard: "securityAutoCloseout",
     alreadyApprovedGuard: "securityAlreadyApproved",
     alreadyDeclinedGuard: "securityAlreadyDeclined",
     approveEvent: "approveSecurity",
@@ -102,6 +109,7 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "equipment",
     requestGuard: "equipRequested",
     approvedGuard: "equipApproved",
+    autoCloseoutGuard: "equipmentAutoCloseout",
     alreadyApprovedGuard: "equipmentAlreadyApproved",
     alreadyDeclinedGuard: "equipmentAlreadyDeclined",
     approveEvent: "approveEquipment",
@@ -115,6 +123,7 @@ export const MC_SERVICE_CONFIGS: readonly McServiceConfig[] = [
     contextKey: "furnishings",
     requestGuard: "furnishingsRequested",
     approvedGuard: "furnishingsApproved",
+    autoCloseoutGuard: "furnishingsAutoCloseout",
     alreadyApprovedGuard: "furnishingsAlreadyApproved",
     alreadyDeclinedGuard: "furnishingsAlreadyDeclined",
     approveEvent: "approveFurnishings",
@@ -185,6 +194,19 @@ export function expectedServiceCloseoutRegion(config: McServiceConfig) {
     states: {
       [`Evaluate ${name}`]: {
         always: [
+          // An approved service the booked rooms flag `autoCloseout` is
+          // closed out by the system (issue #1592); the queued side effect
+          // writes the history row after the transition.
+          {
+            target: `${name} Closedout`,
+            guard: { type: config.autoCloseoutGuard },
+            actions: [
+              {
+                type: "queueAutoCloseout",
+                params: { service: config.contextKey },
+              },
+            ],
+          },
           {
             target: `${name} Closeout Pending`,
             guard: { type: config.approvedGuard },

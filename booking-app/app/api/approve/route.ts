@@ -7,16 +7,22 @@ import {
   isServicesRequestState,
   notifyServiceApproversForRequestedServices,
 } from "@/components/src/server/serviceApproverNotifications";
-import { serverApproveBooking } from "@/components/src/server/admin";
-import { BookingStatusLabel, PagePermission } from "@/components/src/types";
-import { getMediaCommonsServices, isMediaCommons } from "@/components/src/utils/tenantUtils";
-import { resolveCallerRole } from "@/lib/api/authz";
+import {
+  ApprovalFollowUpError,
+  resolveFirstApprovalHistoryNote,
+  serverApproveBooking,
+} from "@/components/src/server/admin";
+import { BookingStatusLabel } from "@/components/src/types";
+import { ADMIN_POLICY_APPROVED_NOTE } from "@/components/src/utils/bookingHistoryNotes";
+import {
+  getMediaCommonsServices,
+  isMediaCommons,
+} from "@/components/src/utils/tenantUtils";
+import { authorizeBookingDecision } from "@/lib/api/bookingDecisionAuthz";
 import { requireSession } from "@/lib/api/requireSession";
 import {
   logServerBookingChange,
   serverGetDataByCalendarEventId,
-  serverGetFinalApproverEmail,
-  serverListResourceApproversByEmail,
 } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { NextRequest, NextResponse } from "next/server";
@@ -54,14 +60,30 @@ async function hasUnprocessedServices(
   return false;
 }
 
-const parseBookingResourceIds = (roomId: unknown): string[] =>
-  String(roomId ?? "")
-    .split(",")
-    .map((resourceId) => resourceId.trim())
-    .filter(Boolean);
+// serverApproveBooking rethrows failures as plain { status, message } objects.
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return String(error);
+};
 
-const getErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
+// The booking is already Approved, but a follow-up step (e.g. the calendar
+// title) failed. `approved: true` tells the client not to offer approval again.
+const approvedWithFollowUpFailure = (error: unknown) =>
+  NextResponse.json(
+    {
+      error: `Booking was approved, but a follow-up step failed: ${getErrorMessage(error)}`,
+      approved: true,
+    },
+    { status: 500 },
+  );
 
 const getErrorStatus = (error: unknown): number =>
   typeof error === "object" &&
@@ -70,42 +92,6 @@ const getErrorStatus = (error: unknown): number =>
   typeof error.status === "number"
     ? error.status
     : 500;
-
-async function authorizeApproval(
-  email: string,
-  tenant: string,
-  booking: Record<string, unknown>,
-): Promise<boolean> {
-  const role = await resolveCallerRole({ email, netId: email.split("@")[0] }, tenant);
-  if (
-    role === PagePermission.ADMIN ||
-    role === PagePermission.SUPER_ADMIN
-  ) {
-    return true;
-  }
-
-  if (!booking.firstApprovedAt) {
-    return role === PagePermission.LIAISON;
-  }
-
-  const normalizedEmail = email.trim().toLowerCase();
-  const tenantFinalApprover = await serverGetFinalApproverEmail(tenant);
-  if (tenantFinalApprover?.trim().toLowerCase() === normalizedEmail) {
-    return true;
-  }
-
-  const resourceIds = parseBookingResourceIds(booking.roomId);
-  if (resourceIds.length === 0) return false;
-
-  const assignments = await serverListResourceApproversByEmail(
-    normalizedEmail,
-    tenant,
-  );
-  const assignedResourceIds = new Set(
-    assignments.map((assignment) => assignment.resourceId),
-  );
-  return resourceIds.every((resourceId) => assignedResourceIds.has(resourceId));
-}
 
 /**
  * Checks if the XState result indicates a transition to Services Request parallel state
@@ -117,7 +103,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await req.json();
+  let id: unknown;
+  try {
+    ({ id } = await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (typeof id !== "string" || !id.trim()) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
@@ -127,15 +121,13 @@ export async function POST(req: NextRequest) {
   const email = session.email;
 
   try {
-    const booking = await serverGetDataByCalendarEventId<Record<string, unknown>>(
-      TableNames.BOOKING,
-      id,
-      tenant,
-    );
+    const booking = await serverGetDataByCalendarEventId<
+      Record<string, unknown>
+    >(TableNames.BOOKING, id, tenant);
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
-    if (!(await authorizeApproval(email, tenant, booking))) {
+    if (!(await authorizeBookingDecision(email, tenant, booking, "approve"))) {
       return NextResponse.json(
         { error: "You are not authorized to approve this booking" },
         { status: 403 },
@@ -175,7 +167,7 @@ export async function POST(req: NextRequest) {
         const bookingData = await serverGetDataByCalendarEventId(
           TableNames.BOOKING,
           id,
-          tenant
+          tenant,
         );
         if (
           bookingData &&
@@ -183,14 +175,14 @@ export async function POST(req: NextRequest) {
         ) {
           console.log(
             `🛑 BLOCKING FALLBACK: REQUEST HAS UNPROCESSED SERVICES [${tenant?.toUpperCase()}]:`,
-            { calendarEventId: id }
+            { calendarEventId: id },
           );
           return NextResponse.json(
             {
               error:
                 "This request is in the services approval flow. Complete or decline each service request before final approval, or refresh the page.",
             },
-            { status: 409 }
+            { status: 409 },
           );
         }
       }
@@ -198,7 +190,7 @@ export async function POST(req: NextRequest) {
       // Fallback to traditional approval if XState fails and it's safe to do so
       console.log(
         `🔄 FALLING BACK TO TRADITIONAL APPROVAL [${tenant?.toUpperCase()}]:`,
-        { calendarEventId: id }
+        { calendarEventId: id },
       );
       await serverApproveBooking(id, email, tenant);
     } else {
@@ -244,6 +236,7 @@ export async function POST(req: NextRequest) {
               error: getErrorMessage(error),
             },
           );
+          return approvedWithFollowUpFailure(error);
         }
       } else if (xstateResult.newState === "Pre-approved") {
         console.log(
@@ -305,6 +298,13 @@ export async function POST(req: NextRequest) {
             status: BookingStatusLabel.PRE_APPROVED,
             changedBy: email,
             requestNumber: doc.requestNumber,
+            // Pre-transition firstApprovedAt: already set means this is the
+            // final-approver → Services Request step, not the initial liaison
+            // sign-off. Role lookup cannot tell those apart (FINAL approvers
+            // resolve to LIAISON).
+            note: booking.firstApprovedAt
+              ? ADMIN_POLICY_APPROVED_NOTE
+              : await resolveFirstApprovalHistoryNote(email, tenant),
             tenant,
           });
 
@@ -356,6 +356,10 @@ export async function POST(req: NextRequest) {
         error: getErrorMessage(error),
       },
     );
+    // Fallback approval: finalApprove already recorded the approval.
+    if (error instanceof ApprovalFollowUpError) {
+      return approvedWithFollowUpFailure(error);
+    }
     return NextResponse.json(
       { error: getErrorMessage(error) },
       { status: getErrorStatus(error) },

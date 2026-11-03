@@ -2,13 +2,12 @@
 
 "use client";
 
-import { useContext, useEffect } from "react";
+import React, { Suspense, useContext, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { DatabaseContext } from "@/components/src/client/routes/components/Provider";
 import MyBookingsPage from "@/components/src/client/routes/myBookings/myBookingsPage";
 import { PagePermission } from "@/components/src/types";
 import { PERMISSION_PATH } from "@/components/src/utils/permissions";
-import React from "react";
 
 const FLAG_KEY = "hasRedirectedToDefaultContext";
 
@@ -35,7 +34,11 @@ const HomePage: React.FC = () => {
     sessionStorage.getItem(FLAG_KEY) === "true";
   if (pagePermission !== PagePermission.BOOKING && !hasChosen) return null;
 
-  return <MyBookingsPage />;
+  return (
+    <Suspense fallback={null}>
+      <MyBookingsPage />
+    </Suspense>
+  );
 };
 
 export default HomePage;

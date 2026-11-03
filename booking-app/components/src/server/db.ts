@@ -11,7 +11,13 @@ import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { clientUpdateDataByCalendarEventId } from "@/lib/firebase/client/clientDb";
 import type { SchemaContextType } from "../client/routes/components/SchemaProvider";
 import { DEFAULT_TENANT } from "../constants/tenants";
+import { formatHistoryDateTime } from "../client/utils/date";
 import { getSecondaryContactName } from "../utils/formatters";
+import {
+  compareTimestampsAscending,
+  timestampToDate,
+  timestampToEpochMillis,
+} from "@/lib/utils/timestampWire";
 import {
   Approver,
   Booking,
@@ -474,9 +480,12 @@ export const processCancelBooking = async (
   // to REQUESTED→APPROVED, in which case a user-initiated cancel should still
   // incur penalties.
   const sortedLogs = [...bookingLogs].sort((a: any, b: any) => {
-    const timeA = a.changedAt?.toMillis?.() ?? a.changedAt?.seconds ?? 0;
-    const timeB = b.changedAt?.toMillis?.() ?? b.changedAt?.seconds ?? 0;
-    return timeB - timeA; // most recent first
+    const timeA = timestampToEpochMillis(a.changedAt);
+    const timeB = timestampToEpochMillis(b.changedAt);
+    if (timeA == null && timeB == null) return 0;
+    if (timeA == null) return 1;
+    if (timeB == null) return -1;
+    return timeB - timeA;
   });
   const previousLog = sortedLogs.find(
     (log: any) => log.status !== BookingStatusLabel.CANCELED,
@@ -778,12 +787,14 @@ export const updateOperationHours = async (
     });
   } else {
     const r = normalizedRoomId ? { roomId: normalizedRoomId } : {};
-    clientSaveDataToFirestore(TableNames.OPERATION_HOURS, {
+    await clientSaveDataToFirestore(TableNames.OPERATION_HOURS, {
       day: day.toString(),
       open,
       close,
       isClosed,
       ...r,
+    }).catch((error) => {
+      console.error("Failed to save operation hours:", error);
     });
   }
 };
@@ -1112,10 +1123,15 @@ export const executeTraditionalNoShow = async (
     tenant,
   );
 
-  // Add to pre-ban logs only if policy violation
+  // Add to pre-ban logs only if policy violation. The booking is already
+  // marked no-show, so a log write failure must not fail the whole action.
   if (isPolicyViolation(doc)) {
     const log = { netId, bookingId: id, noShowDate: Timestamp.now() };
-    await clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
+    try {
+      await clientSaveDataToFirestore(TableNames.PRE_BAN_LOGS, log, tenant);
+    } catch (error) {
+      console.error("Failed to write no-show pre-ban log:", error);
+    }
   }
 
   // Log the no-show action
@@ -1182,16 +1198,28 @@ export const executeTraditionalNoShow = async (
   );
 };
 
+const historyDateLabel = (value: unknown) => {
+  const instant = timestampToDate(value);
+  return instant ? formatHistoryDateTime(instant) : "";
+};
+
 const getBookingHistory = async (booking: Booking) => {
-  const history = [];
+  const history: Array<{
+    status: BookingStatusLabel;
+    user: string;
+    date: string;
+    note: string;
+    at: unknown;
+  }> = [];
 
   // Add initial request
   if (booking.requestedAt) {
     history.push({
       status: BookingStatusLabel.REQUESTED,
       user: booking.email,
-      date: booking.requestedAt.toDate().toLocaleString(),
+      date: "",
       note: "",
+      at: booking.requestedAt,
     });
   }
 
@@ -1200,8 +1228,9 @@ const getBookingHistory = async (booking: Booking) => {
     history.push({
       status: BookingStatusLabel.PENDING,
       user: booking.firstApprovedBy,
-      date: booking.firstApprovedAt.toDate().toLocaleString(),
+      date: "",
       note: "",
+      at: booking.firstApprovedAt,
     });
   }
 
@@ -1210,8 +1239,9 @@ const getBookingHistory = async (booking: Booking) => {
     history.push({
       status: BookingStatusLabel.APPROVED,
       user: booking.finalApprovedBy,
-      date: booking.finalApprovedAt.toDate().toLocaleString(),
+      date: "",
       note: "",
+      at: booking.finalApprovedAt,
     });
   }
 
@@ -1220,8 +1250,9 @@ const getBookingHistory = async (booking: Booking) => {
     history.push({
       status: BookingStatusLabel.DECLINED,
       user: booking.declinedBy,
-      date: booking.declinedAt.toDate().toLocaleString(),
+      date: "",
       note: booking.declineReason || "",
+      at: booking.declinedAt,
     });
   }
 
@@ -1230,8 +1261,9 @@ const getBookingHistory = async (booking: Booking) => {
     history.push({
       status: BookingStatusLabel.CANCELED,
       user: booking.canceledBy,
-      date: booking.canceledAt.toDate().toLocaleString(),
+      date: "",
       note: "",
+      at: booking.canceledAt,
     });
   }
 
@@ -1240,8 +1272,9 @@ const getBookingHistory = async (booking: Booking) => {
     history.push({
       status: BookingStatusLabel.CHECKED_IN,
       user: booking.checkedInBy,
-      date: booking.checkedInAt.toDate().toLocaleString(),
+      date: "",
       note: "",
+      at: booking.checkedInAt,
     });
   }
 
@@ -1250,8 +1283,9 @@ const getBookingHistory = async (booking: Booking) => {
     history.push({
       status: BookingStatusLabel.CHECKED_OUT,
       user: booking.checkedOutBy,
-      date: booking.checkedOutAt.toDate().toLocaleString(),
+      date: "",
       note: "",
+      at: booking.checkedOutAt,
     });
   }
 
@@ -1260,39 +1294,29 @@ const getBookingHistory = async (booking: Booking) => {
     history.push({
       status: BookingStatusLabel.NO_SHOW,
       user: booking.noShowedBy,
-      date: booking.noShowedAt.toDate().toLocaleString(),
+      date: "",
       note: "",
+      at: booking.noShowedAt,
     });
   }
 
   // Add walk in
   if (booking.walkedInAt) {
-    let walkedInDate: string;
-    if (booking.walkedInAt.toDate) {
-      // Firebase Timestamp object
-      walkedInDate = booking.walkedInAt.toDate().toLocaleString();
-    } else if (booking.walkedInAt.seconds) {
-      // Plain object with seconds/nanoseconds
-      walkedInDate = new Date(
-        booking.walkedInAt.seconds * 1000,
-      ).toLocaleString();
-    } else {
-      // Fallback
-      walkedInDate = new Date().toLocaleString();
-    }
-
     history.push({
       status: BookingStatusLabel.WALK_IN,
       user: "PA",
-      date: walkedInDate,
+      date: "",
       note: "",
+      at: booking.walkedInAt,
     });
   }
 
-  // Sort by date
-  return history.sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-  );
+  return history
+    .sort((a, b) => compareTimestampsAscending(a.at, b.at))
+    .map(({ at, ...item }) => ({
+      ...item,
+      date: historyDateLabel(at),
+    }));
 };
 
 export const clientBookingContents = async (id: string, tenant?: string) => {

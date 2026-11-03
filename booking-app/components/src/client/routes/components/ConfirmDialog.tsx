@@ -12,7 +12,7 @@ interface Props {
   message: string;
   title?: string;
   callback: (result: boolean) => void;
-  children: React.ReactElement;
+  children: React.ReactElement<{ onClick?: React.MouseEventHandler }>;
 }
 
 /**

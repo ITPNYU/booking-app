@@ -1,0 +1,384 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createActor } from "xstate";
+
+/**
+ * Issue #1592: when the machine closes a service out on its own (booked room
+ * has `autoCloseout: true`), the xstate-transition executor drains the
+ * queued `autoCloseout:<service>` effect into a booking-history row and
+ * clears the queue before persisting the snapshot.
+ */
+
+const mockLogServerBookingChange = vi.fn();
+const mockServerGetDataByCalendarEventId = vi.fn();
+const mockServerUpdateDataByCalendarEventId = vi.fn();
+const mockRestoreXStateFromFirestore = vi.fn();
+const mockFetch = vi.fn();
+
+vi.mock("@/lib/firebase/server/adminDb", () => ({
+  logServerBookingChange: mockLogServerBookingChange,
+  serverGetDataByCalendarEventId: mockServerGetDataByCalendarEventId,
+  serverUpdateDataByCalendarEventId: mockServerUpdateDataByCalendarEventId,
+  serverFetchAllDataFromCollection: vi.fn().mockResolvedValue([]),
+  serverSaveDataToFirestore: vi.fn(),
+  serverGetDocumentById: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("@/components/src/server/admin", () => ({
+  serverUpdateDataByCalendarEventId: mockServerUpdateDataByCalendarEventId,
+  serverSendBookingDetailEmail: vi.fn(),
+  serverApproveEvent: vi.fn(),
+  finalApprove: vi.fn(),
+}));
+
+vi.mock("@/components/src/server/emails", () => ({
+  getTenantEmailConfig: vi.fn().mockResolvedValue({ emailNotifications: {} }),
+}));
+
+vi.mock("firebase-admin", () => ({
+  firestore: { Timestamp: { now: () => ({ seconds: 0, nanoseconds: 0 }) } },
+}));
+
+vi.mock("@/lib/stateMachines/xstatePersistence", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/stateMachines/xstatePersistence")
+  >("@/lib/stateMachines/xstatePersistence");
+  return {
+    ...actual,
+    restoreXStateFromFirestore: mockRestoreXStateFromFirestore,
+  };
+});
+
+const BOOKING = {
+  id: "booking-1",
+  requestNumber: 4242,
+  email: "guest@nyu.edu",
+  roomId: "221",
+  staffServiceApproved: true,
+  equipmentServiceApproved: true,
+};
+
+const actorAt = async (
+  value: string | Record<string, unknown>,
+  servicesAutoCloseout: Record<string, boolean>,
+  overrides: Record<string, unknown> = {},
+) => {
+  const { mcBookingMachine } =
+    await import("@/lib/stateMachines/mcBookingMachine");
+  return createActor(mcBookingMachine, {
+    snapshot: mcBookingMachine.resolveState({
+      value: value as any,
+      context: {
+        tenant: "mc",
+        calendarEventId: "cal-1",
+        email: BOOKING.email,
+        servicesRequested: { staff: true, equipment: true },
+        servicesApproved: { staff: true, equipment: true },
+        servicesAutoCloseout,
+        ...overrides,
+      },
+    }),
+  });
+};
+
+const approvedActor = (servicesAutoCloseout: Record<string, boolean>) =>
+  actorAt("Approved", servicesAutoCloseout);
+
+const autoCloseoutNotes = () =>
+  mockLogServerBookingChange.mock.calls
+    .map(([arg]) => arg.note as string)
+    .filter((note) => note.endsWith("(automatic)"));
+
+describe("auto closeout history side effect", () => {
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_BASE_URL = "http://localhost:3000";
+    globalThis.fetch = mockFetch as unknown as typeof fetch;
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
+    mockLogServerBookingChange.mockReset();
+    mockLogServerBookingChange.mockResolvedValue(undefined);
+    mockServerGetDataByCalendarEventId.mockReset();
+    mockServerGetDataByCalendarEventId.mockResolvedValue(BOOKING);
+    mockServerUpdateDataByCalendarEventId.mockReset();
+    mockServerUpdateDataByCalendarEventId.mockResolvedValue(undefined);
+    mockRestoreXStateFromFirestore.mockReset();
+  });
+
+  it("writes a System history row for the auto closed-out service and keeps the manual one pending", async () => {
+    mockRestoreXStateFromFirestore.mockResolvedValue(
+      await approvedActor({ staff: true }),
+    );
+    const { executeXStateTransition } =
+      await import("@/lib/stateMachines/xstateTransitions");
+
+    const result = await executeXStateTransition(
+      "cal-1",
+      "cancel",
+      "mc",
+      "admin@nyu.edu",
+      undefined,
+      "admin",
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.newState).toMatchObject({
+      "Service Closeout": {
+        "Staff Closeout": "Staff Closedout",
+        "Equipment Closeout": "Equipment Closeout Pending",
+      },
+    });
+
+    expect(mockLogServerBookingChange).toHaveBeenCalledTimes(1);
+    expect(mockLogServerBookingChange).toHaveBeenCalledWith({
+      bookingId: BOOKING.id,
+      calendarEventId: "cal-1",
+      status: "CHECKED-OUT",
+      changedBy: "System",
+      requestNumber: BOOKING.requestNumber,
+      note: "Staffing Service Closed Out (automatic)",
+      tenant: "mc",
+    });
+
+    // The cancel-processing effect queued by the Canceled entry runs first,
+    // so the CANCELED history row lands before the closeout row.
+    const cancelCallOrder =
+      mockFetch.mock.invocationCallOrder[
+        mockFetch.mock.calls.findIndex(([url]) =>
+          String(url).includes("/api/cancel-processing"),
+        )
+      ];
+    expect(cancelCallOrder).toBeLessThan(
+      mockLogServerBookingChange.mock.invocationCallOrder[0],
+    );
+
+    const [, , persisted] =
+      mockServerUpdateDataByCalendarEventId.mock.calls.at(-1)!;
+    expect(persisted.xstateData.snapshot.context.pendingSideEffects).toEqual(
+      [],
+    );
+  });
+
+  it("reaches Closed in one transition when every approved service is flagged", async () => {
+    mockRestoreXStateFromFirestore.mockResolvedValue(
+      await approvedActor({ staff: true, equipment: true }),
+    );
+    const { executeXStateTransition } =
+      await import("@/lib/stateMachines/xstateTransitions");
+
+    const result = await executeXStateTransition(
+      "cal-1",
+      "cancel",
+      "mc",
+      "admin@nyu.edu",
+    );
+
+    expect(result).toEqual({ success: true, newState: "Closed" });
+    expect(
+      mockLogServerBookingChange.mock.calls.map(([arg]) => arg.note),
+    ).toEqual([
+      "Staffing Service Closed Out (automatic)",
+      "Equipment Service Closed Out (automatic)",
+    ]);
+  });
+
+  it("writes no closeout row when no service is flagged", async () => {
+    mockRestoreXStateFromFirestore.mockResolvedValue(await approvedActor({}));
+    const { executeXStateTransition } =
+      await import("@/lib/stateMachines/xstateTransitions");
+
+    const result = await executeXStateTransition(
+      "cal-1",
+      "cancel",
+      "mc",
+      "admin@nyu.edu",
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockLogServerBookingChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("auto closeout invariants across every entry into Service Closeout", () => {
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_BASE_URL = "http://localhost:3000";
+    globalThis.fetch = mockFetch as unknown as typeof fetch;
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
+    mockLogServerBookingChange.mockReset();
+    mockLogServerBookingChange.mockResolvedValue(undefined);
+    mockServerGetDataByCalendarEventId.mockReset();
+    mockServerGetDataByCalendarEventId.mockResolvedValue(BOOKING);
+    mockServerUpdateDataByCalendarEventId.mockReset();
+    mockServerUpdateDataByCalendarEventId.mockResolvedValue(undefined);
+    mockRestoreXStateFromFirestore.mockReset();
+  });
+
+  // The machine reaches Service Closeout from three places: Canceled (cancel
+  // on an approved booking), No Show (which routes through Canceled) and
+  // Checked Out. The flag must behave identically on each path (#1585: "not
+  // autoCloseoutOnCancel").
+  it.each([
+    { from: "Approved", event: "cancel" },
+    { from: "Approved", event: "noShow" },
+    { from: "Checked In", event: "checkOut" },
+  ])(
+    "closes the flagged service out and logs it when entering via $event from $from",
+    async ({ from, event }) => {
+      mockRestoreXStateFromFirestore.mockResolvedValue(
+        await actorAt(from, { staff: true }),
+      );
+      const { executeXStateTransition } =
+        await import("@/lib/stateMachines/xstateTransitions");
+
+      const result = await executeXStateTransition(
+        "cal-1",
+        event,
+        "mc",
+        "admin@nyu.edu",
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.newState).toMatchObject({
+        "Service Closeout": {
+          "Staff Closeout": "Staff Closedout",
+          "Equipment Closeout": "Equipment Closeout Pending",
+        },
+      });
+      expect(autoCloseoutNotes()).toEqual([
+        "Staffing Service Closed Out (automatic)",
+      ]);
+      expect(
+        mockLogServerBookingChange.mock.calls.find(
+          ([arg]) => arg.note === "Staffing Service Closed Out (automatic)",
+        )![0],
+      ).toMatchObject({ changedBy: "System", status: "CHECKED-OUT" });
+
+      const [, , persisted] =
+        mockServerUpdateDataByCalendarEventId.mock.calls.at(-1)!;
+      expect(persisted.xstateData.snapshot.context.pendingSideEffects).toEqual(
+        [],
+      );
+    },
+  );
+
+  it("never logs a flagged service that was declined or left undecided", async () => {
+    // staff flagged but declined, equipment flagged but still pending a
+    // decision: neither was approved, so neither is "closed out" by anyone.
+    mockRestoreXStateFromFirestore.mockResolvedValue(
+      await actorAt(
+        "Approved",
+        { staff: true, equipment: true },
+        { servicesApproved: { staff: false } },
+      ),
+    );
+    const { executeXStateTransition } =
+      await import("@/lib/stateMachines/xstateTransitions");
+
+    const result = await executeXStateTransition(
+      "cal-1",
+      "cancel",
+      "mc",
+      "admin@nyu.edu",
+    );
+
+    expect(result).toEqual({ success: true, newState: "Closed" });
+    expect(mockLogServerBookingChange).not.toHaveBeenCalled();
+    const [, , persisted] =
+      mockServerUpdateDataByCalendarEventId.mock.calls.at(-1)!;
+    expect(persisted.xstateData.snapshot.context.pendingSideEffects).toEqual(
+      [],
+    );
+  });
+
+  it("does not log the auto closed-out service again when the persisted snapshot is restored later", async () => {
+    // First transition: cancel → staff auto closed out, queue drained.
+    mockRestoreXStateFromFirestore.mockResolvedValue(
+      await approvedActor({ staff: true }),
+    );
+    const { executeXStateTransition } =
+      await import("@/lib/stateMachines/xstateTransitions");
+    await executeXStateTransition("cal-1", "cancel", "mc", "admin@nyu.edu");
+    const [, , persistedAfterCancel] =
+      mockServerUpdateDataByCalendarEventId.mock.calls.at(-1)!;
+    expect(autoCloseoutNotes()).toEqual([
+      "Staffing Service Closed Out (automatic)",
+    ]);
+    mockLogServerBookingChange.mockClear();
+
+    // Second transition on the snapshot the first one wrote, exactly as the
+    // next /api/services call would restore it.
+    const { mcBookingMachine } =
+      await import("@/lib/stateMachines/mcBookingMachine");
+    mockRestoreXStateFromFirestore.mockResolvedValue(
+      createActor(mcBookingMachine, {
+        snapshot: mcBookingMachine.resolveState({
+          value: persistedAfterCancel.xstateData.snapshot.value,
+          context: persistedAfterCancel.xstateData.snapshot.context,
+        }),
+      }),
+    );
+    const result = await executeXStateTransition(
+      "cal-1",
+      "closeoutEquipment",
+      "mc",
+      "equipment@nyu.edu",
+    );
+
+    expect(result).toEqual({ success: true, newState: "Closed" });
+    expect(autoCloseoutNotes()).toEqual([]);
+  });
+
+  it("rejects a manual closeout of a service the machine already closed out", async () => {
+    mockRestoreXStateFromFirestore.mockResolvedValue(
+      await actorAt(
+        {
+          "Service Closeout": {
+            "Staff Closeout": "Staff Closedout",
+            "Equipment Closeout": "Equipment Closeout Pending",
+          },
+        },
+        { staff: true },
+        { pendingSideEffects: [] },
+      ),
+    );
+    const { executeXStateTransition } =
+      await import("@/lib/stateMachines/xstateTransitions");
+
+    const result = await executeXStateTransition(
+      "cal-1",
+      "closeoutStaff",
+      "mc",
+      "staff@nyu.edu",
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toMatch(/Invalid transition/);
+    expect(mockServerUpdateDataByCalendarEventId).not.toHaveBeenCalled();
+    expect(mockLogServerBookingChange).not.toHaveBeenCalled();
+  });
+
+  it("still persists the transition and clears the queue when the history write fails", async () => {
+    mockLogServerBookingChange.mockRejectedValue(new Error("firestore down"));
+    mockRestoreXStateFromFirestore.mockResolvedValue(
+      await approvedActor({ staff: true }),
+    );
+    const { executeXStateTransition } =
+      await import("@/lib/stateMachines/xstateTransitions");
+
+    const result = await executeXStateTransition(
+      "cal-1",
+      "cancel",
+      "mc",
+      "admin@nyu.edu",
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.newState).toMatchObject({
+      "Service Closeout": { "Staff Closeout": "Staff Closedout" },
+    });
+    const [, , persisted] =
+      mockServerUpdateDataByCalendarEventId.mock.calls.at(-1)!;
+    expect(persisted.xstateData.snapshot.context.pendingSideEffects).toEqual(
+      [],
+    );
+  });
+});

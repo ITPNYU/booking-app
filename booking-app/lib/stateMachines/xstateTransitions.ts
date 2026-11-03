@@ -1,5 +1,9 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
-import type { MediaCommonsServiceKey } from "@/components/src/utils/serviceDecisions";
+import { serviceHistoryNote } from "@/components/src/utils/bookingHistoryNotes";
+import {
+  MEDIA_COMMONS_SERVICE_KEYS,
+  type MediaCommonsServiceKey,
+} from "@/components/src/utils/serviceDecisions";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
 import { BookingStatusLabel } from "@/components/src/types";
@@ -7,9 +11,7 @@ import {
   isMediaCommons,
   shouldUseXState,
 } from "@/components/src/utils/tenantUtils";
-import {
-  serverGetDataByCalendarEventId,
-} from "@/lib/firebase/server/adminDb";
+import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import * as admin from "firebase-admin";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
@@ -21,6 +23,13 @@ import {
   restoreXStateFromFirestore,
 } from "./xstatePersistence";
 import type { PersistedXStateData } from "./xstateTypes";
+
+const AUTO_CLOSEOUT_EFFECT_PREFIX = "autoCloseout:";
+const AUTO_CLOSEOUT_ACTOR = "System";
+
+/** History note for a service the system closed out, e.g. "Staffing Service Closed Out (automatic)". */
+export const autoCloseoutHistoryNote = (service: string): string =>
+  `${serviceHistoryNote(service, "closeout")} (automatic)`;
 
 /**
  * Drain and execute a single side effect declared by a state entry action
@@ -70,6 +79,55 @@ async function executeSideEffect(
           { effect, calendarEventId, status: response.status },
         );
       }
+    } catch (error: any) {
+      console.error(
+        `🚨 SIDE EFFECT ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { effect, calendarEventId, error: error.message },
+      );
+    }
+    return;
+  }
+
+  // "autoCloseout:<service>": the machine closed the service out on its own
+  // (queueAutoCloseout in "Evaluate <Service>"). Write the same history row a
+  // manual closeout gets from /api/services, attributed to the system.
+  if (effect.startsWith(AUTO_CLOSEOUT_EFFECT_PREFIX)) {
+    const service = effect.slice(AUTO_CLOSEOUT_EFFECT_PREFIX.length);
+    if (!(MEDIA_COMMONS_SERVICE_KEYS as readonly string[]).includes(service)) {
+      console.warn(
+        `⚠️ UNKNOWN AUTO CLOSEOUT SERVICE [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+        { effect, calendarEventId },
+      );
+      return;
+    }
+    try {
+      const { logServerBookingChange } =
+        await import("@/lib/firebase/server/adminDb");
+      const doc = await serverGetDataByCalendarEventId<{
+        id: string;
+        requestNumber?: number;
+      }>(TableNames.BOOKING, calendarEventId, tenant);
+      if (!doc) {
+        console.error(
+          `🚨 AUTO CLOSEOUT HISTORY SKIPPED - BOOKING NOT FOUND [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
+          { effect, calendarEventId },
+        );
+        return;
+      }
+      await logServerBookingChange({
+        bookingId: doc.id,
+        calendarEventId,
+        status: BookingStatusLabel.CHECKED_OUT,
+        changedBy: AUTO_CLOSEOUT_ACTOR,
+        requestNumber: doc.requestNumber ?? 0,
+        note: autoCloseoutHistoryNote(service),
+        tenant,
+      });
+      BookingLogger.serviceCloseout(service, {
+        calendarEventId,
+        tenant,
+        reason: "autoCloseout",
+      });
     } catch (error: any) {
       console.error(
         `🚨 SIDE EFFECT ERROR [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -344,9 +402,8 @@ export async function executeXStateTransition(
           await import("@/lib/firebase/server/adminDb");
         const { serverSendBookingDetailEmail } =
           await import("@/components/src/server/admin");
-        const { getApprovalCcEmail } = await import(
-          "@/components/src/tenantPolicyServer"
-        );
+        const { getApprovalCcEmail } =
+          await import("@/components/src/tenantPolicyServer");
         const { BookingStatusLabel } = await import("@/components/src/types");
 
         // Check policy violation and add to pre-ban logs
@@ -431,7 +488,10 @@ export async function executeXStateTransition(
         });
 
         // Send CC to admin
-        const noShowCcEmail = await getApprovalCcEmail(process.env.NEXT_PUBLIC_BRANCH_NAME, tenant);
+        const noShowCcEmail = await getApprovalCcEmail(
+          process.env.NEXT_PUBLIC_BRANCH_NAME,
+          tenant,
+        );
         if (noShowCcEmail) {
           await serverSendBookingDetailEmail({
             calendarEventId,
@@ -598,15 +658,25 @@ export async function executeXStateTransition(
     }
 
     // Drain side effects queued by state entry actions (see `queueCancelProcessing`
-     // etc. in machine definitions). Runs after handleStateTransitions so any
+    // etc. in machine definitions). Runs after handleStateTransitions so any
     // firestoreUpdates they rely on are in the same save, and BEFORE persisting
     // the snapshot so we can clear the queue — otherwise a restore would re-fire.
-    const pendingEffects = (newSnapshot.context as any)?.pendingSideEffects ?? [];
+    const pendingEffects =
+      (newSnapshot.context as any)?.pendingSideEffects ?? [];
     for (const effect of pendingEffects) {
-      await executeSideEffect(effect, { calendarEventId, tenant, email, netId });
+      await executeSideEffect(effect, {
+        calendarEventId,
+        tenant,
+        email,
+        netId,
+      });
     }
-    if (pendingEffects.length > 0 && firestoreUpdates.xstateData?.snapshot?.context) {
-      (firestoreUpdates.xstateData.snapshot.context as any).pendingSideEffects = [];
+    if (
+      pendingEffects.length > 0 &&
+      firestoreUpdates.xstateData?.snapshot?.context
+    ) {
+      (firestoreUpdates.xstateData.snapshot.context as any).pendingSideEffects =
+        [];
     }
 
     // Save updated state to Firestore

@@ -33,7 +33,7 @@ jobs:
           if [ "${{ inputs.action }}" = "stop" ]; then
             VERSIONS=$(gcloud app versions list --service=staging --filter="SERVING_STATUS=SERVING" --format="value(version.id)")
           else
-            VERSIONS=$(gcloud app versions list --service=staging --sort-by=~version --limit=1 --format="value(version.id)")
+            VERSIONS=$(gcloud app versions list --service=staging --sort-by=~version.createTime --limit=1 --format="value(version.id)")
           fi
           for VERSION in $VERSIONS; do
             echo "${{ inputs.action }}ing staging version: $VERSION"

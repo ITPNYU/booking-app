@@ -4,12 +4,11 @@ import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin
 import { BookingStatusLabel } from "@/components/src/types";
 import { getServiceDecisions } from "@/components/src/utils/serviceDecisions";
 import {
+  getMediaCommonsAutoCloseout,
   getMediaCommonsServices,
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
-import {
-  serverGetDataByCalendarEventId,
-} from "@/lib/firebase/server/adminDb";
+import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { createActor } from "xstate";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { itpBookingMachine } from "./itpBookingMachine";
@@ -85,11 +84,14 @@ export async function createXStateDataFromBookingStatus(
   const xstateState = mapBookingStatusToXState(bookingStatus);
 
   // Build input context
+  const tenantResources = isMediaCommons(tenant)
+    ? await serverGetTenantResources(tenant)
+    : [];
   const servicesRequested = isMediaCommons(tenant)
-    ? getMediaCommonsServices(
-        bookingData,
-        await serverGetTenantResources(tenant),
-      )
+    ? getMediaCommonsServices(bookingData, tenantResources)
+    : {};
+  const servicesAutoCloseout = isMediaCommons(tenant)
+    ? getMediaCommonsAutoCloseout(bookingData, tenantResources)
     : {};
 
   console.log(
@@ -124,6 +126,7 @@ export async function createXStateDataFromBookingStatus(
         isVip: bookingData.isVip || false,
         servicesRequested,
         servicesApproved: getServiceDecisions(bookingData),
+        servicesAutoCloseout,
         // Flag to indicate this XState was created from existing booking without prior xstateData
         _restoredFromStatus: true,
       }
@@ -450,18 +453,26 @@ export async function restoreXStateFromFirestore(
 
       // Update MC-specific services data
       if (isMediaCommons(tenant)) {
+        const tenantResources = await serverGetTenantResources(tenant);
         const currentServicesRequested = getMediaCommonsServices(
           bookingData,
-          await serverGetTenantResources(tenant),
+          tenantResources,
         );
         // Only explicit booleans count: a flag the edit endpoint deleted is a
         // pending service again (ADR-0001).
         const currentServicesApproved = getServiceDecisions(bookingData);
+        // Re-read from the schema so an admin's `autoCloseout` edit applies
+        // to bookings persisted before it.
+        const currentServicesAutoCloseout = getMediaCommonsAutoCloseout(
+          bookingData,
+          tenantResources,
+        );
 
         updatedSnapshot.context = {
           ...updatedSnapshot.context,
           servicesRequested: currentServicesRequested,
           servicesApproved: currentServicesApproved,
+          servicesAutoCloseout: currentServicesAutoCloseout,
         };
         updatedSnapshot.value = fillMissingMcServiceRegions(
           updatedSnapshot.value,
