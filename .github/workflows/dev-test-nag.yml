@@ -1,9 +1,10 @@
 name: Dev Test Nag
 
-# Every weekday morning, list the PRs merged to main in the last two weeks that
-# still have no `dev-tested` label and remind their authors in Google Chat.
-# Authors clear a PR by commenting `/tested` on it (see dev-test-request.yml).
-# PRs labeled `no-dev-test` and PRs opened by bots are skipped.
+# Every weekday morning, list the PRs merged to main that are not yet released
+# to prod and still have no `dev-tested` label, and remind their authors in
+# Google Chat. Authors clear a PR by commenting `/tested` on it (see
+# dev-test-request.yml). PRs already released to prod, PRs labeled
+# `no-dev-test`, and PRs opened by bots are skipped.
 #
 # Uses the same secrets.GCHAT_WEBHOOK_URL and vars.GCHAT_USER_MAP as
 # dev-test-request.yml.
@@ -19,28 +20,29 @@ on:
   workflow_dispatch:
     inputs:
       days:
-        description: "How many days back to look for merged PRs"
+        description: "How many days back to look for merged PRs and prod releases"
         type: string
-        default: "14"
+        default: "60"
 
 jobs:
   nag:
     runs-on: ubuntu-latest
 
     steps:
-      - name: List merged PRs that are not yet tested on dev
+      - name: Check out the scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: List merged PRs that are not on prod and not yet tested on dev
         id: prs
         env:
           GH_TOKEN: ${{ github.token }}
-          DAYS: ${{ github.event.inputs.days || '14' }}
+          DAYS: ${{ github.event.inputs.days || '60' }}
         run: |
-          SINCE=$(date -u -d "${DAYS} days ago" +%Y-%m-%d)
-          gh pr list --repo "$GITHUB_REPOSITORY" --state merged --base main --limit 100 \
-            --search "merged:>=${SINCE} -label:dev-tested -label:no-dev-test" \
-            --json number,title,url,author,mergedAt \
-            --jq '[.[] | select(.author.is_bot | not)
-                    | {number, title, url, author: .author.login, mergedAt}]
-                  | sort_by(.mergedAt)' > prs.json
+          .github/scripts/list_unreleased_prs.sh dev-tested no-dev-test > prs.json
           echo "count=$(jq length prs.json)" >> "$GITHUB_OUTPUT"
           cat prs.json
 
@@ -61,10 +63,11 @@ jobs:
 
           # One block per author: mention, then their PRs oldest first.
           BODY=$(jq -r --argjson map "$USER_MAP" '
-            group_by(.author) | .[] |
-            (.[0].author as $login |
-              (if $map[$login] then "<users/\($map[$login])>" else "@\($login)" end)) + "\n" +
-            (map("• #\(.number) \(.title) (merged \(.mergedAt[:10]))\n  \(.url)") | join("\n"))
+            [ group_by(.author)[] |
+              (.[0].author as $login |
+                (if $map[$login] then "<users/\($map[$login])>" else "@\($login)" end)) + "\n" +
+              (map("• #\(.number) \(.title) (merged \(.mergedAt[:10]))\n  \(.url)") | join("\n"))
+            ] | join("\n\n")
           ' prs.json)
 
           TEXT=$(printf '%s\n' \
