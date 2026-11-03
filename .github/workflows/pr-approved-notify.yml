@@ -2,6 +2,9 @@ name: PR Approved Notify
 
 # When a review approves a PR, tell the PR author in Google Chat so they can
 # merge it. Uses the same webhook and user map as dev-test-request.yml.
+# Only the first approval is announced: when another reviewer has already
+# approved the PR, nothing is posted. A re-approval by the same reviewer after
+# new commits is announced again.
 #
 # Configuration:
 #   secrets.GCHAT_WEBHOOK_URL  Incoming webhook of the team space.
@@ -10,6 +13,7 @@ name: PR Approved Notify
 
 permissions:
   contents: read
+  pull-requests: read
 
 on:
   pull_request_review:
@@ -26,7 +30,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Check that this is the first approval
+        id: first
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          REVIEWER: ${{ github.event.review.user.login }}
+        run: |
+          OTHERS=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${NUMBER}/reviews" --paginate \
+            | jq -r --arg me "$REVIEWER" '[.[] | select(.state == "APPROVED" and .user.login != $me) | .user.login] | unique | join(", ")')
+          if [ -n "$OTHERS" ]; then
+            echo "Skipped: already approved by ${OTHERS}."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Post the approval to Google Chat
+        if: steps.first.outputs.ok == 'true'
         env:
           GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
           GCHAT_USER_MAP: ${{ vars.GCHAT_USER_MAP }}
