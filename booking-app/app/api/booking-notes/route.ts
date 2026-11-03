@@ -4,6 +4,7 @@ import {
 } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { BookingStatusLabel, PagePermission } from "@/components/src/types";
+import { APPROVER_SERVICES } from "@/components/src/utils/approversResources";
 import { normalizeActionNote } from "@/components/src/utils/bookingHistoryNotes";
 import { resolveCallerRole } from "@/lib/api/authz";
 import { requireSession } from "@/lib/api/requireSession";
@@ -11,9 +12,10 @@ import {
   logServerBookingChange,
   serverGetDataByCalendarEventId,
 } from "@/lib/firebase/server/adminDb";
+import { serverResolveServiceApproverEmails } from "@/lib/firebase/server/serviceApprovers";
 import { NextRequest, NextResponse } from "next/server";
 
-// Staff who act on bookings; requesters can read notes but not add them.
+// Staff who act on any booking; requesters can read notes but not add them.
 const STAFF_ROLES = new Set<PagePermission>([
   PagePermission.PA,
   PagePermission.LIAISON,
@@ -21,6 +23,27 @@ const STAFF_ROLES = new Set<PagePermission>([
   PagePermission.ADMIN,
   PagePermission.SUPER_ADMIN,
 ]);
+
+/**
+ * Service approvers may add notes only to bookings for rooms where they
+ * approve a service, like deciding services in `/api/services`.
+ */
+async function approvesServiceOnBooking(
+  email: string,
+  roomId: unknown,
+  tenant: string,
+): Promise<boolean> {
+  for (const service of APPROVER_SERVICES) {
+    const approvers = await serverResolveServiceApproverEmails(
+      roomId,
+      service,
+      tenant,
+      "act",
+    );
+    if (approvers.includes(email)) return true;
+  }
+  return false;
+}
 
 /**
  * Add a note to a booking's history without changing its status (#1409).
@@ -58,20 +81,25 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const role = await resolveCallerRole(session, tenant, {
-      includeServiceApprovers: true,
-    });
-    if (!STAFF_ROLES.has(role)) {
+    const role = await resolveCallerRole(session, tenant);
+    const booking = await serverGetDataByCalendarEventId<{
+      id: string;
+      requestNumber: number;
+      roomId?: unknown;
+    }>(TableNames.BOOKING, calendarEventId, tenant);
+    // Checked before "not found", so only staff learn whether a booking exists.
+    if (
+      !STAFF_ROLES.has(role) &&
+      !(
+        booking &&
+        (await approvesServiceOnBooking(session.email, booking.roomId, tenant))
+      )
+    ) {
       return NextResponse.json(
         { error: "Only staff can add notes to a booking" },
         { status: 403 },
       );
     }
-
-    const booking = await serverGetDataByCalendarEventId<{
-      id: string;
-      requestNumber: number;
-    }>(TableNames.BOOKING, calendarEventId, tenant);
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }

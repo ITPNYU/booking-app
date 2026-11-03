@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   resolveCallerRole: vi.fn(),
   logServerBookingChange: vi.fn(),
   serverGetDataByCalendarEventId: vi.fn(),
+  serverResolveServiceApproverEmails: vi.fn(),
 }));
 
 vi.mock("@/lib/api/requireSession", () => ({
@@ -18,6 +19,10 @@ vi.mock("@/lib/api/authz", () => ({
 vi.mock("@/lib/firebase/server/adminDb", () => ({
   logServerBookingChange: mocks.logServerBookingChange,
   serverGetDataByCalendarEventId: mocks.serverGetDataByCalendarEventId,
+}));
+
+vi.mock("@/lib/firebase/server/serviceApprovers", () => ({
+  serverResolveServiceApproverEmails: mocks.serverResolveServiceApproverEmails,
 }));
 
 import { POST } from "@/app/api/booking-notes/route";
@@ -43,7 +48,9 @@ describe("POST /api/booking-notes", () => {
     mocks.serverGetDataByCalendarEventId.mockResolvedValue({
       id: "booking-db-id",
       requestNumber: 42,
+      roomId: "202",
     });
+    mocks.serverResolveServiceApproverEmails.mockResolvedValue([]);
   });
 
   it("adds a NOTE history entry under the signed-in user", async () => {
@@ -59,7 +66,6 @@ describe("POST /api/booking-notes", () => {
     expect(mocks.resolveCallerRole).toHaveBeenCalledWith(
       { email: "pa@nyu.edu", netId: "pa" },
       "mc",
-      { includeServiceApprovers: true },
     );
     expect(mocks.logServerBookingChange).toHaveBeenCalledWith({
       bookingId: "booking-db-id",
@@ -96,6 +102,51 @@ describe("POST /api/booking-notes", () => {
 
     expect(response.status).toBe(403);
     expect(mocks.logServerBookingChange).not.toHaveBeenCalled();
+  });
+
+  it("lets a service approver add a note to a booking for their room", async () => {
+    mocks.resolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
+    mocks.serverResolveServiceApproverEmails.mockImplementation(
+      async (roomId: unknown, service: string) =>
+        roomId === "202" && service === "equipment" ? ["pa@nyu.edu"] : [],
+    );
+
+    const response = await POST(
+      createRequest({ calendarEventId: "evt-1", note: "Mic ready" }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(mocks.serverResolveServiceApproverEmails).toHaveBeenCalledWith(
+      "202",
+      "equipment",
+      "mc",
+      "act",
+    );
+  });
+
+  it("refuses a service approver who approves nothing on the booking's room", async () => {
+    mocks.resolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
+    mocks.serverResolveServiceApproverEmails.mockResolvedValue([
+      "someone.else@nyu.edu",
+    ]);
+
+    const response = await POST(
+      createRequest({ calendarEventId: "evt-1", note: "hi" }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks.logServerBookingChange).not.toHaveBeenCalled();
+  });
+
+  it("doesn't tell a non-staff caller whether a booking exists", async () => {
+    mocks.resolveCallerRole.mockResolvedValue(PagePermission.BOOKING);
+    mocks.serverGetDataByCalendarEventId.mockResolvedValue(null);
+
+    const response = await POST(
+      createRequest({ calendarEventId: "missing", note: "hi" }),
+    );
+
+    expect(response.status).toBe(403);
   });
 
   it("requires a session", async () => {
