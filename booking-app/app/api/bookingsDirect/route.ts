@@ -143,6 +143,25 @@ async function buildMediaCommonsServicesRequestSnapshot(input: {
   }
 }
 
+/**
+ * Last-resort snapshot used when the machine cannot be rebuilt.
+ * The Services queue only lists a booking whose snapshot value is in
+ * "Services Request", so a missing snapshot would hide a booking that
+ * approvers were already emailed about.
+ */
+function placeholderMediaCommonsServicesRequestSnapshot(
+  servicesRequested: Record<string, boolean> | null,
+) {
+  return {
+    machineId: "MC Booking Request",
+    lastTransition: new Date().toISOString(),
+    snapshot: {
+      value: { "Services Request": {} as Record<string, unknown> },
+      context: servicesRequested ? { servicesRequested } : {},
+    },
+  };
+}
+
 export async function POST(request: NextRequest) {
   const {
     email,
@@ -725,6 +744,33 @@ export async function POST(request: NextRequest) {
                     ? snapshotError.message
                     : String(snapshotError),
               },
+            );
+          }
+          if (!xstateData) {
+            let servicesRequested: Record<string, boolean> | null = null;
+            try {
+              servicesRequested = getMediaCommonsServices(
+                data,
+                tenantResources,
+              );
+            } catch (servicesError) {
+              console.error(
+                `🚨 SERVICES REQUEST FLAGS FAILED [${tenant?.toUpperCase()}]:`,
+                {
+                  calendarEventId,
+                  error:
+                    servicesError instanceof Error
+                      ? servicesError.message
+                      : String(servicesError),
+                },
+              );
+            }
+            console.error(
+              `🚨 SERVICES REQUEST SNAPSHOT MISSING [${tenant?.toUpperCase()}]: storing a placeholder so the booking stays on the Services queue`,
+              { calendarEventId },
+            );
+            xstateData = placeholderMediaCommonsServicesRequestSnapshot(
+              servicesRequested,
             );
           }
         }

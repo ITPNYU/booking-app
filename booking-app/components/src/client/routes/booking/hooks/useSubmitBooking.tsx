@@ -46,6 +46,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
     liaisonUsers,
     userEmail,
     reloadFutureBookings,
+    fetchAllBookings,
     pagePermission,
     roomSettings,
     showMaintenanceMode,
@@ -163,40 +164,40 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           new Error(`Missing required fields: ${missingFields.join(", ")}`),
         );
         setSubmitting("error");
-        return;
+        return "error";
       }
 
       // Check for blocking conditions
       if (isBanned) {
         setError(new Error("You are banned from booking"));
         setSubmitting("error");
-        return;
+        return "error";
       }
 
       if (needsSafetyTraining && !isModification) {
         setError(new Error("Safety training is required"));
         setSubmitting("error");
-        return;
+        return "error";
       }
 
       if (isInBlackoutPeriod) {
         setError(new Error("Selected date is within a blackout period"));
         setSubmitting("error");
-        return;
+        return "error";
       }
 
       if (isEdit && data.netId) {
         // block another person editing someone's booking
         if (`${data.netId}@nyu.edu` !== userEmail) {
           setSubmitting("error");
-          return;
+          return "error";
         }
       }
 
       if (isModification && !canAccessWebCheckout(pagePermission)) {
         // only PA / Services / Admin can modify an existing booking
         setSubmitting("error");
-        return;
+        return "error";
       }
 
       let email: string;
@@ -300,7 +301,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
         },
       );
 
-      fetch(requestParams.endpoint, {
+      return fetch(requestParams.endpoint, {
         method: requestParams.method,
         headers: {
           "Content-Type": "application/json",
@@ -322,7 +323,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           if (res.status === 409) {
             setError(new Error("Booking time slot is no longer available"));
             setSubmitting("error");
-            return;
+            return "error" as const;
           }
 
           if (!res.ok) {
@@ -349,11 +350,11 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             }
             if (maintenanceMode) {
               showMaintenanceMode(maintenanceMessage);
-              return;
+              return "error" as const;
             }
             setError(new Error(errorMessage));
             setSubmitting("error");
-            return;
+            return "error" as const;
           }
 
           try {
@@ -390,8 +391,6 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
               summaryError,
             );
           }
-          setSubmitting("success");
-
           // clear stored booking data after submit confirmation
           setBookingCalendarInfo(undefined);
           setSelectedRooms([]);
@@ -403,7 +402,18 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
           setServiceDecisions({});
           setHasShownMocapModal(false);
 
-          reloadFutureBookings();
+          // Edit and modification return to a dashboard that may be searched.
+          // Refetch with those filters instead of replacing the list with
+          // every future booking.
+          if (isEdit || isModification) {
+            // The booking already succeeded. A failed refresh must not reject
+            // after that; fetchBookings logs and rethrows.
+            void Promise.resolve(fetchAllBookings(false)).catch(() => {});
+          } else {
+            reloadFutureBookings();
+          }
+          setSubmitting("success");
+          return "success" as const;
         })
         .catch((error) => {
           console.error("Error submitting booking:", error);
@@ -411,6 +421,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             new Error("Sorry, an error occurred while submitting this request"),
           );
           setSubmitting("error");
+          return "error" as const;
         });
     },
     [
@@ -422,6 +433,7 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       userEmail,
       router,
       reloadFutureBookings,
+      fetchAllBookings,
       showMaintenanceMode,
       department,
       role,

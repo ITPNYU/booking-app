@@ -221,6 +221,35 @@ describe("POST /api/bookingsDirect XState fallback", () => {
     );
   });
 
+  it("keeps a VIP booking on the Services queue when the snapshot rebuild fails", async () => {
+    mocks.serverGetTenantResources
+      .mockResolvedValueOnce([{ resourceId: "101", calendarId: "room-cal" }])
+      .mockRejectedValueOnce(new Error("resources unavailable"));
+
+    const response = await POSTBookingsDirect(
+      createDirectRequest({ origin: BookingOrigin.VIP, type: "vip" }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe(BookingStatusLabel.PRE_APPROVED);
+    expect(
+      mocks.notifyServiceApproversForRequestedServices,
+    ).toHaveBeenCalledWith("event-1", "mc");
+
+    const marker = mocks.serverUpdateDataByCalendarEventId.mock.calls[0][2];
+    expect(marker.xstateData.snapshot.value).toEqual({
+      "Services Request": {},
+    });
+    expect(marker.xstateData.snapshot.context.servicesRequested.staff).toBe(
+      true,
+    );
+    expect(createXStateChecker(marker).isInServicesRequest()).toBe(true);
+    expect(getStatusFromXState(marker, "mc")).toBe(
+      BookingStatusLabel.PRE_APPROVED,
+    );
+  });
+
   it("still approves a walk-in when XState init fails", async () => {
     const response = await POSTBookingsDirect(
       createDirectRequest({
