@@ -51,10 +51,8 @@ jobs:
             WHO="@${AUTHOR}"
           fi
 
-          TEXT=$(printf '%s\n' \
-            "✅ ${WHO} PR #${NUMBER} was approved by ${REVIEWER}. It is ready to merge." \
-            "${TITLE}" \
-            "${URL}")
+          # <URL|text> renders as a link in Google Chat.
+          TEXT="✅ ${WHO} <${URL}|PR #${NUMBER} ${TITLE}> was approved by ${REVIEWER}. It is ready to merge."
           PAYLOAD=$(jq -n --arg text "$TEXT" '{text: $text}')
 
           HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
