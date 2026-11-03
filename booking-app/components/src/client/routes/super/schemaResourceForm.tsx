@@ -21,6 +21,7 @@ import {
   Select,
   Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { useEffect, useRef, useState } from "react";
 
 function resourceLabel(resource: Resource): string {
@@ -341,20 +342,41 @@ export default function SchemaResourceForm({
 
       {showFields && (
         <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 1.5,
-            mt: 2,
+          sx={(theme) => {
+            const tone =
+              mode === "add" ? theme.palette.success.main : theme.palette.primary.main;
+            return {
+              display: "flex",
+              flexDirection: "column",
+              gap: 1.5,
+              mt: 2,
+              p: 2,
+              border: 2,
+              borderRadius: 1,
+              borderColor: tone,
+              bgcolor: alpha(tone, 0.08),
+            };
           }}
         >
+          <Box>
+            <Typography variant="subtitle1" component="h3">
+              {mode === "add"
+                ? "New resource"
+                : `Editing ${selected?.name?.trim() || "(unnamed)"}`}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {mode === "add"
+                ? "Starts from the stored resource default. Nothing is written until you Save."
+                : `Resource id ${selected?.resourceId?.trim() || "(no id)"}. Changes stay on this page until you Save.`}
+            </Typography>
+          </Box>
           {formError && <Alert severity="error">{formError}</Alert>}
           {draft && (
             <SchemaResourceFields resource={draft} onChange={setDraft} />
           )}
           <Box display="flex" gap={1}>
             {mode === "add" ? (
-              <Button variant="contained" onClick={handleAdd}>
+              <Button variant="contained" color="success" onClick={handleAdd}>
                 Add to schema
               </Button>
             ) : (
