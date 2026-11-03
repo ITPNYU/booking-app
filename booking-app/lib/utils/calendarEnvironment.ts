@@ -1,27 +1,55 @@
 export const isProductionEnvironment = (): boolean =>
   process.env.NEXT_PUBLIC_BRANCH_NAME === "production";
 
-export const getEnvironmentCalendarId = (resource: {
+type EnvironmentCalendarResource = {
   calendarId: string;
   calendarIdDev?: string;
   calendarIdProd?: string;
-}): string => {
+  resourceId?: string | number | null;
+  roomId?: string | number | null;
+  name?: string;
+};
+
+/**
+ * Thrown for a single resource that has no production calendar id.
+ * Batch resolution catches this and skips that resource; it must not abort
+ * the rest of the tenant.
+ */
+export class MissingProductionCalendarError extends Error {
+  constructor(resourceLabel: string) {
+    super(
+      resourceLabel
+        ? `Production calendar ID not configured for resource ${resourceLabel}`
+        : "Production calendar ID not configured for resource",
+    );
+    this.name = "MissingProductionCalendarError";
+  }
+}
+
+const calendarResourceLabel = (
+  resource: EnvironmentCalendarResource,
+): string => {
+  const id = String(resource.resourceId ?? resource.roomId ?? "").trim();
+  if (id) return id;
+  return String(resource.name ?? "").trim();
+};
+
+export const getEnvironmentCalendarId = (
+  resource: EnvironmentCalendarResource,
+): string => {
   if (isProductionEnvironment()) {
-    if (!resource.calendarIdProd) {
-      throw new Error("Production calendar ID not configured for resource");
+    const calendarIdProd = resource.calendarIdProd?.trim() ?? "";
+    if (!calendarIdProd) {
+      throw new MissingProductionCalendarError(calendarResourceLabel(resource));
     }
-    return resource.calendarIdProd;
+    return calendarIdProd;
   }
 
   return resource.calendarIdDev || resource.calendarId;
 };
 
 export const applyEnvironmentCalendarId = <
-  T extends {
-    calendarId: string;
-    calendarIdDev?: string;
-    calendarIdProd?: string;
-  },
+  T extends EnvironmentCalendarResource,
 >(
   resource: T,
 ): T => {
@@ -32,12 +60,26 @@ export const applyEnvironmentCalendarId = <
   };
 };
 
+/**
+ * Resolve each resource on its own. A resource missing `calendarIdProd` is
+ * skipped and logged in production so one annex, child, or unused room cannot
+ * blank the calendar id of every other resource in the tenant.
+ */
 export const applyEnvironmentCalendarIds = <
-  T extends {
-    calendarId: string;
-    calendarIdDev?: string;
-    calendarIdProd?: string;
-  },
+  T extends EnvironmentCalendarResource,
 >(
   resources: T[],
-): T[] => resources.map(applyEnvironmentCalendarId);
+): T[] => {
+  const resolved: T[] = [];
+  for (const resource of resources) {
+    try {
+      resolved.push(applyEnvironmentCalendarId(resource));
+    } catch (error) {
+      if (!(error instanceof MissingProductionCalendarError)) throw error;
+      console.error(
+        `Skipping resource during calendar id resolution: ${error.message}`,
+      );
+    }
+  }
+  return resolved;
+};

@@ -31,6 +31,7 @@ import { useParams, useRouter } from "next/navigation";
 import { BookingContext } from "../../booking/bookingProvider";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { DatabaseContext } from "../../components/Provider";
+import { rememberDashboardReturn } from "../../components/bookingTable/dashboardView";
 import useExistingBooking from "./useExistingBooking";
 
 // Service keys as used in context.servicesRequested / servicesApproved.
@@ -99,6 +100,9 @@ export type ActionDefinition = {
   action: () => any;
   optimisticNextStatus: BookingStatusLabel;
   confirmation?: boolean;
+  // Edit and modification leave the dashboard; reloading here races the
+  // navigation and is not the list the user comes back to.
+  skipReload?: boolean;
 };
 
 interface Props {
@@ -350,19 +354,23 @@ export default function useBookingActions({
       action: async () => {
         loadExistingBookingData(calendarEventId);
         reloadExistingCalendarEvents();
+        rememberDashboardReturn("edit", calendarEventId);
         router.push(`/${tenant}/edit/${calendarEventId}`);
       },
       optimisticNextStatus: status,
       confirmation: false,
+      skipReload: true,
     },
     [Actions.MODIFICATION]: {
       action: async () => {
         loadExistingBookingData(calendarEventId);
         reloadExistingCalendarEvents();
+        rememberDashboardReturn("modification", calendarEventId);
         router.push(`/${tenant}/modification/${calendarEventId}`);
       },
       optimisticNextStatus: status,
       confirmation: false,
+      skipReload: true,
     },
   };
 
@@ -733,7 +741,7 @@ export default function useBookingActions({
     }
 
     // Execute service action
-    await fetch("/api/services", {
+    const response = await fetch("/api/services", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -747,6 +755,16 @@ export default function useBookingActions({
         ...(reason && { reason }),
       }),
     });
+    if (!response.ok) {
+      // e.g. a 403 for someone who isn't this service's approver on any of
+      // the booked rooms; BookingActions shows the message.
+      const body = await response.json().catch(() => ({}));
+      throw new Error(
+        typeof body?.error === "string"
+          ? body.error
+          : `Failed to ${action} the ${serviceType} service`,
+      );
+    }
 
     // When declining, other services are automatically declined
     // Manual auto-decline is not needed as XState state machine handles it automatically

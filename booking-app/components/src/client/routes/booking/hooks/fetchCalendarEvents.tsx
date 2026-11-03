@@ -47,7 +47,8 @@ export default function fetchCalendarEvents(
     (room: RoomSetting, data: any[]): CalendarEvent[] => {
       const filteredEvents = data.filter(
         (row: any) =>
-          !CALENDAR_HIDE_STATUS.some((status) => row?.title?.includes(status)),
+          row?.title &&
+          !CALENDAR_HIDE_STATUS.some((status) => row.title.includes(status)),
       );
       return filteredEvents.map((row) => {
         let backgroundColor = "#3174ad";
@@ -137,16 +138,7 @@ export default function fetchCalendarEvents(
             allEvents.push(...mapEventsForRoom(room, roomEvents));
           }
 
-          const filtered = allEvents.filter(
-            (event) =>
-              event &&
-              event.title &&
-              !CALENDAR_HIDE_STATUS.some((hideStatus) =>
-                event.title.includes(hideStatus),
-              ),
-          );
-
-          setEvents(filtered);
+          setEvents(allEvents);
           setFetchingStatus("loaded");
         })
         .catch((error) => {

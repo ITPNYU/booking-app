@@ -265,7 +265,7 @@ describe("BookingProvider - state scoped to the current request", () => {
   });
 
   it.each([
-    ["/mc/edit/form/evt1", "/mc/book/confirmation"],
+    ["/mc/edit/form/evt1", "/mc/edit/confirmation"],
     ["/mc/modification/form/evt1", "/mc/modification/confirmation"],
     ["/mc/walk-in/services", "/mc/walk-in/confirmation"],
   ])(
@@ -290,7 +290,7 @@ describe("BookingProvider - state scoped to the current request", () => {
     (usePathname as any).mockReturnValue("/mc/edit/form/evt1");
     const { rerender } = render(tree());
     act(() => context.setSubmitting("success"));
-    navigate(rerender, "/mc/book/confirmation");
+    navigate(rerender, "/mc/edit/confirmation");
 
     navigate(rerender, "/mc/book/form");
 

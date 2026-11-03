@@ -1,9 +1,6 @@
 import {
   ApproverLevel,
   TableNames,
-  getResourceApproverDocumentId,
-  getServiceApproverDocumentId,
-  normalizeApproverEmail,
   getTenantCollectionName,
 } from "@/components/src/policy";
 import { Timestamp } from "firebase/firestore";
@@ -11,13 +8,17 @@ import { getE2EOverride } from "@/lib/e2e/clientOverrides";
 
 import { reviveSerializedTimestamps } from "@/lib/utils/timestampWire";
 import { Filters } from "@/components/src/types";
+import {
+  type ApproverChange,
+  type ApproversResource,
+  toApproversResource,
+} from "@/components/src/utils/approversResources";
 import { compareResourceIds } from "@/components/src/utils/resourceOrder";
 import type { SchemaContextType } from "@/components/src/client/routes/components/schemaTypes";
 import {
   USER_RIGHT_FLAG_FIELDS,
   type UserRightFlagField,
 } from "@/lib/firebase/userRightsConstants";
-import { wrapTimestamp } from "@/lib/api/firestoreShared";
 import type {
   GetDocRequest,
   ListRequest,
@@ -52,42 +53,6 @@ export const getTenantCollection = (
 export type AdminUserData = {
   email: string;
   createdAt: Timestamp;
-};
-
-export type ServiceApproverData = {
-  id: string;
-  resourceId: string;
-  service: string;
-  email: string;
-  createdAt?: Timestamp;
-};
-
-export type ResourceApproverData = {
-  id: string;
-  email: string;
-  resourceId: string;
-  createdAt: Timestamp;
-};
-
-const FIRESTORE_IN_QUERY_LIMIT = 30;
-
-const normalizeEmail = (email: string): string => email.trim().toLowerCase();
-const normalizeResourceId = (resourceId: string): string => resourceId.trim();
-
-const normalizeResourceIds = (resourceIds: string[]): string[] => [
-  ...new Set(resourceIds.map(normalizeResourceId).filter(Boolean)),
-];
-
-type ResourceApproverSetRequest = {
-  op: "set";
-  collection: TableNames.RESOURCE_APPROVERS;
-  tenant?: string;
-  docId: string;
-  data: {
-    email: string;
-    resourceId: string;
-    createdAt: { __ts: number };
-  };
 };
 
 /**
@@ -194,69 +159,6 @@ export const clientSaveDataToFirestore = async (
   }
 };
 
-export const clientListServiceApprovers = async (
-  tenant?: string,
-): Promise<ServiceApproverData[]> => {
-  const docs = await clientFetchAllDataFromCollection<ServiceApproverData>(
-    TableNames.SERVICE_APPROVERS,
-    [],
-    tenant,
-  );
-  return docs.sort((a, b) => {
-    const resourceCompare = compareResourceIds(a.resourceId, b.resourceId);
-    if (resourceCompare !== 0) return resourceCompare;
-    const serviceCompare = a.service.localeCompare(b.service);
-    if (serviceCompare !== 0) return serviceCompare;
-    return a.email.localeCompare(b.email);
-  });
-};
-
-export const clientAddServiceApprover = async (
-  resourceId: string,
-  service: string,
-  email: string,
-  tenant?: string,
-) => {
-  const normalizedResourceId = resourceId.trim();
-  const normalizedService = service.trim();
-  const normalizedEmail = normalizeApproverEmail(email);
-  if (!normalizedResourceId || !normalizedService || !normalizedEmail) {
-    throw new Error("Resource, service, and email are required");
-  }
-  const docId = getServiceApproverDocumentId(
-    normalizedResourceId,
-    normalizedService,
-    normalizedEmail,
-  );
-  await postJson<MutateRequest>("/api/firestore/mutate", {
-    op: "set",
-    collection: TableNames.SERVICE_APPROVERS,
-    tenant: resolveTenantArg(tenant),
-    docId,
-    data: {
-      resourceId: normalizedResourceId,
-      service: normalizedService,
-      email: normalizedEmail,
-      createdAt: wrapTimestamp(Date.now()),
-    },
-  });
-};
-
-export const clientRemoveServiceApprover = async (
-  resourceId: string,
-  service: string,
-  email: string,
-  tenant?: string,
-) => {
-  const docId = getServiceApproverDocumentId(resourceId, service, email);
-  await postJson<MutateRequest>("/api/firestore/mutate", {
-    op: "delete",
-    collection: TableNames.SERVICE_APPROVERS,
-    tenant: resolveTenantArg(tenant),
-    docId,
-  });
-};
-
 export const clientSaveUserRightsData = async (
   collectionName: TableNames,
   data: object,
@@ -323,120 +225,47 @@ export const clientFetchAllDataFromCollection = async <T>(
   return docs as unknown as T[];
 };
 
-export const clientListResourceApprovers = async (
+/** Every resource's approvers for the tenant, in resource order. */
+export const clientListApproversResources = async (
   tenant?: string,
-): Promise<ResourceApproverData[]> =>
-  clientFetchAllDataFromCollection<ResourceApproverData>(
-    TableNames.RESOURCE_APPROVERS,
-    [],
-    tenant,
-  );
-
-const clientListResourceApproversByResourceIds = async (
-  resourceIds: string[],
-  tenant?: string,
-): Promise<ResourceApproverData[]> => {
-  const uniqueResourceIds = normalizeResourceIds(resourceIds);
-  if (uniqueResourceIds.length === 0) return [];
-
-  if (uniqueResourceIds.length <= FIRESTORE_IN_QUERY_LIMIT) {
-    return clientFetchAllDataFromCollection<ResourceApproverData>(
-      TableNames.RESOURCE_APPROVERS,
-      [{ field: "resourceId", op: "in", value: uniqueResourceIds }],
-      tenant,
-    );
-  }
-
-  const requestedResourceIds = new Set(uniqueResourceIds);
-  const approvers = await clientListResourceApprovers(tenant);
-  return approvers.filter((approver) =>
-    requestedResourceIds.has(approver.resourceId),
-  );
-};
-
-export const clientAddResourceApprover = async (
-  resourceId: string,
-  email: string,
-  tenant?: string,
-): Promise<void> => {
-  const normalizedResourceId = normalizeResourceId(resourceId);
-  const normalizedEmail = normalizeEmail(email);
-  await postJson<ResourceApproverSetRequest>("/api/firestore/mutate", {
-    op: "set",
-    collection: TableNames.RESOURCE_APPROVERS,
-    tenant: resolveTenantArg(tenant),
-    docId: getResourceApproverDocumentId(normalizedResourceId, normalizedEmail),
-    data: {
-      email: normalizedEmail,
-      resourceId: normalizedResourceId,
-      createdAt: { __ts: Date.now() },
-    },
-  });
-};
-
-export const clientRemoveResourceApprover = async (
-  resourceId: string,
-  email: string,
-  tenant?: string,
-): Promise<void> => {
-  const normalizedResourceId = normalizeResourceId(resourceId);
-  const normalizedEmail = normalizeEmail(email);
-  await postJson<MutateRequest>("/api/firestore/mutate", {
-    op: "delete",
-    collection: TableNames.RESOURCE_APPROVERS,
-    tenant: resolveTenantArg(tenant),
-    docId: getResourceApproverDocumentId(normalizedResourceId, normalizedEmail),
-  });
-};
-
-export const clientResolveResourceApproverEmails = async (
-  resourceIds: string[],
-  tenant?: string,
-): Promise<string[]> => {
-  const uniqueResourceIds = normalizeResourceIds(resourceIds);
-  if (uniqueResourceIds.length === 0) return [];
-
-  const approvers = await clientListResourceApproversByResourceIds(
-    uniqueResourceIds,
-    tenant,
-  );
-  const requestedResourceIds = new Set(uniqueResourceIds);
-  const resourceIdsByEmail = new Map<string, Set<string>>();
-
-  for (const approver of approvers) {
-    if (!requestedResourceIds.has(approver.resourceId)) continue;
-    const email = normalizeEmail(approver.email);
-    const approverResourceIds =
-      resourceIdsByEmail.get(email) ?? new Set<string>();
-    approverResourceIds.add(approver.resourceId);
-    resourceIdsByEmail.set(email, approverResourceIds);
-  }
-
-  const recipients = [...resourceIdsByEmail.entries()]
-    .filter(([, approverResourceIds]) =>
-      uniqueResourceIds.every((resourceId) =>
-        approverResourceIds.has(resourceId),
+): Promise<ApproversResource[]> => {
+  const docs = await clientFetchAllDataFromCollection<
+    Record<string, unknown> & { id: string }
+  >(TableNames.APPROVERS_RESOURCES, [], tenant);
+  return docs
+    .map((doc) =>
+      toApproversResource(
+        typeof doc.resourceId === "string"
+          ? doc.resourceId
+          : decodeURIComponent(doc.id),
+        doc,
       ),
     )
-    .map(([email]) => email);
+    .sort((a, b) => compareResourceIds(a.resourceId, b.resourceId));
+};
 
-  if (recipients.length === 0) {
-    const { docs } = await postJson<
-      ListRequest,
-      { docs: Array<{ email?: string }> }
-    >("/api/firestore/list", {
-      collection: TableNames.APPROVERS,
-      tenant: resolveTenantArg(tenant),
-      where: [{ field: "level", op: "==", value: ApproverLevel.FINAL }],
-      limit: 1,
-    });
-    const finalApproverEmail = docs[0]?.email
-      ? normalizeEmail(docs[0].email)
-      : undefined;
-    if (finalApproverEmail) recipients.push(finalApproverEmail);
+/** Add or remove one resource or service approver on a resource. */
+export const clientUpdateApproversResource = async (
+  resourceId: string,
+  change: ApproverChange,
+  tenant?: string,
+): Promise<void> => {
+  const res = await fetch("/api/approversResources", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tenant": resolveTenantArg(tenant) ?? "",
+    },
+    body: JSON.stringify({ resourceId, ...change }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(
+      typeof body?.error === "string"
+        ? body.error
+        : `Failed to update approvers: ${res.status}`,
+    );
   }
-
-  return recipients;
 };
 
 export const clientFetchAllDataFromCollectionWithLimitAndOffset = async <T>(

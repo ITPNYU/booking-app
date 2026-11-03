@@ -212,6 +212,11 @@ export const DatabaseProvider = ({
 
   const [preBanLogs, setPreBanLogs] = useState<PreBanLog[]>([]);
   const [superAdminUsers, setSuperAdminUsers] = useState<AdminUser[]>([]);
+  // Role computed by /api/permissions, which can also see per-resource
+  // service approver assignments that the browser cannot read.
+  const [serverPagePermission, setServerPagePermission] = useState<
+    PagePermission | undefined
+  >();
 
   useEffect(() => {
     const fetchUserApiData = async () => {
@@ -249,6 +254,9 @@ export const DatabaseProvider = ({
     if (servicesEmails.includes(userEmail)) return PagePermission.SERVICES;
     if (liaisonEmails.includes(userEmail)) return PagePermission.LIAISON;
     if (paEmails.includes(userEmail)) return PagePermission.PA;
+    if (serverPagePermission === PagePermission.SERVICES) {
+      return PagePermission.SERVICES;
+    }
 
     return PagePermission.BOOKING;
   }, [
@@ -258,6 +266,7 @@ export const DatabaseProvider = ({
     paUsers,
     equipmentUsers,
     superAdminUsers,
+    serverPagePermission,
   ]);
 
   // Defer non-permission data fetches to pages that actually need them.
@@ -403,11 +412,14 @@ export const DatabaseProvider = ({
       // LIMIT applies to bounded date ranges only; `fetchAllBookings` fetches
       // the open-ended "All Future" range whole so the client-side status
       // chips see every future booking.
+      // A fresh fetch must ignore the cursor. `lastItem` is the end of the
+      // previous result; startAfter that cursor replaces the table with only
+      // the rows past the last one already shown.
       const bookingsResponse: Booking[] = await fetchAllBookings(
         pagePermission,
         LIMIT,
         filters,
-        lastItem,
+        clicked ? lastItem : null,
         tenant,
       );
 
@@ -461,6 +473,7 @@ export const DatabaseProvider = ({
       }
       const raw = (await res.json()) as Record<string, unknown>;
       const data = reviveTimestamps(raw) as {
+        pagePermission?: PagePermission;
         adminUsers: AdminUser[];
         paUsers: PaUser[];
         liaisonUsers: Approver[];
@@ -470,6 +483,7 @@ export const DatabaseProvider = ({
         maintenanceMode?: MaintenanceModeSettings;
         siteBanner?: SiteBannerSettings;
       };
+      setServerPagePermission(data.pagePermission);
       setAdminUsers(data.adminUsers ?? []);
       setPaUsers(data.paUsers ?? []);
       setLiaisonUsers(data.liaisonUsers ?? []);
@@ -633,8 +647,7 @@ export const DatabaseProvider = ({
   );
 
   const fetchBannedUsers = async () => {
-    // usersBanned is shared across tenants, so this read is not tenant-scoped.
-    clientFetchAllDataFromCollection(TableNames.BANNED, [])
+    clientFetchAllDataFromCollection(TableNames.BANNED, [], tenant)
       .then((fetchedData) => {
         const filtered = fetchedData.map((item: any) => ({
           id: item.id,
