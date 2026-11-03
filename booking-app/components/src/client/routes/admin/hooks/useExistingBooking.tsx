@@ -213,6 +213,8 @@ export default function useExistingBooking() {
       description: booking.description,
       productionSchedule: booking.productionSchedule ?? "",
       bookingType: booking.bookingType,
+      departmentCollaboration: booking.departmentCollaboration,
+      collaboratingDepartments: booking.collaboratingDepartments,
       attendeeAffiliation: booking.attendeeAffiliation,
       roomSetup: booking.roomSetup,
       setupDetails: booking.setupDetails,
