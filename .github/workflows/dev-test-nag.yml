@@ -6,8 +6,7 @@ name: Dev Test Nag
 # PRs labeled `no-dev-test` and PRs opened by bots are skipped.
 #
 # Uses the same secrets.GCHAT_WEBHOOK_URL and vars.GCHAT_USER_MAP as
-# dev-test-request.yml. Set vars.DEV_TEST_SINCE (YYYY-MM-DD) to the rollout
-# date so PRs merged before the process existed are not listed.
+# dev-test-request.yml.
 
 permissions:
   contents: read
@@ -34,14 +33,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DAYS: ${{ github.event.inputs.days || '14' }}
-          # Optional YYYY-MM-DD floor so PRs merged before rollout are ignored.
-          DEV_TEST_SINCE: ${{ vars.DEV_TEST_SINCE }}
         run: |
           SINCE=$(date -u -d "${DAYS} days ago" +%Y-%m-%d)
-          # PRs merged before this process started are never nagged about.
-          if [ -n "${DEV_TEST_SINCE}" ] && [[ "${DEV_TEST_SINCE}" > "${SINCE}" ]]; then
-            SINCE="${DEV_TEST_SINCE}"
-          fi
           gh pr list --repo "$GITHUB_REPOSITORY" --state merged --base main --limit 100 \
             --search "merged:>=${SINCE} -label:dev-tested -label:no-dev-test" \
             --json number,title,url,author,mergedAt \
