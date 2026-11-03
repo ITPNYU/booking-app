@@ -64,8 +64,18 @@ describe("SchemaEditor add resource", () => {
     await user.click(await screen.findByRole("option", { name: "mc" }));
 
     await waitFor(() => {
-      expect(document.querySelector("textarea")?.value).toContain("room-a");
+      expect(
+        (screen.getByRole("textbox", { name: "Schema JSON" }) as HTMLTextAreaElement)
+          .value,
+      ).toContain("room-a");
     });
+    expect(screen.queryByRole("region", { name: "Schema fields" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /1 items/ }));
+    expect(screen.getByLabelText("Resource")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Schema fields" }),
+    ).not.toBeInTheDocument();
 
     const addButton = await screen.findByRole("button", { name: "Add resource" });
     await waitFor(() => expect(addButton).toBeEnabled());
@@ -75,7 +85,10 @@ describe("SchemaEditor add resource", () => {
     await user.click(screen.getByRole("button", { name: "Add to schema" }));
 
     await waitFor(() => {
-      expect(document.querySelector("textarea")?.value).toContain("studio");
+      expect(
+        (screen.getByRole("textbox", { name: "Schema JSON" }) as HTMLTextAreaElement)
+          .value,
+      ).toContain("studio");
     });
     expect(
       vi.mocked(fetch).mock.calls.some((call) => call[1]?.method === "PUT"),
@@ -108,7 +121,37 @@ describe("SchemaEditor add resource", () => {
 
     await waitFor(() => {
       expect(screen.getByText("(entire schema)")).toBeInTheDocument();
-      expect(document.querySelector("textarea")?.value).toContain("resourceDefault");
+      expect(
+        (screen.getByRole("textbox", { name: "Schema JSON" }) as HTMLTextAreaElement)
+          .value,
+      ).toContain("resourceDefault");
     });
+    expect(screen.queryByRole("region", { name: "Schema fields" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add resource" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "resourceDefault" }));
+    expect(screen.getByRole("region", { name: "Schema fields" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Name")).toBeInTheDocument();
+  });
+
+  it("updates a non-resource section from the form without writing yet", async () => {
+    const user = userEvent.setup();
+    renderEditor();
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "mc" }));
+    await user.click(await screen.findByRole("button", { name: /^policy/ }));
+
+    await user.type(screen.getByLabelText("policy"), "Bring an ID");
+
+    await waitFor(() => {
+      expect(
+        (screen.getByRole("textbox", { name: "Schema JSON" }) as HTMLTextAreaElement)
+          .value,
+      ).toContain("Bring an ID");
+    });
+    expect(
+      vi.mocked(fetch).mock.calls.some((call) => call[1]?.method === "PUT"),
+    ).toBe(false);
   });
 });
