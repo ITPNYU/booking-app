@@ -11,11 +11,12 @@ name: Dev Test Request
 #                              pr-deadline-reminder.yml).
 #   vars.GCHAT_USER_MAP        Optional JSON object mapping GitHub logins to
 #                              Google Chat user identifiers, e.g.
-#                              {"rlho": "123456789012345678901", "octocat": "octocat@nyu.edu"}
-#                              The value is inserted as <users/VALUE>; both the
-#                              numeric user ID and the Workspace email form are
-#                              accepted by Google Chat. Logins missing from the
-#                              map are shown as plain @login without a mention.
+#                              {"rlho": "123456789012345678901"}
+#                              The value is inserted as <users/VALUE>. Only the
+#                              numeric user ID works from a webhook (the email
+#                              alias needs user authentication). Logins missing
+#                              from the map are shown as plain @login without a
+#                              mention.
 #   Label `no-dev-test`        Add to a PR to skip the request (e.g. CI-only changes).
 
 permissions:
