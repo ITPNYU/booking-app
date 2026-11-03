@@ -2,6 +2,7 @@
 # Move the project cards of the issues linked to the given PRs to a status.
 #
 # Usage: move_project_cards.sh <pr-number>...
+#        (numbers may also be passed as one space-separated argument)
 #
 # Environment:
 #   GH_TOKEN         Token with write access to the organization project
@@ -10,13 +11,17 @@
 #   PROJECT_OWNER    Organization that owns the project.
 #   PROJECT_NUMBER   Project number as shown in its URL.
 #   TARGET_STATUS    Name of the Status option to set, e.g. "Test - Dev".
+#   CLOSE_ISSUES     Set to 1 to also close the issues (as completed) after
+#                    moving them, e.g. for a production release.
 #   DRY_RUN          Set to 1 to print the moves without applying them.
 #
 # Issues are found through the PR's Development links (closingIssuesReferences).
-# Issues that are not on the project are skipped. Issues already in the target
-# status are left alone.
+# Closed issues and issues that are not on the project are left alone; issues
+# already in the target status are only closed when CLOSE_ISSUES is set.
 set -euo pipefail
 
+# shellcheck disable=SC2048,SC2086
+set -- $*
 if [ "$#" -eq 0 ]; then
   echo "No PR numbers given; nothing to do."
   exit 0
@@ -27,6 +32,7 @@ fi
 : "${PROJECT_NUMBER:?PROJECT_NUMBER is required}"
 : "${TARGET_STATUS:?TARGET_STATUS is required}"
 DRY_RUN="${DRY_RUN:-0}"
+CLOSE_ISSUES="${CLOSE_ISSUES:-0}"
 
 REPO_OWNER="${GITHUB_REPOSITORY%%/*}"
 REPO_NAME="${GITHUB_REPOSITORY##*/}"
@@ -52,9 +58,20 @@ if [ -z "$OPTION_ID" ]; then
   jq -r '.field.options[].name' <<<"$PROJECT" | sed 's/^/  - /'
   exit 1
 fi
-echo "Project: $(jq -r .title <<<"$PROJECT") (#${PROJECT_NUMBER}), target status: ${TARGET_STATUS}"
+echo "Project: $(jq -r .title <<<"$PROJECT") (#${PROJECT_NUMBER}), target status: ${TARGET_STATUS}$([ "$CLOSE_ISSUES" = "1" ] && echo ', then close')"
 
 MOVED=0
+CLOSED=0
+close_issue() {
+  if [ "$CLOSE_ISSUES" != "1" ]; then return; fi
+  if [ "$DRY_RUN" = "1" ]; then
+    echo "PR #${1}: would close issue #${2} (dry run)."
+    return
+  fi
+  gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/${2}" -f state=closed -f state_reason=completed > /dev/null
+  echo "PR #${1}: closed issue #${2}."
+  CLOSED=$((CLOSED + 1))
+}
 for PR in "$@"; do
   ISSUES=$(gh api graphql \
     -f query='query($owner: String!, $name: String!, $pr: Int!) {
@@ -63,6 +80,7 @@ for PR in "$@"; do
           closingIssuesReferences(first: 20) {
             nodes {
               number
+              state
               projectItems(first: 20) {
                 nodes {
                   id
@@ -86,6 +104,10 @@ for PR in "$@"; do
 
   while read -r issue; do
     NUMBER=$(jq -r '.number' <<<"$issue")
+    if [ "$(jq -r '.state' <<<"$issue")" = "CLOSED" ]; then
+      echo "PR #${PR}: issue #${NUMBER} is closed; skipped."
+      continue
+    fi
     ITEM=$(jq -c --arg p "$PROJECT_ID" '.projectItems.nodes[] | select(.project.id == $p)' <<<"$issue" | head -n 1)
     if [ -z "$ITEM" ]; then
       echo "PR #${PR}: issue #${NUMBER} is not on the project; skipped."
@@ -95,10 +117,12 @@ for PR in "$@"; do
     CURRENT=$(jq -r '.fieldValueByName.name // "(none)"' <<<"$ITEM")
     if [ "$CURRENT" = "$TARGET_STATUS" ]; then
       echo "PR #${PR}: issue #${NUMBER} is already in '${TARGET_STATUS}'."
+      close_issue "$PR" "$NUMBER"
       continue
     fi
     if [ "$DRY_RUN" = "1" ]; then
       echo "PR #${PR}: would move issue #${NUMBER} from '${CURRENT}' to '${TARGET_STATUS}' (dry run)."
+      close_issue "$PR" "$NUMBER"
       continue
     fi
     gh api graphql \
@@ -110,6 +134,7 @@ for PR in "$@"; do
       }' -f project="$PROJECT_ID" -f item="$ITEM_ID" -f field="$FIELD_ID" -f option="$OPTION_ID" > /dev/null
     echo "PR #${PR}: moved issue #${NUMBER} from '${CURRENT}' to '${TARGET_STATUS}'."
     MOVED=$((MOVED + 1))
+    close_issue "$PR" "$NUMBER"
   done < <(jq -c '.' <<<"$ISSUES")
 done
-echo "Moved ${MOVED} card(s)."
+echo "Moved ${MOVED} card(s), closed ${CLOSED} issue(s)."

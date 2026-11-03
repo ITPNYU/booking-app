@@ -176,8 +176,7 @@ jobs:
             echo "::warning::PROJECT_TOKEN secret is not set; project cards were not moved."
             exit 0
           fi
-          # shellcheck disable=SC2086
-          .github/scripts/move_project_cards.sh ${NUMBERS}
+          .github/scripts/move_project_cards.sh "${NUMBERS}"
 
   confirm:
     name: Record the author's /tested comment
