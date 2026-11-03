@@ -51,6 +51,7 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
             --jq '[.[] | select(.merged_at != null and .base.ref == "main")
                     | select(([.labels[].name] | index("no-dev-test")) == null)
+                    | select(([.labels[].name] | index("dev-tested")) == null)
                     | select(.user.type != "Bot")
                     | {number, title, html_url, author: .user.login}]' > prs.json
           echo "count=$(jq length prs.json)" >> "$GITHUB_OUTPUT"
@@ -72,7 +73,10 @@ jobs:
             USER_MAP=$(jq -c '.' <<<"${GCHAT_USER_MAP}") || { echo "Error: GCHAT_USER_MAP is not valid JSON."; exit 1; }
           fi
 
-          jq -c '.[]' prs.json | while read -r pr; do
+          # Read from a process substitution (not a pipe) so the loop runs in this shell,
+          # and keep going after a failed post so one bad response does not skip the rest.
+          FAILED=0
+          while read -r pr; do
             NUMBER=$(jq -r '.number' <<<"$pr")
             TITLE=$(jq -r '.title' <<<"$pr")
             URL=$(jq -r '.html_url' <<<"$pr")
@@ -110,9 +114,10 @@ jobs:
             else
               echo "Failed to send request for PR #${NUMBER} (HTTP ${HTTP_STATUS})"
               cat /tmp/response.txt
-              exit 1
+              FAILED=1
             fi
-          done
+          done < <(jq -c '.[]' prs.json)
+          exit "$FAILED"
 
   confirm:
     name: Record the author's /tested comment
@@ -129,7 +134,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           NUMBER: ${{ github.event.issue.number }}
           COMMENTER: ${{ github.event.comment.user.login }}
+          BODY: ${{ github.event.comment.body }}
         run: |
+          # The workflow-level startsWith is only a cheap filter; require the bare
+          # command (optionally followed by whitespace and more text) here.
+          if ! [[ "$BODY" =~ ^/tested($|[[:space:]]) ]]; then
+            echo "Ignored: the comment does not start with the /tested command."
+            echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${NUMBER}" > pr.json
           AUTHOR=$(jq -r '.user.login' pr.json)
           MERGED=$(jq -r '.merged_at // empty' pr.json)
@@ -143,9 +155,10 @@ jobs:
             echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           echo "ok=true" >> "$GITHUB_OUTPUT"
+          # Heredoc form: a title with an embedded newline must not become another output.
           {
-            echo "title=$(jq -r '.title' pr.json)"
-            echo "url=$(jq -r '.html_url' pr.json)"
+            echo "title<<GH_EOF"; jq -r '.title' pr.json; echo "GH_EOF"
+            echo "url<<GH_EOF"; jq -r '.html_url' pr.json; echo "GH_EOF"
           } >> "$GITHUB_OUTPUT"
 
       - name: Label the PR and acknowledge the comment

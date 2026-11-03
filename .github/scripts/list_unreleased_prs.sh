@@ -26,20 +26,33 @@ EXCLUDE=$(printf '%s\n' "$@" | jq -R . | jq -s .)
 SINCE=$(date -u -d "${DAYS} days ago" +%Y-%m-%d 2>/dev/null || date -u -v-"${DAYS}"d +%Y-%m-%d)
 
 # Candidates: PRs merged to main in the window.
-CANDIDATES=$(gh pr list --repo "$GITHUB_REPOSITORY" --state merged --base main --limit 200 \
-  --search "merged:>=${SINCE}" --json number,title,url,author,mergedAt,labels \
-  | jq --argjson exclude "$EXCLUDE" '
+# The search API orders by relevance unless told otherwise, so sort explicitly and
+# warn when the limit is hit (the window is short, so the limits should never be).
+LIMIT=500
+CANDIDATES_RAW=$(gh pr list --repo "$GITHUB_REPOSITORY" --state merged --base main --limit "$LIMIT" \
+  --search "merged:>=${SINCE} sort:created-desc" --json number,title,url,author,mergedAt,labels)
+if [ "$(jq length <<<"$CANDIDATES_RAW")" -ge "$LIMIT" ]; then
+  echo "::warning::More than ${LIMIT} PRs merged to main since ${SINCE}; the list is truncated." >&2
+fi
+CANDIDATES=$(jq --argjson exclude "$EXCLUDE" '
     [ .[]
       | select(.author.is_bot | not)
       | select(([.labels[].name] | map(. as $l | $exclude | index($l)) | any) | not)
       | {number, title, url, author: .author.login, mergedAt}
-    ]')
+    ]' <<<"$CANDIDATES_RAW")
 
 # Released: PRs whose commits are part of a PR merged into prod in the window.
 RELEASED="[]"
-for RELEASE_PR in $(gh pr list --repo "$GITHUB_REPOSITORY" --state merged --base prod --limit 50 \
-    --search "merged:>=${SINCE}" --json number --jq '.[].number'); do
-  mapfile -t SHAS < <(gh api "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PR}/commits" --paginate --jq '.[].sha')
+RELEASE_PRS=$(gh pr list --repo "$GITHUB_REPOSITORY" --state merged --base prod --limit "$LIMIT" \
+    --search "merged:>=${SINCE} sort:created-desc" --json number --jq '.[].number')
+if [ "$(wc -l <<<"$RELEASE_PRS")" -ge "$LIMIT" ]; then
+  echo "::warning::More than ${LIMIT} PRs merged to prod since ${SINCE}; the list is truncated." >&2
+fi
+for RELEASE_PR in $RELEASE_PRS; do
+  # Capture into a variable first so a failed API call aborts the script (set -e)
+  # instead of silently leaving SHAS empty, which would un-release every PR in it.
+  SHAS_OUTPUT=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${RELEASE_PR}/commits" --paginate --jq '.[].sha')
+  mapfile -t SHAS <<<"$SHAS_OUTPUT"
   echo "Release PR #${RELEASE_PR}: ${#SHAS[@]} commits" >&2
   for ((start = 0; start < ${#SHAS[@]}; start += 50)); do
     FIELDS=""
