@@ -18,6 +18,14 @@ name: Dev Test Request
 #                              from the map are shown as plain @login without a
 #                              mention.
 #   Label `no-dev-test`        Add to a PR to skip the request (e.g. CI-only changes).
+#   secrets.PROJECT_TOKEN      Token that can write the organization project
+#                              (classic PAT with the `repo` and `project`
+#                              scopes; the organization does not allow
+#                              fine-grained PATs). Used to move the project
+#                              cards of the issues linked to the merged PR to
+#                              "Test - Dev". GITHUB_TOKEN cannot access
+#                              organization projects. When unset, the card move
+#                              is skipped.
 #
 # Idempotency: a PR is labeled `dev-test-requested` once the request is posted
 # and `dev-tested` once confirmed, and PRs carrying either label are skipped, so
@@ -127,6 +135,49 @@ jobs:
             fi
           done < <(jq -c '.[]' prs.json)
           exit "$FAILED"
+
+  move_cards:
+    name: Move linked issues to Test - Dev on the project board
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the move script
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts/move_project_cards.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Find the PRs merged by this deploy
+        id: prs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          NUMBERS=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+            --jq '[.[] | select(.merged_at != null and .base.ref == "main") | .number] | join(" ")')
+          echo "numbers=${NUMBERS}" >> "$GITHUB_OUTPUT"
+          echo "PRs: ${NUMBERS:-none}"
+
+      - name: Move the linked issues' cards
+        if: steps.prs.outputs.numbers != ''
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PROJECT_OWNER: ${{ github.repository_owner }}
+          PROJECT_NUMBER: 2
+          TARGET_STATUS: Test - Dev
+          NUMBERS: ${{ steps.prs.outputs.numbers }}
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::warning::PROJECT_TOKEN secret is not set; project cards were not moved."
+            exit 0
+          fi
+          # shellcheck disable=SC2086
+          .github/scripts/move_project_cards.sh ${NUMBERS}
 
   confirm:
     name: Record the author's /tested comment
