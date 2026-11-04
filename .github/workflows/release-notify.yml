@@ -8,12 +8,17 @@ name: Release Notify
 # keywords) are listed; PRs without a linked issue are not mentioned. Nothing is
 # posted when the release has no linked issues.
 #
+# Idempotency: the release PR is labeled `announced-staging` / `announced-prod`
+# once its message is posted, and a labeled release is skipped, so re-running or
+# repeating a deploy never posts the same release twice.
+#
 # Configuration:
 #   secrets.GCHAT_RELEASE_WEBHOOK_URL  Incoming webhook of the client-facing space
 #                                      (separate from the team space webhook).
 
 permissions:
   contents: read
+  pull-requests: write
 
 on:
   workflow_run:
@@ -64,6 +69,19 @@ jobs:
           if [ -z "${HEAD_SHA}" ]; then
             HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/branches/${BRANCH}" --jq '.commit.sha')
           fi
+          # The release PR carries the "announced" marker; skip when it is already set.
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+            | jq --arg base "$BRANCH" '[.[] | select(.base.ref == $base and .merged_at != null)] | sort_by(.merged_at) | last // empty' > release.json
+          RELEASE_PR=$(jq -r '.number // empty' release.json)
+          if [ -z "$RELEASE_PR" ]; then
+            echo "No merged release PR into ${BRANCH} found for ${HEAD_SHA}; nothing to announce."
+            echo "count=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if jq -e --arg l "announced-${BRANCH}" '[.labels[].name] | index($l)' release.json > /dev/null; then
+            echo "Release PR #${RELEASE_PR} is already labeled announced-${BRANCH}; nothing to announce."
+            echo "count=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "release_pr=${RELEASE_PR}" >> "$GITHUB_OUTPUT"
           NUMBERS=$(.github/scripts/list_release_prs.sh "${HEAD_SHA}" "${BRANCH}" | tr '\n' ' ')
           echo "PRs: ${NUMBERS:-none}"
           .github/scripts/list_release_issues.sh "${NUMBERS}" > issues.json
@@ -73,8 +91,10 @@ jobs:
       - name: Post to Google Chat
         if: steps.issues.outputs.count != '0'
         env:
+          GH_TOKEN: ${{ github.token }}
           GCHAT_RELEASE_WEBHOOK_URL: ${{ secrets.GCHAT_RELEASE_WEBHOOK_URL }}
           BRANCH: ${{ github.event.workflow_run.head_branch || github.event.inputs.branch }}
+          RELEASE_PR: ${{ steps.issues.outputs.release_pr }}
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
         run: |
           case "$BRANCH" in
@@ -106,6 +126,9 @@ jobs:
 
           if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
             echo "Release notification sent (HTTP ${HTTP_STATUS})"
+            # Mark the release PR so a re-run of the deploy does not post again.
+            gh label create "announced-${BRANCH}" --color 5319E7 --description "Release was announced to the client space" --force
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${RELEASE_PR}/labels" -f "labels[]=announced-${BRANCH}" > /dev/null
           else
             echo "Failed to send release notification (HTTP ${HTTP_STATUS})"
             cat /tmp/response.txt
