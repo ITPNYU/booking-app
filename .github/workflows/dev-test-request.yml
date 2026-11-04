@@ -89,7 +89,7 @@ jobs:
 
           # Read from a process substitution (not a pipe) so the loop runs in this shell,
           # and keep going after a failed post so one bad response does not skip the rest.
-          gh label create dev-test-requested --color FBCA04 --description "Author was asked to test the change on dev" --force
+          gh label create dev-test-requested --repo "$GITHUB_REPOSITORY" --color FBCA04 --description "Author was asked to test the change on dev" --force
           FAILED=0
           while read -r pr; do
             NUMBER=$(jq -r '.number' <<<"$pr")
@@ -232,7 +232,7 @@ jobs:
           NUMBER: ${{ github.event.issue.number }}
           COMMENT_ID: ${{ github.event.comment.id }}
         run: |
-          gh label create dev-tested --color 0E8A16 --description "Author verified the change on dev" --force
+          gh label create dev-tested --repo "$GITHUB_REPOSITORY" --color 0E8A16 --description "Author verified the change on dev" --force
           gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${NUMBER}/labels" -f 'labels[]=dev-tested' > /dev/null
           # The request label has served its purpose; ignore 404 when it was never set.
           gh api -X DELETE "repos/${GITHUB_REPOSITORY}/issues/${NUMBER}/labels/dev-test-requested" > /dev/null 2>&1 || true
