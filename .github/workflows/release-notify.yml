@@ -127,7 +127,7 @@ jobs:
           if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
             echo "Release notification sent (HTTP ${HTTP_STATUS})"
             # Mark the release PR so a re-run of the deploy does not post again.
-            gh label create "announced-${BRANCH}" --color 5319E7 --description "Release was announced to the client space" --force
+            gh label create "announced-${BRANCH}" --repo "$GITHUB_REPOSITORY" --color 5319E7 --description "Release was announced to the client space" --force
             gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${RELEASE_PR}/labels" -f "labels[]=announced-${BRANCH}" > /dev/null
           else
             echo "Failed to send release notification (HTTP ${HTTP_STATUS})"
