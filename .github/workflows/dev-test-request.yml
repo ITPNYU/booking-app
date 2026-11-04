@@ -93,7 +93,6 @@ jobs:
           FAILED=0
           while read -r pr; do
             NUMBER=$(jq -r '.number' <<<"$pr")
-            TITLE=$(jq -r '.title' <<<"$pr")
             URL=$(jq -r '.html_url' <<<"$pr")
             AUTHOR=$(jq -r '.author' <<<"$pr")
             MENTION=$(jq -r --arg login "$AUTHOR" '.[$login] // empty' <<<"$USER_MAP")
@@ -103,16 +102,14 @@ jobs:
               WHO="@${AUTHOR}"
             fi
 
-            TEXT=$(printf '%s\n' \
-              "${WHO} PR #${NUMBER} is now on dev. Please test it there and comment \`/tested\` on the PR when it works." \
-              "${TITLE}")
+            # <URL|text> renders as a link in Google Chat.
+            TEXT="${WHO} <${URL}|PR #${NUMBER}> is now on dev. Please test it there and comment \`/tested\` on the PR when it works."
 
-            PAYLOAD=$(jq -n --arg text "$TEXT" --arg url "$URL" --arg dev "$DEV_URL" '{
+            PAYLOAD=$(jq -n --arg text "$TEXT" --arg dev "$DEV_URL" '{
               text: $text,
               cardsV2: [{
                 cardId: "dev-test-request",
                 card: { sections: [{ widgets: [{ buttonList: { buttons: [
-                  { text: "Open PR", onClick: { openLink: { url: $url } } },
                   { text: "Open dev", onClick: { openLink: { url: $dev } } }
                 ] } }] }] }
               }]
@@ -176,8 +173,7 @@ jobs:
             echo "::warning::PROJECT_TOKEN secret is not set; project cards were not moved."
             exit 0
           fi
-          # shellcheck disable=SC2086
-          .github/scripts/move_project_cards.sh ${NUMBERS}
+          .github/scripts/move_project_cards.sh "${NUMBERS}"
 
   confirm:
     name: Record the author's /tested comment
@@ -219,11 +215,7 @@ jobs:
             echo "ok=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           echo "ok=true" >> "$GITHUB_OUTPUT"
-          # Heredoc form: a title with an embedded newline must not become another output.
-          {
-            echo "title<<GH_EOF"; jq -r '.title' pr.json; echo "GH_EOF"
-            echo "url<<GH_EOF"; jq -r '.html_url' pr.json; echo "GH_EOF"
-          } >> "$GITHUB_OUTPUT"
+          echo "url=$(jq -r '.html_url' pr.json)" >> "$GITHUB_OUTPUT"
 
       - name: Label the PR and acknowledge the comment
         if: steps.check.outputs.ok == 'true'
@@ -243,7 +235,6 @@ jobs:
         env:
           GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
           NUMBER: ${{ github.event.issue.number }}
-          TITLE: ${{ steps.check.outputs.title }}
           URL: ${{ steps.check.outputs.url }}
           COMMENTER: ${{ github.event.comment.user.login }}
         run: |
@@ -251,10 +242,7 @@ jobs:
             echo "Error: GCHAT_WEBHOOK_URL secret is not set."
             exit 1
           fi
-          TEXT=$(printf '%s\n' \
-            "✅ PR #${NUMBER} was tested on dev by ${COMMENTER}." \
-            "${TITLE}" \
-            "${URL}")
+          TEXT="✅ <${URL}|PR #${NUMBER}> was tested on dev by ${COMMENTER}."
           PAYLOAD=$(jq -n --arg text "$TEXT" '{text: $text}')
 
           HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
