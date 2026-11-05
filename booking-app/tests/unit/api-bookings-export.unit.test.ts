@@ -251,6 +251,42 @@ describe("GET /api/bookings/export — End Event Status", () => {
     ).toBe("Declined");
   });
 
+  it("reports a decline as Declined even though auto-cancel stamps canceledAt 24h later", async () => {
+    expect(
+      await exportStatus({
+        requestedAt: "2026-10-01T10:00:00Z",
+        firstApprovedAt: "2026-10-01T11:00:00Z",
+        declinedAt: "2026-10-02T09:00:00Z",
+        canceledAt: "2026-10-03T09:00:05Z",
+        closedAt: "2026-10-03T09:00:09Z",
+      }),
+    ).toBe("Declined");
+  });
+
+  it("reports Canceled when an old no-show was overridden before the cancel", async () => {
+    // The no-show is no longer the latest outcome, so the cancel counts.
+    expect(
+      await exportStatus({
+        finalApprovedAt: "2026-10-01T13:16:40Z",
+        noShowedAt: "2026-10-01T17:38:49Z",
+        checkedInAt: "2026-10-01T18:43:25Z",
+        canceledAt: "2026-10-01T19:00:00Z",
+      }),
+    ).toBe("Canceled");
+  });
+
+  it("keeps Approved after staff modify an approved booking", async () => {
+    // The modification route re-stamps requestedAt, then finalApprove
+    // re-stamps finalApprovedAt later in the same request.
+    expect(
+      await exportStatus({
+        requestedAt: "2026-10-05T15:00:00.100Z",
+        firstApprovedAt: "2026-10-01T11:00:00Z",
+        finalApprovedAt: "2026-10-05T15:00:00.900Z",
+      }),
+    ).toBe("Approved");
+  });
+
   it("still reports Approved when nothing happened after final approval", async () => {
     expect(
       await exportStatus({
