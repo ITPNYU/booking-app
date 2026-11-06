@@ -24,15 +24,27 @@ const Container = styled(Box)(({ theme }) => ({
 /** One titled block of fields on a request form step. */
 export const Section = ({
   title,
+  action,
   children,
 }: {
   title: string;
+  /** Rendered beside the title, e.g. a button that fills the section. */
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) => (
   <div style={{ marginBottom: "20px" }}>
-    <Typography variant="h5" style={{ marginBottom: "8px" }}>
-      {title}
-    </Typography>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 1,
+        marginBottom: "8px",
+      }}
+    >
+      <Typography variant="h5">{title}</Typography>
+      {action}
+    </Box>
     <div>{children}</div>
   </div>
 );

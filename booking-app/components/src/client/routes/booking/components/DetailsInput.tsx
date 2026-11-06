@@ -1,4 +1,4 @@
-import { Button, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import { ChevronRight } from "@mui/icons-material";
 import {
   useCallback,
@@ -36,6 +36,13 @@ import { useHasServicesStep } from "../hooks/useFormSteps";
 import useRequestFormState from "../hooks/useRequestFormState";
 import useSubmitRequest from "../hooks/useSubmitRequest";
 import { readBookingProfile } from "../utils/bookingProfileCache";
+import {
+  COPY_SECTION_FIELDS,
+  CopyFieldValues,
+  CopySection,
+  getCopyValues,
+} from "../utils/copyFromBooking";
+import { AutofillButton, useLastBookingForRooms } from "./CopyFromBooking";
 import { buildBookingUrl } from "../utils/bookingUrlParser";
 import { formContextToFlowType } from "../utils/formSteps";
 import { isProductionScheduleRequired } from "../utils/productionSchedule";
@@ -93,6 +100,7 @@ export default function DetailsInput({
     reset,
     getValues,
     setValue,
+    clearErrors,
     formState: { errors, isValid },
   } = useRequestFormState({ userApiData, isVIP, isWalkIn });
 
@@ -245,6 +253,61 @@ export default function DetailsInput({
     }
   }, [isFullForm, userEmail, ownNetId, tenant, getValues, setValue]);
 
+  // The requester's last booking in any of these rooms. Autofill overwrites
+  // a section whole; the values it replaced are kept until that section's
+  // Undo restores them.
+  const copySource = useLastBookingForRooms(
+    selectedRooms.map((room) => String(room.roomId)),
+    isFullForm,
+  );
+  const [valuesBeforeFill, setValuesBeforeFill] = useState<
+    Partial<Record<CopySection, CopyFieldValues>>
+  >({});
+  const bookingTypeNames = useMemo(
+    () => settings.bookingTypes.map((x) => x.bookingType),
+    [settings.bookingTypes],
+  );
+
+  const writeFields = (values: CopyFieldValues) => {
+    for (const [field, value] of Object.entries(values)) {
+      const key = field as keyof Inputs;
+      setValue(key, value, { shouldDirty: true, shouldValidate: !!value });
+      if (!value) clearErrors(key);
+    }
+    setIsDetailsValid(false);
+  };
+
+  const fillSection = (section: CopySection) => {
+    const values = copySource
+      ? getCopyValues(copySource, section, bookingTypeNames)
+      : null;
+    if (!values) return;
+    const previous: CopyFieldValues = {};
+    for (const field of COPY_SECTION_FIELDS[section]) {
+      previous[field] = (getValues(field) as string) ?? "";
+    }
+    writeFields(values);
+    setValuesBeforeFill((prev) => ({ ...prev, [section]: previous }));
+  };
+
+  const undoFill = (section: CopySection) => {
+    const previous = valuesBeforeFill[section];
+    if (previous) writeFields(previous);
+    setValuesBeforeFill(({ [section]: _, ...rest }) => rest);
+  };
+
+  const fillAction = (section: CopySection) =>
+    isFullForm &&
+    copySource &&
+    getCopyValues(copySource, section, bookingTypeNames) ? (
+      <AutofillButton
+        source={copySource}
+        filled={valuesBeforeFill[section] !== undefined}
+        onFill={() => fillSection(section)}
+        onUndo={() => undoFill(section)}
+      />
+    ) : null;
+
   // Next is gated by the same rule Submit uses: modifications need a valid
   // form; other requests are blocked by bans, safety training and blackouts.
   const nextDisabled = isMod ? !isValid : blocked;
@@ -286,12 +349,20 @@ export default function DetailsInput({
             {...{ control, errors, trigger }}
           />
           <div style={{ marginTop: 20 }}>
-            <Typography
-              variant="body1"
-              style={{ fontWeight: 500, marginBottom: 8 }}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 1,
+                marginBottom: 1,
+              }}
             >
-              Secondary Point of Contact
-            </Typography>
+              <Typography variant="body1" style={{ fontWeight: 500 }}>
+                Secondary Point of Contact
+              </Typography>
+              {fillAction("secondaryContact")}
+            </Box>
             <Typography variant="body2" style={{ marginBottom: 16 }}>
               If the person submitting this request is not the Point of Contact
               for the reservation, please add their name and contact information
@@ -368,7 +439,10 @@ export default function DetailsInput({
 
       {/* Sponsor - only for full form with student role */}
       {!isMod && showSponsor && watch("role") === Role.STUDENT && (
-        <Section title={formatSectionTitle("Sponsor")}>
+        <Section
+          title={formatSectionTitle("Sponsor")}
+          action={fillAction("sponsor")}
+        >
           <BookingFormTextField
             id="sponsorFirstName"
             label="Sponsor First Name"
@@ -398,7 +472,10 @@ export default function DetailsInput({
       )}
 
       {/* Reservation Details - for all form types */}
-      <Section title={formatSectionTitle("Reservation Details")}>
+      <Section
+        title={formatSectionTitle("Reservation Details")}
+        action={fillAction("reservation")}
+      >
         <BookingFormTextField
           id="title"
           label="Reservation Title"
