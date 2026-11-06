@@ -48,9 +48,11 @@ async function executeSideEffect(
     tenant?: string;
     email?: string;
     netId?: string;
+    /** The note given with the event that queued the effect, if any. */
+    note?: string;
   },
 ): Promise<void> {
-  const { calendarEventId, tenant, email, netId: passedNetId } = ctx;
+  const { calendarEventId, tenant, email, netId: passedNetId, note } = ctx;
   const netId =
     passedNetId ||
     (email && email.includes("@") ? email.split("@")[0] : "system");
@@ -70,6 +72,7 @@ async function executeSideEffect(
             email: email || "system",
             netId,
             tenant,
+            note,
           }),
         },
       );
@@ -669,6 +672,7 @@ export async function executeXStateTransition(
         tenant,
         email,
         netId,
+        note: reason,
       });
     }
     if (

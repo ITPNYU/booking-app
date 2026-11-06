@@ -253,6 +253,7 @@ describe("POST /api/approve", () => {
       bookingId,
       sessionEmail,
       DEFAULT_TENANT,
+      undefined,
     );
     expect(response.status).toBe(200);
   });
@@ -306,6 +307,7 @@ describe("POST /api/approve", () => {
       bookingId,
       sessionEmail,
       DEFAULT_TENANT,
+      undefined,
     );
     expect(response.status).toBe(200);
   });
@@ -370,6 +372,7 @@ describe("POST /api/approve", () => {
       bookingId,
       sessionEmail,
       DEFAULT_TENANT,
+      undefined,
     );
     expect(mockServerResolveResourceApproverEmails).not.toHaveBeenCalled();
   });
@@ -389,6 +392,7 @@ describe("POST /api/approve", () => {
         bookingId,
         sessionEmail,
         DEFAULT_TENANT,
+        undefined,
       );
     },
   );
@@ -413,6 +417,7 @@ describe("POST /api/approve", () => {
       bookingId,
       sessionEmail,
       "itp",
+      undefined,
     );
     expect(mockFinalApprove).not.toHaveBeenCalled();
     expect(mockServerFirstApproveOnly).not.toHaveBeenCalled();
@@ -489,6 +494,7 @@ describe("POST /api/approve", () => {
       bookingId,
       sessionEmail,
       "mc",
+      undefined,
     );
     expect(response.status).toBe(200);
     await expect(parseJson(response)).resolves.toEqual({
@@ -528,6 +534,7 @@ describe("POST /api/approve", () => {
       bookingId,
       sessionEmail,
       "mc",
+      undefined,
     );
     expect(response.status).toBe(200);
   });
@@ -549,6 +556,7 @@ describe("POST /api/approve", () => {
       bookingId,
       sessionEmail,
       DEFAULT_TENANT,
+      undefined,
     );
     expect(mockServerApproveBooking).not.toHaveBeenCalled();
 
@@ -654,6 +662,7 @@ describe("POST /api/approve", () => {
       bookingId,
       sessionEmail,
       DEFAULT_TENANT,
+      undefined,
     );
     expect(mockFinalApprove).not.toHaveBeenCalled();
 
@@ -793,6 +802,98 @@ describe("POST /api/approve", () => {
     await expect(parseJson(response)).resolves.toEqual({
       status: 200,
       data: { message: "Approved successfully" },
+    });
+  });
+
+  describe("approval note", () => {
+    it("passes the trimmed note to finalApprove when XState reaches Approved", async () => {
+      mockExecute.mockResolvedValue({ success: true, newState: "Approved" });
+
+      await POST(
+        createRequest({
+          id: bookingId,
+          email: bodyEmail,
+          note: "  Approved for the spring showcase  ",
+        }) as any,
+      );
+
+      expect(mockFinalApprove).toHaveBeenCalledWith(
+        bookingId,
+        sessionEmail,
+        DEFAULT_TENANT,
+        "Approved for the spring showcase",
+      );
+    });
+
+    it("passes the note to serverFirstApproveOnly for a first approval", async () => {
+      mockResolveCallerRole.mockResolvedValue(PagePermission.LIAISON);
+      mockExecute.mockResolvedValue({
+        success: true,
+        newState: "Pre-approved",
+      });
+
+      await POST(
+        createRequest({ id: bookingId, note: "Dept. budget confirmed" }) as any,
+      );
+
+      expect(mockServerFirstApproveOnly).toHaveBeenCalledWith(
+        bookingId,
+        sessionEmail,
+        DEFAULT_TENANT,
+        "Dept. budget confirmed",
+      );
+    });
+
+    it("passes the note to the fallback approval", async () => {
+      mockExecute.mockResolvedValue({ success: false, error: "state error" });
+
+      await POST(
+        createRequest(
+          { id: bookingId, note: "Approved by phone" },
+          { "x-tenant": "itp" },
+        ) as any,
+      );
+
+      expect(mockServerApproveBooking).toHaveBeenCalledWith(
+        bookingId,
+        sessionEmail,
+        "itp",
+        "Approved by phone",
+      );
+    });
+
+    it("adds the note after the role note when the booking moves into services", async () => {
+      mockResolveCallerRole.mockResolvedValue(PagePermission.LIAISON);
+      mockExecute.mockResolvedValue({
+        success: true,
+        newState: { "Services Request": "pending" },
+      });
+
+      await POST(
+        createRequest(
+          { id: bookingId, note: "Catering confirmed with the requester" },
+          { "x-tenant": "itp" },
+        ) as any,
+      );
+
+      expect(mockLogServerBookingChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          note: "Departmental Liaison Approved: Catering confirmed with the requester",
+        }),
+      );
+    });
+
+    it("ignores a note that isn't a string", async () => {
+      mockExecute.mockResolvedValue({ success: true, newState: "Approved" });
+
+      await POST(createRequest({ id: bookingId, note: { text: "x" } }) as any);
+
+      expect(mockFinalApprove).toHaveBeenCalledWith(
+        bookingId,
+        sessionEmail,
+        DEFAULT_TENANT,
+        undefined,
+      );
     });
   });
 

@@ -13,11 +13,9 @@ export default function useAllowedStatuses(pageContext: PageContextLevel) {
         BookingStatusLabel.CLOSED,
       ];
     }
-    if (pageContext === PageContextLevel.SERVICES) {
-      const { WALK_IN, ...displayableStatuses } = BookingStatusLabel;
-      return Object.values(displayableStatuses);
-    }
-    const { WALK_IN, ...displayableStatuses } = BookingStatusLabel;
+    // NOTE marks a history note, never a booking's status, so there's
+    // nothing to filter by.
+    const { WALK_IN, NOTE, ...displayableStatuses } = BookingStatusLabel;
     return Object.values(displayableStatuses);
   }, [pageContext]);
 
