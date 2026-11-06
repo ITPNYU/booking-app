@@ -4,7 +4,11 @@ import { getCalendarClient } from "@/lib/googleClient";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
 import { traceExternalCall } from "@/lib/newrelic-utils";
 import { BookingFormDetails, BookingStatusLabel } from "../types";
-import { formatOrigin, getSecondaryContactName } from "../utils/formatters";
+import {
+  formatDepartmentCollaboration,
+  formatOrigin,
+  getSecondaryContactName,
+} from "../utils/formatters";
 import {
   formatServicesDescriptionHtml,
   getBookingServicesByRoom,
@@ -207,6 +211,12 @@ export const bookingContentsToDescription = async (
     "Booking Type",
     getProperty(bookingContents, "bookingType"),
   );
+  // Not through listItem, which would show a "No" answer as "none".
+  const departmentCollaboration =
+    formatDepartmentCollaboration(bookingContents);
+  if (departmentCollaboration) {
+    description += `<li><strong>Department Collaboration:</strong> ${departmentCollaboration}</li>`;
+  }
   description += listItem(
     "Expected Attendance",
     getProperty(bookingContents, "expectedAttendance"),
