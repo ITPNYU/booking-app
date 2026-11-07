@@ -1,6 +1,6 @@
 import { UserApiData } from "@/components/src/types";
 import { TENANTS, TenantValue } from "@/components/src/constants/tenants";
-import { ITP_DEPT_CODES } from "@/components/src/utils/tenantUtils";
+import { isItpGroupIdentity } from "@/components/src/utils/tenantUtils";
 import { shouldBypassAuth } from "@/lib/utils/testEnvironment";
 import { auth } from "@/lib/auth";
 import { fetchNYUIdentity } from "@/lib/server/nyuIdentity";
@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 function getEntitledTenants(userData: UserApiData): TenantValue[] {
   const tenants: TenantValue[] = [TENANTS.MC];
 
-  if (userData.dept_code && ITP_DEPT_CODES.includes(userData.dept_code)) {
+  if (isItpGroupIdentity(userData)) {
     tenants.push(TENANTS.ITP);
   }
 

@@ -5,7 +5,14 @@ import { styled } from "@mui/material/styles";
 import { useRouter, useParams } from "next/navigation";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
-import { Department, FormContextLevel, Inputs, Role } from "../../../../types";
+import {
+  Department,
+  FormContextLevel,
+  Inputs,
+  Role,
+  UserApiData,
+} from "../../../../types";
+import { isItpGroupIdentity } from "../../../../utils/tenantUtils";
 import { useAuth } from "../../components/AuthProvider";
 import { DatabaseContext } from "../../components/Provider";
 import { BookingContext } from "../bookingProvider";
@@ -49,21 +56,39 @@ export const mapAffiliationToRole = (
   return undefined;
 };
 
-const mapDepartmentCode = (
+/**
+ * Department to pre-select from an NYU Identity record. ITP / IMA / Low Res is
+ * decided by `ITP_DEPT_CODES` (same check as ITP tenant access); other
+ * departments come from the tenant's program mapping, matched on either code
+ * field. Returns undefined when nothing matches so the user picks one.
+ */
+export const mapIdentityToDepartment = (
   programMapping: Record<string, string[]>,
-  deptCode?: string,
+  identity?: Pick<UserApiData, "dept_code" | "reporting_dept_code">,
 ): Department | undefined => {
-  if (!deptCode) return undefined;
+  if (!identity) return undefined;
 
-  const normalizedCode = deptCode.toUpperCase();
+  if (isItpGroupIdentity(identity) && Department.ITP in programMapping) {
+    return Department.ITP;
+  }
+
+  const identityCodes = [identity.dept_code, identity.reporting_dept_code]
+    .map((code) => code?.trim().toUpperCase())
+    .filter((code): code is string => !!code);
+  if (identityCodes.length === 0) return undefined;
 
   for (const [dept, codes] of Object.entries(programMapping)) {
-    if (codes.includes(normalizedCode)) {
+    if (!Array.isArray(codes)) continue;
+    if (
+      codes.some((code) =>
+        identityCodes.includes(String(code).trim().toUpperCase()),
+      )
+    ) {
       return dept as Department;
     }
   }
 
-  return Department.OTHER;
+  return undefined;
 };
 
 interface Props {
@@ -209,9 +234,9 @@ export default function UserRolePage({
         tenantSchema.mappings.role,
         userApiData.affiliation_sub_type,
       );
-      const mappedDepartment = mapDepartmentCode(
+      const mappedDepartment = mapIdentityToDepartment(
         tenantSchema.mappings.program,
-        userApiData.reporting_dept_code,
+        userApiData,
       );
 
       if (mappedRole && !role) {

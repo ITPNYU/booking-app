@@ -18,11 +18,7 @@ import {
   timestampToDate,
 } from "@/lib/utils/timestampWire";
 import { DEFAULT_TENANT } from "../constants/tenants";
-import {
-  ITP_DEPT_NAME_KEYWORDS,
-  ITP_GROUP_SHORT_NAMES,
-  isMediaCommons,
-} from "../utils/tenantUtils";
+import { isMediaCommons } from "../utils/tenantUtils";
 import { TableNames } from "../policy";
 import { getApprovalCcEmail } from "../tenantPolicyServer";
 import {
@@ -1044,48 +1040,17 @@ export const approvers = async (): Promise<Approver[]> => {
 export const firstApproverEmails = async (department: string) => {
   const approversData = await approvers();
 
-  const { normalizeDepartment } =
+  const { departmentsMatch } =
     await import("@/components/src/utils/departmentUtils");
 
-  const normalizedUserDepartment = normalizeDepartment(department, {
-    toLowerCase: true,
-  });
-
-  // Returns true if a normalized department string belongs to the ITP/IMA/Low Res group.
-  // Checks short-form abbreviations (exact match) first to avoid false positives from
-  // substring matching (e.g. "ima" inside "imaging sciences"), then falls back to the
-  // long-form keyword list for full NYU API department names.
-  const isItpGroupMember = (normalizedDept: string) =>
-    ITP_GROUP_SHORT_NAMES.some((name) => normalizedDept === name) ||
-    ITP_DEPT_NAME_KEYWORDS.some((keyword) => normalizedDept.includes(keyword));
-
-  const filteredApprovers = approversData.filter((approver) => {
-    if (!approver.department) return false;
-
-    const normalizedApproverDepartment = normalizeDepartment(
-      approver.department,
-      { toLowerCase: true },
-    );
-
-    // ITP/IMA/Low Res departments should match with each other
-    const itpGroupMatches =
-      isItpGroupMember(normalizedUserDepartment) &&
-      isItpGroupMember(normalizedApproverDepartment);
-
-    // For other departments, check exact match of normalized department names
-    const exactMatch =
-      normalizedUserDepartment === normalizedApproverDepartment;
-
-    const matches = itpGroupMatches || exactMatch;
-
-    return matches;
-  });
+  const filteredApprovers = approversData.filter((approver) =>
+    departmentsMatch(department, approver.department),
+  );
 
   const result = filteredApprovers.map((approver) => approver.email);
 
   console.log("📧 FIRST APPROVER EMAILS RESULT:", {
     department,
-    normalizedDepartment: normalizedUserDepartment,
     result,
     resultCount: result.length,
   });

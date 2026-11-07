@@ -161,6 +161,16 @@ describe("GET /api/nyu/entitlements/[netId]", () => {
       expect(result.data.entitledTenants).toContain("itp");
     });
 
+    it("grants itp regardless of dept_code casing", async () => {
+      mockFetchNYUIdentity.mockResolvedValue({ dept_code: "utimny" });
+
+      const result = await parseJson(
+        await GET(createRequest(), { params: createParams("hz3942") }),
+      );
+
+      expect(result.data.entitledTenants).toContain("itp");
+    });
+
     it("returns only mc when dept_code is absent", async () => {
       mockFetchNYUIdentity.mockResolvedValue({ dept_code: null });
 

@@ -49,6 +49,18 @@ export const ITP_DEPT_CODES = [
 ];
 
 /**
+ * True when an NYU Identity record belongs to the ITP / IMA / Low Res group.
+ * Single source of truth for both ITP tenant access and the booking form's
+ * department pre-fill, so the two can never disagree.
+ */
+export const isItpGroupIdentity = (
+  identity?: { dept_code?: string | null } | null,
+): boolean => {
+  const code = identity?.dept_code?.trim().toUpperCase();
+  return !!code && ITP_DEPT_CODES.includes(code);
+};
+
+/**
  * Keywords matched case-insensitively against department name fields.
  * Used internally for matching approver records stored in Firestore (which use
  * human-readable labels, not dept_codes). Not used for NYU API entitlement checks.

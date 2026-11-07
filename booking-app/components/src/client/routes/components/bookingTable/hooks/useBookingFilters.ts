@@ -7,7 +7,7 @@ import {
 } from "@/components/src/types";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED } from "@/components/src/policy";
-import { normalizeDepartment } from "@/components/src/utils/departmentUtils";
+import { departmentsMatch } from "@/components/src/utils/departmentUtils";
 import { COMPARATORS, ColumnSortOrder } from "./getColumnComparator";
 import { DATE_FILTERS, DateRangeFilter } from "./getDateFilter";
 
@@ -167,19 +167,9 @@ class BookingFilter {
         (user) => user.email === userEmail,
       );
       if (liaisonMatches.length > 0) {
-        const liaisonDepartments = liaisonMatches.map((user) =>
-          normalizeDepartment(user.department, {
-            toLowerCase: true,
-            removeSpaces: true,
-          }),
-        );
-
         this.rows = this.rows.filter((row) =>
-          liaisonDepartments.includes(
-            normalizeDepartment(row.department, {
-              toLowerCase: true,
-              removeSpaces: true,
-            }),
+          liaisonMatches.some((user) =>
+            departmentsMatch(user.department, row.department),
           ),
         );
       }
