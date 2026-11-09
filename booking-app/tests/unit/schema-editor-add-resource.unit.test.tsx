@@ -164,4 +164,45 @@ describe("SchemaEditor add resource", () => {
     expect(await screen.findByText(/supportPA:/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
+
+  it("keeps another slice's schema error off a valid section", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        const method = init?.method ?? "GET";
+        if (method === "PUT") {
+          return jsonResponse({ success: true, backupCreated: true });
+        }
+        if (String(url).includes("/api/tenantSchema/mc")) {
+          return jsonResponse({
+            tenantId: "mc",
+            policy: "Bring an ID",
+            resources: [
+              { name: "Room A", resourceId: "room-a", capacity: 4 },
+              { name: "Room B", resourceId: "room-a", capacity: 4 },
+            ],
+          });
+        }
+        return jsonResponse({ error: "not found" }, 404);
+      }),
+    );
+    renderEditor();
+
+    await user.click(screen.getByRole("combobox"));
+    await user.click(await screen.findByRole("option", { name: "mc" }));
+
+    expect(await screen.findByText(/already in the schema/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^policy/ }));
+    expect(screen.queryByText(/already in the schema/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Room A/ }));
+    expect(screen.queryByText(/already in the schema/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^Room B/ }));
+    expect(
+      await screen.findByText(/resources\[1\]\.resourceId:.*already in the schema/),
+    ).toBeInTheDocument();
+  });
 });

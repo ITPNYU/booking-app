@@ -3,6 +3,7 @@ import { computeDiff } from "@/lib/utils/schemaDiff";
 import {
   getSlice,
   isDirtyUnder,
+  pathIsUnder,
   pathPrefix,
   resourceLabelForPath,
   resourceLabels,
@@ -48,6 +49,13 @@ describe("pathPrefix / isDirtyUnder", () => {
     const diffs = computeDiff({ name: "a", nameForPolicy: "x" }, { name: "a", nameForPolicy: "y" });
     expect(isDirtyUnder(diffs, "name")).toBe(false);
     expect(isDirtyUnder(diffs, "nameForPolicy")).toBe(true);
+  });
+
+  it("keeps a resource error on that resource and not a neighbor", () => {
+    expect(pathIsUnder("resources[1].resourceId", "resources[1]")).toBe(true);
+    expect(pathIsUnder("resources[1].resourceId", "resources")).toBe(true);
+    expect(pathIsUnder("resources[1].resourceId", "resources[10]")).toBe(false);
+    expect(pathIsUnder("resources[1].resourceId", "policy")).toBe(false);
   });
 });
 

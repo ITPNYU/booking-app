@@ -56,6 +56,7 @@ import {
   getSlice,
   isDirtyUnder,
   isSameSelection,
+  pathIsUnder,
   pathPrefix,
   resourceLabelForPath,
   resourceLabels,
@@ -773,9 +774,11 @@ export default function SchemaEditor() {
     return validateSchemaSlice(effectiveSelected, sliceValue);
   }, [schema, hasParseError, effectiveSelected, sliceValue]);
   const visibleSchemaErrors = (
-    sliceErrors.length > 0 || effectiveSelected.kind === "all"
+    effectiveSelected.kind === "all" || sliceErrors.length > 0
       ? sliceErrors
-      : documentErrors
+      : documentErrors.filter((issue) =>
+          pathIsUnder(issue.path, pathPrefix(effectiveSelected)),
+        )
   ).map((issue) => {
     if (issue.path || effectiveSelected.kind === "all") return issue;
     const prefix =
