@@ -186,6 +186,7 @@ describe("PUT /api/bookings/reassign", () => {
   });
 
   it.each([
+    BookingStatusLabel.DECLINED,
     BookingStatusLabel.CHECKED_IN,
     BookingStatusLabel.CANCELED,
     BookingStatusLabel.CLOSED,

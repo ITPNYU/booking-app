@@ -5,12 +5,14 @@ import { NET_ID_REGEX } from "./validationHelpers";
  * Statuses in which an admin may hand a booking to a different requester.
  * Checked-in and later statuses are excluded: they record who actually used
  * the space, and no-show / late-cancel violations are tracked by that NetID.
+ * Declined is excluded too: the reassignment writes a MODIFIED history row,
+ * and the late-cancel check and the request-limit count read "declined" from
+ * the newest history row, so they would stop treating the booking as declined.
  */
 export const REASSIGNABLE_STATUSES: readonly BookingStatusLabel[] = [
   BookingStatusLabel.REQUESTED,
   BookingStatusLabel.PRE_APPROVED,
   BookingStatusLabel.APPROVED,
-  BookingStatusLabel.DECLINED,
 ];
 
 export const canReassignRequester = (status: unknown): boolean =>
@@ -177,7 +179,6 @@ type StatusMessages = {
   approvedUser?: string;
   approvedWalkIn?: string;
   approvedVIP?: string;
-  declined?: string;
 };
 
 /**
@@ -204,9 +205,6 @@ export function newRequesterHeaderMessage(
     case BookingStatusLabel.REQUESTED:
     case BookingStatusLabel.PRE_APPROVED:
       statusMessage = messages.requestedUser;
-      break;
-    case BookingStatusLabel.DECLINED:
-      statusMessage = messages.declined;
       break;
   }
   return statusMessage?.trim() ? `${intro}<br /><br />${statusMessage}` : intro;

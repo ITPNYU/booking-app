@@ -558,8 +558,7 @@ export default function useBookingActions({
               Object.values(serviceRequests).some(Boolean)
             ))
         ) {
-          // A declined booking can still be handed to someone who fixes it.
-          return reassignOption;
+          return [];
         }
 
         // Basic approval actions

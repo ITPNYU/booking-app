@@ -23,12 +23,12 @@ describe("canReassignRequester", () => {
     BookingStatusLabel.REQUESTED,
     BookingStatusLabel.PRE_APPROVED,
     BookingStatusLabel.APPROVED,
-    BookingStatusLabel.DECLINED,
   ])("allows %s bookings", (status) => {
     expect(canReassignRequester(status)).toBe(true);
   });
 
   it.each([
+    BookingStatusLabel.DECLINED,
     BookingStatusLabel.CHECKED_IN,
     BookingStatusLabel.CHECKED_OUT,
     BookingStatusLabel.CLOSED,
@@ -162,7 +162,6 @@ describe("email and history wording", () => {
     approvedUser: "Your reservation is approved.",
     approvedWalkIn: "Your walk-in is approved.",
     approvedVIP: "Your VIP booking is approved.",
-    declined: "Your request was declined.",
   };
 
   it.each([
@@ -171,7 +170,6 @@ describe("email and history wording", () => {
     [BookingStatusLabel.APPROVED, "vip", messages.approvedVIP],
     [BookingStatusLabel.REQUESTED, "user", messages.requestedUser],
     [BookingStatusLabel.PRE_APPROVED, "user", messages.requestedUser],
-    [BookingStatusLabel.DECLINED, "user", messages.declined],
   ])("tells the new requester about a %s %s booking", (status, origin, text) => {
     expect(newRequesterHeaderMessage(status, origin, messages)).toBe(
       `This reservation has been assigned to you.<br /><br />${text}`,

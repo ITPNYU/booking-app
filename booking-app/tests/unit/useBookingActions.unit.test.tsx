@@ -456,8 +456,8 @@ describe("useBookingActions Hook", () => {
       Actions.DECLINE,
     ]);
 
-    // A declined booking can only be reassigned; a closed one has no actions
-    testAdminContext(BookingStatusLabel.DECLINED, [Actions.REASSIGN]);
+    // These statuses should return empty arrays
+    testAdminContext(BookingStatusLabel.DECLINED, []);
     testAdminContext(BookingStatusLabel.CLOSED, []);
 
     it("should show NO_SHOW action for APPROVED status after 30 minutes in ADMIN context", () => {
@@ -1023,7 +1023,7 @@ describe("useBookingActions Hook", () => {
           [PageContextLevel.PA]: [],
           [PageContextLevel.LIAISON]: [Actions.DECLINE],
           [PageContextLevel.SERVICES]: [],
-          [PageContextLevel.ADMIN]: [Actions.REASSIGN],
+          [PageContextLevel.ADMIN]: [],
         };
 
         Object.entries(expectedActionsByContext).forEach(
