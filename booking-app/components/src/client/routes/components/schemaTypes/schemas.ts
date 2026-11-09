@@ -1,18 +1,12 @@
-// Server-safe tenant-schema types and defaults.
-//
-// Zod objects are the source of the types and the values copied into a new
-// tenant or room. This module has no React, so API routes and scripts can
-// import it. `SchemaProvider.tsx` re-exports everything here for client code.
+// Zod definitions for the tenant schema. Types are inferred in `types.ts`.
+// Defaults and other runtime helpers live in `helpers.ts`.
 //
 // Objects are loose: an older Firestore key does not fail validation. Callers
 // that save a document write the submitted value, not the parsed clone, so
 // unknown keys are kept.
 
 import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
-import { isMediaCommonsTenant } from "@/components/src/constants/tenants";
 import { z } from "zod";
-
-export { defaultSafetyTrainingInfoUrl };
 
 export const bookingDetailRoleSchema = z.enum([
   "PA",
@@ -22,57 +16,7 @@ export const bookingDetailRoleSchema = z.enum([
   "SUPER_ADMIN",
 ]);
 
-export const BOOKING_DETAIL_ROLES = bookingDetailRoleSchema.options;
-
-export type BookingDetailRole = z.infer<typeof bookingDetailRoleSchema>;
-
-export const DEFAULT_MEMO_ROLES: readonly BookingDetailRole[] = [
-  "SERVICES",
-  "ADMIN",
-  "SUPER_ADMIN",
-];
-
-/**
- * Roles that see and edit the WebCheckout cart by default, matching the
- * PA/Admin/Super Admin access WebCheckout had before it was configurable.
- */
-export const DEFAULT_WEBCHECKOUT_ROLES: readonly BookingDetailRole[] = [
-  "PA",
-  "ADMIN",
-  "SUPER_ADMIN",
-];
-
-/**
- * Normalize a stored booking detail role list, failing closed. Only an unset
- * list (undefined or null) gets `defaults`; unknown entries and duplicates are
- * dropped, so an explicit `[]` or a list of only unknown roles grants nobody,
- * and a malformed non-array value grants nobody too.
- */
-function normalizeDetailRoles(
-  raw: unknown,
-  defaults: readonly BookingDetailRole[],
-): BookingDetailRole[] {
-  if (raw === undefined || raw === null) return [...defaults];
-  if (!Array.isArray(raw)) return [];
-  const allowed = new Set<string>(BOOKING_DETAIL_ROLES);
-  const roles = raw.filter(
-    (role): role is BookingDetailRole =>
-      typeof role === "string" && allowed.has(role),
-  );
-  return Array.from(new Set(roles));
-}
-
-/** Normalize a stored memo role list; see `normalizeDetailRoles`. */
-export function normalizeMemoRoles(raw: unknown): BookingDetailRole[] {
-  return normalizeDetailRoles(raw, DEFAULT_MEMO_ROLES);
-}
-
-/** Normalize a stored WebCheckout role list; see `normalizeDetailRoles`. */
-export function normalizeWebCheckoutRoles(raw: unknown): BookingDetailRole[] {
-  return normalizeDetailRoles(raw, DEFAULT_WEBCHECKOUT_ROLES);
-}
-
-const showInOriginSchema = z
+export const showInOriginSchema = z
   .object({
     user: z.boolean().optional(),
     walkIn: z.boolean().optional(),
@@ -80,9 +24,8 @@ const showInOriginSchema = z
   })
   .loose();
 
-export type ShowInOrigin = z.infer<typeof showInOriginSchema>;
 
-const resourceChartFieldSchema = z
+export const resourceChartFieldSchema = z
   .object({
     label: z.string().optional(),
     descriptionHtml: z.string().optional(),
@@ -92,9 +35,8 @@ const resourceChartFieldSchema = z
   })
   .loose();
 
-export type ResourceChartFieldConfig = z.infer<typeof resourceChartFieldSchema>;
 
-const resourceFormOptionSchema = z
+export const resourceFormOptionSchema = z
   .object({
     value: z.string().default(""),
     label: z.string().default(""),
@@ -112,10 +54,6 @@ const resourceFormOptionSchema = z
   })
   .loose();
 
-export type ResourceFormOption = z.infer<typeof resourceFormOptionSchema>;
-
-/** @deprecated Use ResourceFormOption */
-export type ResourceFormSelectOption = ResourceFormOption;
 
 /**
  * Yes/No switch lock state for a service section.
@@ -128,7 +66,6 @@ export type ResourceFormSelectOption = ResourceFormOption;
  */
 export const serviceToggleSchema = z.enum(["on", "off", "optional"]);
 
-export type ServiceToggle = z.infer<typeof serviceToggleSchema>;
 
 const resourceFormModeSchema = z.enum([
   "radio",
@@ -153,7 +90,7 @@ const resourceFormModeSchema = z.enum([
  *   system instead of waiting for a service user. Omitted/false keeps the
  *   manual closeout. Any booked room with the flag set closes the service out.
  */
-const resourceFormSectionSchema = z
+export const resourceFormSectionSchema = z
   .object({
     showInOrigin: showInOriginSchema.optional(),
     label: z.string().optional(),
@@ -180,11 +117,8 @@ const resourceFormSectionSchema = z
   })
   .loose();
 
-export type ResourceFormSectionConfig = z.infer<
-  typeof resourceFormSectionSchema
->;
 
-const resourceStaffingServiceOptionSchema = z
+export const resourceStaffingServiceOptionSchema = z
   .object({
     value: z.string().default(""),
     label: z.string().default(""),
@@ -192,11 +126,8 @@ const resourceStaffingServiceOptionSchema = z
   })
   .loose();
 
-export type ResourceStaffingServiceOption = z.infer<
-  typeof resourceStaffingServiceOptionSchema
->;
 
-const resourceStaffingSectionSchema = z
+export const resourceStaffingSectionSchema = z
   .object({
     label: z.string().default(""),
     descriptionHtml: z.string().optional(),
@@ -210,11 +141,8 @@ const resourceStaffingSectionSchema = z
   })
   .loose();
 
-export type ResourceStaffingSectionConfig = z.infer<
-  typeof resourceStaffingSectionSchema
->;
 
-const resourceStaffingConfigSchema = z
+export const resourceStaffingConfigSchema = z
   .object({
     showInOrigin: showInOriginSchema.optional(),
     label: z.string().optional(),
@@ -234,9 +162,8 @@ const resourceStaffingConfigSchema = z
   })
   .loose();
 
-export type ResourceStaffingConfig = z.infer<typeof resourceStaffingConfigSchema>;
 
-const resourceServicesObjectSchema = z
+export const resourceServicesObjectSchema = z
   .object({
     annex: resourceFormSectionSchema.optional(),
     setup: resourceFormSectionSchema.optional(),
@@ -256,11 +183,8 @@ export const resourceServicesSchema = z.union([
   resourceServicesObjectSchema,
 ]);
 
-export type ResourceServicesConfig = z.infer<typeof resourceServicesObjectSchema>;
 
-export type ResourceServiceKey = keyof ResourceServicesConfig;
-
-const resourceTrainingSchema = z
+export const resourceTrainingSchema = z
   .object({
     required: z.boolean().default(false),
     formId: z.string().default(""),
@@ -268,7 +192,6 @@ const resourceTrainingSchema = z
   })
   .loose();
 
-export type ResourceTraining = z.infer<typeof resourceTrainingSchema>;
 
 export const requestLimitPeriodSchema = z.enum([
   "perDay",
@@ -277,7 +200,6 @@ export const requestLimitPeriodSchema = z.enum([
   "perSemester",
 ]);
 
-export type RequestLimitPeriod = z.infer<typeof requestLimitPeriodSchema>;
 
 /** Keys in `resource.requestLimits` — one bucket per base role (VIP / walk-in share the same cap). */
 export const requestLimitBucketKeySchema = z.enum([
@@ -286,7 +208,6 @@ export const requestLimitBucketKeySchema = z.enum([
   "student",
 ]);
 
-export type RequestLimitBucketKey = z.infer<typeof requestLimitBucketKeySchema>;
 
 const requestLimitBucketSchema = z
   .object({
@@ -296,7 +217,7 @@ const requestLimitBucketSchema = z
   })
   .loose();
 
-const requestLimitsSchema = z
+export const requestLimitsSchema = z
   .object({
     perDay: requestLimitBucketSchema.prefault({}),
     perWeek: requestLimitBucketSchema.prefault({}),
@@ -305,7 +226,6 @@ const requestLimitsSchema = z
   })
   .loose();
 
-export type RequestLimits = z.infer<typeof requestLimitsSchema>;
 
 const approvalHourSchema = z
   .object({
@@ -349,16 +269,13 @@ const originHourSchema = z
   })
   .loose();
 
-const staffingSectionSchema = z
+export const staffingSectionSchema = z
   .object({
     name: z.string().default(""),
     indexes: z.array(z.number()).default([]),
   })
   .loose();
 
-export type StaffingSection = z.infer<typeof staffingSectionSchema>;
-
-export const defaultStaffingSection = staffingSectionSchema.parse({});
 
 /**
  * Room shape. `resourceId` may be empty here so `resourceSchema.parse({})`
@@ -399,9 +316,6 @@ export const resourceSchema = z
   })
   .loose();
 
-export type Resource = z.infer<typeof resourceSchema>;
-
-export const defaultResource = resourceSchema.parse({});
 
 function resourceIdIssue(resourceId: string): string | null {
   const id = resourceId.trim();
@@ -449,18 +363,15 @@ export const resourcesArraySchema = z
     });
   });
 
-const attestationSchema = z
+export const attestationSchema = z
   .object({
     id: z.string().default(""),
     html: z.string().default(""),
   })
   .loose();
 
-export type Attestation = z.infer<typeof attestationSchema>;
 
-export const defaultAttestation = attestationSchema.parse({});
-
-const timeSensitiveRequestWarningSchema = z
+export const timeSensitiveRequestWarningSchema = z
   .object({
     hours: z.number().default(48),
     isActive: z.boolean().default(false),
@@ -469,15 +380,11 @@ const timeSensitiveRequestWarningSchema = z
   })
   .loose();
 
-export type TimeSensitiveRequestWarning = z.infer<
-  typeof timeSensitiveRequestWarningSchema
->;
 
-const termRangeSchema = z.tuple([z.number(), z.number()]);
+export const termRangeSchema = z.tuple([z.number(), z.number()]);
 
-export type TermRange = z.infer<typeof termRangeSchema>;
 
-const termConfigSchema = z
+export const termConfigSchema = z
   .object({
     fallTerm: termRangeSchema.default([9, 12]),
     springTerm: termRangeSchema.default([1, 5]),
@@ -485,9 +392,8 @@ const termConfigSchema = z
   })
   .loose();
 
-export type TermConfig = z.infer<typeof termConfigSchema>;
 
-const contextLabelsSchema = z
+export const contextLabelsSchema = z
   .object({
     user: z.string().default("User"),
     worker: z.string().default("PA"),
@@ -497,9 +403,8 @@ const contextLabelsSchema = z
   })
   .loose();
 
-export type ContextLabels = z.infer<typeof contextLabelsSchema>;
 
-const tenantBrandingSchema = z
+export const tenantBrandingSchema = z
   .object({
     name: z.string().default(""),
     logo: z.string().default(""),
@@ -508,9 +413,8 @@ const tenantBrandingSchema = z
   })
   .loose();
 
-export type TenantBranding = z.infer<typeof tenantBrandingSchema>;
 
-const formServicesSchema = z
+export const formServicesSchema = z
   .object({
     showCatering: z.boolean().default(true),
     showEquipment: z.boolean().default(true),
@@ -520,7 +424,6 @@ const formServicesSchema = z
   })
   .loose();
 
-export type FormServicesConfig = z.infer<typeof formServicesSchema>;
 
 export const formAlertSeveritySchema = z.enum([
   "success",
@@ -529,17 +432,15 @@ export const formAlertSeveritySchema = z.enum([
   "error",
 ]);
 
-export type FormAlertSeverity = z.infer<typeof formAlertSeveritySchema>;
 
-const formAlertWhenSchema = z
+export const formAlertWhenSchema = z
   .object({
     autoApproval: z.enum(["eligible", "ineligible"]).optional(),
   })
   .loose();
 
-export type FormAlertWhen = z.infer<typeof formAlertWhenSchema>;
 
-const formAlertSchema = z
+export const formAlertSchema = z
   .object({
     id: z.string(),
     /** Omit to show for every origin. A missing key means show. */
@@ -552,9 +453,8 @@ const formAlertSchema = z
   })
   .loose();
 
-export type FormAlert = z.infer<typeof formAlertSchema>;
 
-export const defaultFormAlerts: FormAlert[] = [
+const defaultFormAlerts: z.infer<typeof formAlertSchema>[] = [
   {
     id: "autoApprovalEligible",
     slot: "status",
@@ -582,7 +482,7 @@ export const defaultFormAlerts: FormAlert[] = [
 ];
 
 /** Duration-gated free-text field on the Details step (issue #1126). */
-const productionScheduleSchema = z
+export const productionScheduleSchema = z
   .object({
     enabled: z.boolean().default(false),
     /** Required when reservation length (hours) is strictly greater than this. */
@@ -611,11 +511,8 @@ const productionScheduleSchema = z
   })
   .loose();
 
-export type ProductionScheduleConfig = z.infer<typeof productionScheduleSchema>;
 
-export const defaultProductionSchedule = productionScheduleSchema.parse({});
-
-const formConfigSchema = z
+export const formConfigSchema = z
   .object({
     showBookingType: z.boolean().default(true),
     showNNumber: z.boolean().default(true),
@@ -627,11 +524,10 @@ const formConfigSchema = z
   })
   .loose();
 
-export type FormConfig = z.infer<typeof formConfigSchema>;
 
 const roleListSchema = z.array(bookingDetailRoleSchema);
 
-const detailsModalSchema = z
+export const detailsModalSchema = z
   .object({
     /** Show the WebCheckout section and the cart number in the bookings table. */
     showWebCheckout: z.boolean().default(true),
@@ -641,13 +537,13 @@ const detailsModalSchema = z
      * same way as `memoViewRoles`. On My Bookings the requester still sees an
      * assigned cart read-only while `showWebCheckout` is on.
      */
-    webCheckoutViewRoles: roleListSchema.default([...DEFAULT_WEBCHECKOUT_ROLES]),
+    webCheckoutViewRoles: roleListSchema.default(["PA", "ADMIN", "SUPER_ADMIN"]),
     /**
      * Roles that can edit the cart number, scoped to page contexts the same way
      * as `memoEditRoles`. `POST /api/updateWebcheckoutCart` enforces the same
      * list.
      */
-    webCheckoutEditRoles: roleListSchema.default([...DEFAULT_WEBCHECKOUT_ROLES]),
+    webCheckoutEditRoles: roleListSchema.default(["PA", "ADMIN", "SUPER_ADMIN"]),
     /**
      * Show the staff-only Memo section under WebCheckout, used to record e.g.
      * work order confirmation numbers.
@@ -659,29 +555,27 @@ const detailsModalSchema = z
      * Services page, Admin page; SUPER_ADMIN uses the Admin page). The Firestore
      * read routes enforce the same list.
      */
-    memoViewRoles: roleListSchema.default([...DEFAULT_MEMO_ROLES]),
+    memoViewRoles: roleListSchema.default(["SERVICES", "ADMIN", "SUPER_ADMIN"]),
     /**
      * Roles that can edit the Memo, scoped to page contexts the same way as
      * `memoViewRoles`. `PUT /api/bookings/memo` enforces the same list.
      */
-    memoEditRoles: roleListSchema.default([...DEFAULT_MEMO_ROLES]),
+    memoEditRoles: roleListSchema.default(["SERVICES", "ADMIN", "SUPER_ADMIN"]),
   })
   .loose();
 
-export type DetailsModalConfig = z.infer<typeof detailsModalSchema>;
 
-const originsSchema = z
+export const originsSchema = z
   .object({
     VIP: z.boolean().default(false),
     walkIn: z.boolean().default(false),
   })
   .loose();
 
-export type OriginsConfig = z.infer<typeof originsSchema>;
 
 const stringListRecordSchema = z.record(z.string(), z.array(z.string()));
 
-const mappingsSchema = z
+export const mappingsSchema = z
   .object({
     program: stringListRecordSchema.prefault({}),
     role: stringListRecordSchema.prefault({}),
@@ -689,17 +583,15 @@ const mappingsSchema = z
   })
   .loose();
 
-export type MappingsConfig = z.infer<typeof mappingsSchema>;
 
-const trainingConfigSchema = z
+export const trainingConfigSchema = z
   .object({
     formId: z.string().default(""),
   })
   .loose();
 
-export type TrainingConfig = z.infer<typeof trainingConfigSchema>;
 
-const emailNotificationsSchema = z
+export const emailNotificationsSchema = z
   .object({
     requestedUser: z.string().default(""),
     requestedNeedsApproval: z.string().default(""),
@@ -717,7 +609,6 @@ const emailNotificationsSchema = z
   })
   .loose();
 
-export type EmailNotifications = z.infer<typeof emailNotificationsSchema>;
 
 const emailEnvironmentSchema = z
   .object({
@@ -787,20 +678,6 @@ const autoCancelSchema = z.union([
     .loose(),
 ]);
 
-const defaultContextLabelsByTenantId = (tenantId?: string): ContextLabels => {
-  const normalized = (tenantId || "").toLowerCase();
-  if (normalized === "itp") {
-    return contextLabelsSchema.parse({
-      user: "User",
-      worker: "ER",
-      reviewer: "1st Approver",
-      services: "Services",
-      admin: "Admin",
-    });
-  }
-  return contextLabelsSchema.parse({});
-};
-
 export const tenantSchema = z
   .object({
     /** Tenant slug / document id (e.g. mc, itp) */
@@ -835,29 +712,3 @@ export const tenantSchema = z
     emailNotifications: emailNotificationsSchema.prefault({}),
   })
   .loose();
-
-export type SchemaContextType = z.infer<typeof tenantSchema>;
-
-export const defaultScheme: Omit<SchemaContextType, "tenantId"> = tenantSchema
-  .omit({ tenantId: true })
-  .parse({});
-
-export function generateDefaultSchema(tenantId: string): SchemaContextType {
-  const schema = tenantSchema.parse({ tenantId });
-  return {
-    ...schema,
-    tenant: {
-      ...schema.tenant,
-      contextLabels: defaultContextLabelsByTenantId(tenantId),
-    },
-    form: {
-      ...schema.form,
-      services: { ...schema.form.services },
-      // MC requires production schedules for long reservations (#1126).
-      productionSchedule: {
-        ...defaultProductionSchedule,
-        enabled: isMediaCommonsTenant(tenantId),
-      },
-    },
-  };
-}
