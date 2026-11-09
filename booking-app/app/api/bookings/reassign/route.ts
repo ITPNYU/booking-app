@@ -18,6 +18,7 @@ import {
   canReassignRequester,
   newRequesterHeaderMessage,
   previousRequesterHeaderMessage,
+  REASSIGNED_EMAIL_SUBJECT_STATUS,
   reassignmentHistoryNote,
   requesterEmailForNetId,
   validateReassignRequesterInput,
@@ -222,6 +223,7 @@ export async function PUT(request: NextRequest) {
         headerMessage,
         status: bookingStatus,
         tenant,
+        subjectStatusOverride: REASSIGNED_EMAIL_SUBJECT_STATUS,
       });
       if (!response.ok) {
         throw new Error(`sendEmail returned ${response.status}`);

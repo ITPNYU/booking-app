@@ -260,6 +260,7 @@ describe("PUT /api/bookings/reassign", () => {
         "This reservation has been assigned to you.<br /><br />Your reservation is approved.",
       status: BookingStatusLabel.APPROVED,
       tenant: "mc",
+      subjectStatusOverride: "REASSIGNED",
     });
     expect(mocks.mockSendEmail).toHaveBeenCalledWith({
       calendarEventId: "evt-1",
@@ -268,6 +269,7 @@ describe("PUT /api/bookings/reassign", () => {
         "This reservation has been reassigned to Pat Lee (new456@nyu.edu). It no longer appears in your bookings.",
       status: BookingStatusLabel.APPROVED,
       tenant: "mc",
+      subjectStatusOverride: "REASSIGNED",
     });
   });
 

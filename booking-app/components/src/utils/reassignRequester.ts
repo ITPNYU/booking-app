@@ -160,6 +160,13 @@ export function buildRequesterUpdates(
   return updates;
 }
 
+/**
+ * Subject word for both reassignment emails, so they read
+ * "REASSIGNED - <Tenant> Request #N" instead of the booking's status and are
+ * not mistaken for an ordinary status email in the inbox.
+ */
+export const REASSIGNED_EMAIL_SUBJECT_STATUS = "REASSIGNED";
+
 export const reassignmentHistoryNote = (
   previousEmail: string,
   newEmail: string,
