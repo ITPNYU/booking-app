@@ -6,12 +6,13 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import { TableNames } from "@/components/src/policy";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
+import { normalizeActionNote } from "@/components/src/utils/bookingHistoryNotes";
 import { applyEnvironmentCalendarIds } from "@/lib/utils/calendarEnvironment";
 import { NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const { calendarEventId, email, netId, tenant } = await req.json();
+    const { calendarEventId, email, netId, tenant, note } = await req.json();
 
     console.log(
       `🔄 CANCEL PROCESSING API CALLED [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -24,7 +25,13 @@ export async function POST(req: NextRequest) {
     );
 
     // Call the shared cancel processing function
-    await processCancelBooking(calendarEventId, email, netId, tenant);
+    await processCancelBooking(
+      calendarEventId,
+      email,
+      netId,
+      tenant,
+      normalizeActionNote(note),
+    );
 
     // Delete calendar events from Google Calendar for CANCELED bookings
     // This ensures true availability is reflected in the Google Calendar UI

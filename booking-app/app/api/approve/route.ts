@@ -13,7 +13,11 @@ import {
   serverApproveBooking,
 } from "@/components/src/server/admin";
 import { BookingStatusLabel } from "@/components/src/types";
-import { ADMIN_POLICY_APPROVED_NOTE } from "@/components/src/utils/bookingHistoryNotes";
+import {
+  ADMIN_POLICY_APPROVED_NOTE,
+  normalizeActionNote,
+  withActionNote,
+} from "@/components/src/utils/bookingHistoryNotes";
 import {
   getMediaCommonsServices,
   isMediaCommons,
@@ -104,14 +108,17 @@ export async function POST(req: NextRequest) {
   }
 
   let id: unknown;
+  let rawNote: unknown;
   try {
-    ({ id } = await req.json());
+    ({ id, note: rawNote } = await req.json());
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
   if (typeof id !== "string" || !id.trim()) {
     return NextResponse.json({ error: "id required" }, { status: 400 });
   }
+  // Optional note from the approver, added to the history entry.
+  const note = normalizeActionNote(rawNote);
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
@@ -192,7 +199,7 @@ export async function POST(req: NextRequest) {
         `🔄 FALLING BACK TO TRADITIONAL APPROVAL [${tenant?.toUpperCase()}]:`,
         { calendarEventId: id },
       );
-      await serverApproveBooking(id, email, tenant);
+      await serverApproveBooking(id, email, tenant, note);
     } else {
       console.log(`✅ XSTATE APPROVAL SUCCESS [${tenant?.toUpperCase()}]:`, {
         calendarEventId: id,
@@ -216,7 +223,7 @@ export async function POST(req: NextRequest) {
             await import("@/components/src/server/admin");
 
           // finalApprove handles: serverFinalApprove + logging + serverApproveEvent
-          await finalApprove(id, email, tenant);
+          await finalApprove(id, email, tenant, note);
 
           console.log(
             `✅ APPROVED PROCESSING COMPLETED [${tenant?.toUpperCase()}]:`,
@@ -253,7 +260,7 @@ export async function POST(req: NextRequest) {
           const { serverFirstApproveOnly } =
             await import("@/components/src/server/admin");
 
-          await serverFirstApproveOnly(id, email, tenant);
+          await serverFirstApproveOnly(id, email, tenant, note);
 
           console.log(
             `✅ PRE-APPROVED SIDE EFFECTS COMPLETED [${tenant?.toUpperCase()}]:`,
@@ -302,9 +309,12 @@ export async function POST(req: NextRequest) {
             // final-approver → Services Request step, not the initial liaison
             // sign-off. Role lookup cannot tell those apart (FINAL approvers
             // resolve to LIAISON).
-            note: booking.firstApprovedAt
-              ? ADMIN_POLICY_APPROVED_NOTE
-              : await resolveFirstApprovalHistoryNote(email, tenant),
+            note: withActionNote(
+              booking.firstApprovedAt
+                ? ADMIN_POLICY_APPROVED_NOTE
+                : await resolveFirstApprovalHistoryNote(email, tenant),
+              note,
+            ),
             tenant,
           });
 

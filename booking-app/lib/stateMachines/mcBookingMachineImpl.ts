@@ -1,6 +1,7 @@
 import "server-only";
 
 import { BookingOrigin } from "@/components/src/types";
+import { withActionNote } from "@/components/src/utils/bookingHistoryNotes";
 import { evaluateMcShouldAutoApprove } from "@/lib/stateMachines/autoApprovalGuards";
 import {
   logAutomaticCancellationTransition,
@@ -285,7 +286,8 @@ export const mcBookingActions = {
         status: status as any, // Type assertion for dynamic import
         changedBy: actorEmail || "system",
         requestNumber: (bookingDoc as any).requestNumber || 0,
-        note: note || "",
+        // The event's reason is the note the user gave with the action.
+        note: withActionNote(note, (event as any)?.reason) ?? "",
         tenant: context.tenant,
       });
 
