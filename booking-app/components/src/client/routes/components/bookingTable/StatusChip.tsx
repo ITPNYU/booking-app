@@ -54,6 +54,7 @@ export default function StatusChip({
       case BookingStatusLabel.REQUESTED:
         return "rgba(255, 122, 26, 1)";
       case BookingStatusLabel.UNKNOWN:
+      case BookingStatusLabel.NOTE:
         return "rgba(85,94,97,1)";
     }
   }, [status, disabled]);
@@ -88,6 +89,7 @@ export default function StatusChip({
       case BookingStatusLabel.REQUESTED:
         return "rgba(255, 122, 26, 0.11)";
       case BookingStatusLabel.UNKNOWN:
+      case BookingStatusLabel.NOTE:
         return "rgba(47,47,46,0.11)";
     }
   }, [status, disabled]);
@@ -120,6 +122,8 @@ export default function StatusChip({
         return "Requested";
       case BookingStatusLabel.UNKNOWN:
         return "Unknown";
+      case BookingStatusLabel.NOTE:
+        return "Note";
     }
   }, [status]);
 

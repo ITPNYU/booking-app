@@ -28,7 +28,11 @@ const historyTimeLabel = (value: unknown, suffix = "") => {
   return `${formatHistoryDateTime(instant)}${suffix}`;
 };
 
-export default function useSortBookingHistory(booking: BookingRow) {
+/** `refreshKey`: change it to reload the history, e.g. after adding a note. */
+export default function useSortBookingHistory(
+  booking: BookingRow,
+  refreshKey = 0,
+) {
   const [rows, setRows] = useState<ReactElement[]>([]);
 
   useEffect(() => {
@@ -145,7 +149,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
       }
     };
     fetchLogs();
-  }, [booking]);
+  }, [booking, refreshKey]);
 
   return rows;
 }

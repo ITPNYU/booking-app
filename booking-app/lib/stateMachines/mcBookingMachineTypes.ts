@@ -59,8 +59,9 @@ export type MediaCommonsBookingEvent =
    */
   | { type: "edit"; changedServices?: MediaCommonsServiceKey[] }
   | { type: "Modify" }
-  | { type: "cancel" }
-  | { type: "noShow"; email?: string }
+  /** `reason` on cancel and noShow is the optional note the user gave. */
+  | { type: "cancel"; reason?: string }
+  | { type: "noShow"; email?: string; reason?: string }
   | { type: "approve" }
   | { type: "checkIn" }
   | { type: "decline"; reason?: string }
