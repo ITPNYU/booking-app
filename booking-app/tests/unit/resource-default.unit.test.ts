@@ -111,5 +111,7 @@ describe("resource default", () => {
     expect(resourceIdError("a,b", ["room-a"])).toMatch(/comma/i);
     expect(resourceIdError("room-a", ["room-a"])).toMatch(/already/i);
     expect(resourceIdError("room-b", ["room-a"])).toBeNull();
+    expect(resourceIdError("room-b", ["room-a", "room-a"])).toBeNull();
+    expect(resourceIdError("room-b", ["", "room-a"])).toBeNull();
   });
 });

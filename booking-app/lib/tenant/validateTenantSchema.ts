@@ -83,8 +83,6 @@ export function resourceIdError(
   ]);
   if (!("error" in parsed)) return null;
   const index = existingIds.length;
-  const issue =
-    parsed.error.issues.find((item) => item.path[0] === index) ??
-    parsed.error.issues[0];
-  return issue?.message ?? "Invalid resource id";
+  const issue = parsed.error.issues.find((item) => item.path[0] === index);
+  return issue?.message ?? null;
 }
