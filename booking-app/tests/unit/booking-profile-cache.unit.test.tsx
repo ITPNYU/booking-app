@@ -2,6 +2,7 @@ import DetailsInput from "@/components/src/client/routes/booking/components/Deta
 import UserRolePage from "@/components/src/client/routes/booking/formPages/UserRolePage";
 import { BookingContext } from "@/components/src/client/routes/booking/bookingProvider";
 import {
+  clearBookingProfiles,
   readBookingProfile,
   writeBookingProfile,
 } from "@/components/src/client/routes/booking/utils/bookingProfileCache";
@@ -181,6 +182,18 @@ describe("bookingProfileCache", () => {
       nNumber: "N87654321",
       phoneNumber: "999",
     });
+  });
+
+  it("clears every saved profile and leaves other storage alone", () => {
+    writeBookingProfile(TENANT, EMAIL, savedProfile);
+    writeBookingProfile("itp", "other@nyu.edu", savedProfile);
+    localStorage.setItem("unrelated", "keep");
+
+    clearBookingProfiles();
+
+    expect(readBookingProfile(TENANT, EMAIL)).toEqual({});
+    expect(readBookingProfile("itp", "other@nyu.edu")).toEqual({});
+    expect(localStorage.getItem("unrelated")).toBe("keep");
   });
 
   it("forgets a profile after 90 days", () => {

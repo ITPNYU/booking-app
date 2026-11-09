@@ -6,6 +6,7 @@
  *
  * Only the requester's own details belong here. VIP and walk-in requests
  * describe someone else and must neither read nor write the profile.
+ * Signing out removes every saved profile in this browser.
  */
 
 const VERSION = 1;
@@ -33,8 +34,10 @@ interface StoredProfile {
   profile: BookingProfile;
 }
 
+const KEY_PREFIX = "bookingProfile:";
+
 function storageKey(tenant: string, email: string): string {
-  return `bookingProfile:v${VERSION}:${tenant}:${email.trim().toLowerCase()}`;
+  return `${KEY_PREFIX}v${VERSION}:${tenant}:${email.trim().toLowerCase()}`;
 }
 
 function getStorage(): Storage | null {
@@ -101,5 +104,21 @@ export function writeBookingProfile(
     storage.setItem(storageKey(tenant, email), JSON.stringify(stored));
   } catch {
     // Storage full or blocked: the profile is a convenience only.
+  }
+}
+
+/** Removes every saved profile. Called on sign-out, for every tenant. */
+export function clearBookingProfiles(): void {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key?.startsWith(KEY_PREFIX)) keys.push(key);
+    }
+    for (const key of keys) storage.removeItem(key);
+  } catch {
+    // The profile is a convenience only.
   }
 }
