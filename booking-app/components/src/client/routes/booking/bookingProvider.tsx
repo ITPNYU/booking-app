@@ -182,7 +182,7 @@ export function BookingProvider({ children }) {
   // page, ends the attempt: the steps reached afterwards belong to a new one.
   //
   // The confirmation page closes the request that redirected to it, under a
-  // pathname of its own: an edit lands on book/confirmation and a
+  // pathname of its own: an edit lands on edit/confirmation and a
   // modification on one without the booking id. It keeps that request's key,
   // so the submission still settling there is reported on it. Leaving it
   // ends the attempt, even for a step of the same flow (browser Back).

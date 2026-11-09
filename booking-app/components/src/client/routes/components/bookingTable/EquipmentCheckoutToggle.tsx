@@ -15,7 +15,7 @@ export default function EquipmentCheckoutToggle({ booking, status }: Props) {
   const [loading, setLoading] = useState(false);
   const [optimisticStatus, setOptimisticStatus] = useState(status);
   const originalStatus = useRef(status);
-  const { reloadFutureBookings } = useContext(DatabaseContext);
+  const { fetchAllBookings } = useContext(DatabaseContext);
 
   const handleEquipToggleChange = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -32,7 +32,10 @@ export default function EquipmentCheckoutToggle({ booking, status }: Props) {
           equipmentCheckedOut: newStatus,
         },
       );
-      await reloadFutureBookings();
+      originalStatus.current = newStatus;
+      // The booking was already updated; a failed refresh must not flip the
+      // switch back as if the write failed.
+      await Promise.resolve(fetchAllBookings(false)).catch(() => {});
     } catch (ex) {
       console.error(ex);
       // Revert to the original status if there's an error

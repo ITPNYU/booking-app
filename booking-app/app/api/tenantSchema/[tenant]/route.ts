@@ -11,8 +11,8 @@ import admin from "@/lib/firebase/server/firebaseAdmin";
 import { requireSession } from "@/lib/api/requireSession";
 import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
 import { validateTenantDocument } from "@/lib/tenant/validateTenantSchema";
-
-const TEMPLATE_SCHEMA_ID = "_template";
+import { TEMPLATE_SCHEMA_ID } from "@/lib/tenant/resourceDefault";
+import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
 
 async function writeSchemaDocument(
   tenant: string,
@@ -25,17 +25,7 @@ async function writeSchemaDocument(
 
   let backupCreated = false;
   if (existingSchema) {
-    const db = admin.firestore();
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .replace("T", "_")
-      .replace("Z", "");
-    const backupDocId = `${tenant}-backup-ui-edit-${timestamp}`;
-    await db
-      .collection("tenantSchemaBackup")
-      .doc(backupDocId)
-      .set(existingSchema, { merge: false });
+    await backupSchemaDocument(tenant, existingSchema, "edit");
     backupCreated = true;
   }
 
@@ -50,6 +40,24 @@ async function writeSchemaDocument(
 
 function templateGone(): NextResponse {
   return NextResponse.json({ error: "Not found" }, { status: 404 });
+}
+
+async function backupSchemaDocument(
+  tenant: string,
+  existingSchema: Record<string, unknown>,
+  reason: "edit" | "delete",
+): Promise<void> {
+  const db = admin.firestore();
+  const timestamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-")
+    .replace("T", "_")
+    .replace("Z", "");
+  const backupDocId = `${tenant}-backup-ui-${reason}-${timestamp}`;
+  await db
+    .collection("tenantSchemaBackup")
+    .doc(backupDocId)
+    .set(existingSchema as FirebaseFirestore.DocumentData, { merge: false });
 }
 
 export async function GET(
@@ -117,8 +125,9 @@ export async function PUT(
     const { tenant } = await params;
     if (tenant === TEMPLATE_SCHEMA_ID) return templateGone();
 
-    // Validate tenant
-    if (!isValidTenant(tenant)) {
+    // mc and itp stay on the legacy allow-list. Any other slug must already
+    // have been created with POST; this route does not create documents.
+    if (!isValidTenant(tenant) && !isCreatableTenantSlug(tenant)) {
       return NextResponse.json(
         { error: `Invalid tenant: ${tenant}` },
         { status: 400 },
@@ -129,6 +138,19 @@ export async function PUT(
     // not a client-supplied header).
     const auth = await requireSuperAdmin(tenant);
     if ("error" in auth) return auth.error;
+
+    if (!isValidTenant(tenant)) {
+      const existing = await serverGetDocumentById(
+        TableNames.TENANT_SCHEMA,
+        tenant,
+      );
+      if (!existing) {
+        return NextResponse.json(
+          { error: `Schema not found for tenant: ${tenant}` },
+          { status: 404 },
+        );
+      }
+    }
 
     const newSchema = await request.json();
 
@@ -180,3 +202,41 @@ export async function PUT(
   }
 }
 
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ tenant: string }> },
+) {
+  try {
+    const { tenant } = await params;
+    if (!isCreatableTenantSlug(tenant) || isValidTenant(tenant)) {
+      return NextResponse.json(
+        { error: `Cannot delete schema: ${tenant}` },
+        { status: 400 },
+      );
+    }
+
+    const auth = await requireSuperAdmin(tenant);
+    if ("error" in auth) return auth.error;
+
+    const existing = await serverGetDocumentById(
+      TableNames.TENANT_SCHEMA,
+      tenant,
+    );
+    if (!existing) {
+      return NextResponse.json(
+        { error: `Schema not found for tenant: ${tenant}` },
+        { status: 404 },
+      );
+    }
+
+    await backupSchemaDocument(tenant, existing, "delete");
+    await admin.firestore().collection(TableNames.TENANT_SCHEMA).doc(tenant).delete();
+    return NextResponse.json({ success: true, backupCreated: true });
+  } catch (error) {
+    console.error("Error deleting tenant schema:", error);
+    return NextResponse.json(
+      { error: "Failed to delete tenant schema" },
+      { status: 500 },
+    );
+  }
+}

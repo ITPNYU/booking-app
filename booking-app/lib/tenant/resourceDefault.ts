@@ -6,6 +6,13 @@ import { resourceIdError as resourceIdIssue } from "@/lib/tenant/validateTenantS
 
 export { resourceIdIssue as resourceIdError };
 
+/** Reserved document id. The editor no longer reads or writes this document. */
+export const TEMPLATE_SCHEMA_ID = "_template";
+
+export function isTemplateSchemaId(value: string): boolean {
+  return value === TEMPLATE_SCHEMA_ID;
+}
+
 /** A JSON copy, so the editor can change a room without mutating the shared default. */
 export function plainResource(value: unknown): Resource | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
