@@ -21,6 +21,9 @@ import DeclineReasonDialog from "../../components/DeclineReasonDialog";
 import Loading from "../../components/Loading";
 import { DatabaseContext } from "../../components/Provider";
 import shouldDisableCheckIn from "../hooks/shouldDisableCheckIn";
+import ReassignRequesterDialog, {
+  ReassignResult,
+} from "./ReassignRequesterDialog";
 
 const DEFAULT_ERROR_MESSAGE = "Failed to perform action on booking";
 
@@ -127,7 +130,45 @@ export default function BookingActions(props: Props) {
     }
   };
 
+  const onReassigned = async ({ name, warning }: ReassignResult) => {
+    setSelectedAction(Actions.PLACEHOLDER);
+    if (warning) {
+      onError(new Error(warning), "warning");
+    } else {
+      setErrorMessage(`Booking reassigned to ${name}.`);
+      setToastSeverity("success");
+      setShowError(true);
+    }
+    setUiLoading(true);
+    await reload();
+    setUiLoading(false);
+  };
+
   const onAction = useMemo(() => {
+    if (selectedAction === Actions.REASSIGN) {
+      const booking = allBookings.find(
+        (b) => b.calendarEventId === calendarEventId,
+      );
+      return (
+        <ReassignRequesterDialog
+          calendarEventId={calendarEventId}
+          currentRequester={
+            booking && {
+              firstName: booking.firstName,
+              lastName: booking.lastName,
+              email: booking.email,
+              role: booking.role,
+            }
+          }
+          onDone={onReassigned}
+        >
+          <IconButton color={"primary"} aria-label="Confirm Reassign Requester">
+            <Check />
+          </IconButton>
+        </ReassignRequesterDialog>
+      );
+    }
+
     if (selectedAction === Actions.DECLINE) {
       return (
         <DeclineReasonDialog
@@ -197,7 +238,7 @@ export default function BookingActions(props: Props) {
         <Check />
       </IconButton>
     );
-  }, [selectedAction, reason]);
+  }, [selectedAction, reason, allBookings, calendarEventId]);
 
   const disabledActions = useMemo(() => {
     const shouldDisable = shouldDisableCheckIn({

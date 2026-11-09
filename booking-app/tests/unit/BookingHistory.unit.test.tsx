@@ -32,6 +32,41 @@ describe("useSortBookingHistory - automatic approval history", () => {
 
   const requestNumber = 999;
 
+  it("shows a MODIFIED row's own note, e.g. a requester change", async () => {
+    mockFetch.mockResolvedValueOnce([
+      {
+        id: "log1",
+        status: BookingStatusLabel.MODIFIED,
+        changedBy: "admin@nyu.edu",
+        changedAt: Timestamp.fromMillis(1),
+        requestNumber,
+        note: "Requester changed from old123@nyu.edu to new456@nyu.edu",
+      },
+      {
+        id: "log2",
+        status: BookingStatusLabel.MODIFIED,
+        changedBy: "pa@nyu.edu",
+        changedAt: Timestamp.fromMillis(2),
+        requestNumber,
+      },
+    ]);
+
+    const bookingRow: any = { requestNumber, email: "new456@nyu.edu" };
+    const { result } = renderHook(() => useSortBookingHistory(bookingRow));
+
+    await waitFor(() => {
+      expect(result.current.length).toBe(2);
+    });
+
+    const notes = result.current.map(
+      (row) => row.props.children[3].props.children,
+    );
+    expect(notes).toEqual([
+      "Requester changed from old123@nyu.edu to new456@nyu.edu",
+      "Modified by pa@nyu.edu",
+    ]);
+  });
+
   it("returns rows that include 'System' when booking logs have auto-approval entries", async () => {
     const logs = [
       {
