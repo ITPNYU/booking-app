@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { approvalFlowEditorStarter } from "@/components/src/client/routes/components/schemaTypes";
+import { mcApprovalFlow } from "@/lib/stateMachines/flows/mcApprovalFlow";
 import { computeDiff } from "@/lib/utils/schemaDiff";
 import {
   getSlice,
@@ -107,6 +108,17 @@ describe("getSlice / setSlice", () => {
       { original: schema, fallback },
     );
     expect(saved.approvalFlow).toMatchObject({ version: 2 });
+  });
+
+  it("leaves approvalFlow absent when the checked-in Media Commons graph is unchanged", () => {
+    const fallback = { approvalFlow: mcApprovalFlow };
+    const unchanged = setSlice(
+      schema,
+      { kind: "section", key: "approvalFlow" },
+      mcApprovalFlow,
+      { original: schema, fallback },
+    );
+    expect("approvalFlow" in unchanged).toBe(false);
   });
 
   it("keeps an unconfigured key absent when the written value equals the default", () => {

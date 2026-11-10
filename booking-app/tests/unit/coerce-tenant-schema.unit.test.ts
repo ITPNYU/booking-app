@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { defaultFormAlerts } from "../../components/src/client/routes/components/schemaTypes";
 import { coerceTenantSchema } from "../../lib/tenant/coerceTenantSchema";
+import { itpApprovalFlow } from "../../lib/stateMachines/flows/itpApprovalFlow";
+import { mcApprovalFlow } from "../../lib/stateMachines/flows/mcApprovalFlow";
 
 describe("coerceTenantSchema — timeSensitiveRequestWarning", () => {
   const warning = {
@@ -144,6 +146,22 @@ describe("coerceTenantSchema — resources", () => {
         "itp",
       ),
     ).toThrow("conflicting resourceId and roomId");
+  });
+
+  it("fills the checked-in approval flow when mc or itp omit it", () => {
+    expect(coerceTenantSchema({ tenantId: "mc" }, "mc").approvalFlow?.id).toBe(
+      mcApprovalFlow.id,
+    );
+    expect(coerceTenantSchema({ tenantId: "itp" }, "itp").approvalFlow).toEqual(
+      itpApprovalFlow,
+    );
+    expect(
+      coerceTenantSchema(
+        { tenantId: "mc", approvalFlow: itpApprovalFlow },
+        "mc",
+      ).approvalFlow?.id,
+    ).toBe("ITP Booking Request");
+    expect(coerceTenantSchema({ tenantId: "other" }, "other").approvalFlow).toBeUndefined();
   });
 
   it("rejects duplicate canonical IDs", () => {
