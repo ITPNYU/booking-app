@@ -176,16 +176,52 @@ describe("email and history wording", () => {
     );
   });
 
-  it("falls back to the intro when the tenant has no message", () => {
+  it("falls back to the default intro when the tenant has no message", () => {
     expect(
       newRequesterHeaderMessage(BookingStatusLabel.APPROVED, "user", {}),
     ).toBe("This reservation has been assigned to you.");
   });
 
+  it("opens with the tenant's reassignedUser text", () => {
+    expect(
+      newRequesterHeaderMessage(BookingStatusLabel.APPROVED, "user", {
+        ...messages,
+        reassignedUser: "You now hold this booking.",
+      }),
+    ).toBe("You now hold this booking.<br /><br />Your reservation is approved.");
+  });
+
   it("tells the previous requester who holds the booking now", () => {
-    expect(previousRequesterHeaderMessage("Pat Lee", "new456@nyu.edu")).toBe(
+    expect(
+      previousRequesterHeaderMessage({}, "Pat Lee", "new456@nyu.edu"),
+    ).toBe(
       "This reservation has been reassigned to Pat Lee (new456@nyu.edu). It no longer appears in your bookings.",
     );
+  });
+
+  it("fills ${newRequester} into the tenant's reassignedPreviousUser text", () => {
+    expect(
+      previousRequesterHeaderMessage(
+        {
+          reassignedPreviousUser:
+            "Handed to ${newRequester}. Ask ${newRequester} for details.",
+        },
+        "Pat Lee",
+        "new456@nyu.edu",
+      ),
+    ).toBe(
+      "Handed to Pat Lee (new456@nyu.edu). Ask Pat Lee (new456@nyu.edu) for details.",
+    );
+  });
+
+  it("uses the default when the tenant's text is blank", () => {
+    expect(
+      previousRequesterHeaderMessage(
+        { reassignedPreviousUser: "   " },
+        "Pat Lee",
+        "new456@nyu.edu",
+      ),
+    ).toContain("reassigned to Pat Lee (new456@nyu.edu)");
   });
 
   it("names both requesters in the history note", () => {

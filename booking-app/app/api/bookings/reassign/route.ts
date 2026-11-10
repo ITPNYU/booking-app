@@ -248,7 +248,11 @@ export async function PUT(request: NextRequest) {
   if (input.notifyPreviousRequester && previousEmail) {
     await sendEmail(
       previousEmail,
-      previousRequesterHeaderMessage(newName, newEmail),
+      previousRequesterHeaderMessage(
+        emailConfig.emailNotifications,
+        newName,
+        newEmail,
+      ),
       "the email to the previous requester was not sent",
     );
   }

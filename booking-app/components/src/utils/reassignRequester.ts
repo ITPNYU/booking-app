@@ -1,3 +1,8 @@
+import {
+  DEFAULT_REASSIGNED_PREVIOUS_USER_MESSAGE,
+  DEFAULT_REASSIGNED_USER_MESSAGE,
+  NEW_REQUESTER_PLACEHOLDER,
+} from "../constants/reassignEmails";
 import { BookingOrigin, BookingStatusLabel } from "../types";
 import { NET_ID_REGEX } from "./validationHelpers";
 
@@ -174,24 +179,32 @@ export const reassignmentHistoryNote = (
   newEmail: string,
 ): string => `Requester changed from ${previousEmail} to ${newEmail}`;
 
-type StatusMessages = {
+type ReassignmentMessages = {
   requestedUser?: string;
   approvedUser?: string;
   approvedWalkIn?: string;
   approvedVIP?: string;
+  reassignedUser?: string;
+  reassignedPreviousUser?: string;
 };
 
+const orDefault = (text: string | undefined, fallback: string) =>
+  text?.trim() ? text : fallback;
+
 /**
- * Header for the email the new requester gets. It names the change, then
- * repeats the tenant's usual message for the booking's current status, so an
- * approved booking reads as an approval email.
+ * Header for the email the new requester gets: the tenant's
+ * `reassignedUser` text, then the tenant's usual message for the booking's
+ * current status, so an approved booking reads as an approval email.
  */
 export function newRequesterHeaderMessage(
   status: BookingStatusLabel | string,
   origin: string | undefined,
-  messages: StatusMessages,
+  messages: ReassignmentMessages,
 ): string {
-  const intro = "This reservation has been assigned to you.";
+  const intro = orDefault(
+    messages.reassignedUser,
+    DEFAULT_REASSIGNED_USER_MESSAGE,
+  );
   let statusMessage = "";
   switch (status) {
     case BookingStatusLabel.APPROVED:
@@ -210,8 +223,19 @@ export function newRequesterHeaderMessage(
   return statusMessage?.trim() ? `${intro}<br /><br />${statusMessage}` : intro;
 }
 
+/**
+ * Header for the email the previous requester gets: the tenant's
+ * `reassignedPreviousUser` text with `${newRequester}` replaced by the new
+ * requester's name and email.
+ */
 export const previousRequesterHeaderMessage = (
+  messages: ReassignmentMessages,
   newName: string,
   newEmail: string,
 ): string =>
-  `This reservation has been reassigned to ${newName} (${newEmail}). It no longer appears in your bookings.`;
+  orDefault(
+    messages.reassignedPreviousUser,
+    DEFAULT_REASSIGNED_PREVIOUS_USER_MESSAGE,
+  )
+    .split(NEW_REQUESTER_PLACEHOLDER)
+    .join(`${newName} (${newEmail})`);

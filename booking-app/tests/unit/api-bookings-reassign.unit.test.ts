@@ -274,6 +274,25 @@ describe("PUT /api/bookings/reassign", () => {
     });
   });
 
+  it("uses the tenant schema's reassignment texts", async () => {
+    mocks.mockEmailConfig.mockResolvedValue({
+      schemaName: "Media Commons",
+      emailNotifications: {
+        approvedUser: "Your reservation is approved.",
+        reassignedUser: "You now hold this booking.",
+        reassignedPreviousUser: "Now held by ${newRequester}.",
+      },
+    });
+    await PUT(createRequest(validBody));
+    const headers = mocks.mockSendEmail.mock.calls.map(
+      ([options]) => (options as { headerMessage: string }).headerMessage,
+    );
+    expect(headers).toEqual([
+      "You now hold this booking.<br /><br />Your reservation is approved.",
+      "Now held by Pat Lee (new456@nyu.edu).",
+    ]);
+  });
+
   it("logs the history row before sending emails so they include it", async () => {
     await PUT(createRequest(validBody));
     const logOrder = mocks.mockLog.mock.invocationCallOrder[0];
