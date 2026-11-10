@@ -337,10 +337,8 @@ export async function POST(request: NextRequest) {
       // Initialize XState for booking using machine evaluation (like regular bookings)
       // This will properly handle auto-approval logic for walk-ins
       const { createActor } = await import("xstate");
-      const { mcBookingMachine } =
-        await import("@/lib/stateMachines/mcBookingMachine");
-      const { itpBookingMachine } =
-        await import("@/lib/stateMachines/itpBookingMachine");
+      const { getMachineForTenant } =
+        await import("@/lib/stateMachines/xstatePersistence");
 
       // Get the updated booking data (with isVip and walkedInAt set)
       const { serverGetDataByCalendarEventId } =
@@ -352,9 +350,7 @@ export async function POST(request: NextRequest) {
       );
 
       // Get the appropriate machine for the tenant
-      const machine = isMediaCommons(tenant)
-        ? mcBookingMachine
-        : itpBookingMachine;
+      const machine = getMachineForTenant(tenant, tenantSchema);
 
       // Get services requested for Media Commons
       const servicesRequested = isMediaCommons(tenant)
