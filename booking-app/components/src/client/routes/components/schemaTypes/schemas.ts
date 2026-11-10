@@ -686,6 +686,8 @@ export const APPROVAL_EVENTS = [
   "checkIn",
   "checkOut",
   "noShow",
+  "Modify",
+  "autoCloseScript",
   "approveStaff",
   "declineStaff",
   "closeoutStaff",
@@ -712,7 +714,45 @@ export const APPROVAL_EVENTS = [
 export const APPROVAL_GUARDS = [
   "shouldAutoApprove",
   "servicesRequested",
+  "servicesApproved",
+  "servicesDeclined",
   "isVip",
+  "isVip AND servicesRequested",
+  "staffRequested",
+  "staffApproved",
+  "staffAlreadyApproved",
+  "staffAlreadyDeclined",
+  "staffAutoCloseout",
+  "caterRequested",
+  "cateringApproved",
+  "cateringAlreadyApproved",
+  "cateringAlreadyDeclined",
+  "cateringAutoCloseout",
+  "setupRequested",
+  "setupApproved",
+  "setupAlreadyApproved",
+  "setupAlreadyDeclined",
+  "setupAutoCloseout",
+  "cleanRequested",
+  "cleanApproved",
+  "cleaningAlreadyApproved",
+  "cleaningAlreadyDeclined",
+  "cleaningAutoCloseout",
+  "securityRequested",
+  "securityApproved",
+  "securityAlreadyApproved",
+  "securityAlreadyDeclined",
+  "securityAutoCloseout",
+  "equipRequested",
+  "equipApproved",
+  "equipmentAlreadyApproved",
+  "equipmentAlreadyDeclined",
+  "equipmentAutoCloseout",
+  "furnishingsRequested",
+  "furnishingsApproved",
+  "furnishingsAlreadyApproved",
+  "furnishingsAlreadyDeclined",
+  "furnishingsAutoCloseout",
 ] as const;
 
 export const APPROVAL_EFFECTS = [
@@ -720,22 +760,73 @@ export const APPROVAL_EFFECTS = [
   "createCalendarEvent",
   "updateCalendarEvent",
   "queueCancelProcessing",
+  "logStateEntry",
+  "logCanceledAfterAutomaticTransition",
+  "logBookingHistory",
+  "setDeclineReason",
+  "setAutomationReason",
+  "queueAutoCloseout",
+  "resetServiceDecisionsOnEdit",
+  "inviteUserToCalendarEvent",
+  "handleCloseProcessing",
+  "handleCheckoutProcessing",
+  "approveStaffService",
+  "declineStaffService",
+  "approveCateringService",
+  "declineCateringService",
+  "approveSetupService",
+  "declineSetupService",
+  "approveCleaningService",
+  "declineCleaningService",
+  "approveSecurityService",
+  "declineSecurityService",
+  "approveEquipmentService",
+  "declineEquipmentService",
+  "approveFurnishingsService",
+  "declineFurnishingsService",
 ] as const;
 
 export const approvalEventSchema = z.enum(APPROVAL_EVENTS);
 export const approvalGuardSchema = z.enum(APPROVAL_GUARDS);
 export const approvalEffectSchema = z.enum(APPROVAL_EFFECTS);
 
+const approvalActionSchema = z.union([
+  approvalEffectSchema,
+  z
+    .object({
+      type: approvalEffectSchema,
+      params: z.record(z.string(), z.string()).optional(),
+    })
+    .loose(),
+]);
+
 const approvalTransitionSchema = z
   .object({
     target: z.string().min(1),
     guard: approvalGuardSchema.optional(),
+    actions: z
+      .union([approvalActionSchema, z.array(approvalActionSchema)])
+      .optional(),
   })
   .loose();
+
+const approvalTransitionListSchema = z.union([
+  approvalTransitionSchema,
+  z.array(approvalTransitionSchema),
+]);
 
 const approvalAfterSchema = z
   .object({
     delayMs: z.number().int().nonnegative(),
+    target: z.string().min(1),
+    actions: z
+      .union([approvalActionSchema, z.array(approvalActionSchema)])
+      .optional(),
+  })
+  .loose();
+
+const approvalOnDoneSchema = z
+  .object({
     target: z.string().min(1),
   })
   .loose();
@@ -747,20 +838,29 @@ export const approvalStateSchema = z
       return z.record(z.string(), approvalStateSchema).optional();
     },
     type: z.enum(["parallel", "final"]).optional(),
-    on: z.partialRecord(approvalEventSchema, approvalTransitionSchema).optional(),
+    on: z
+      .partialRecord(approvalEventSchema, approvalTransitionListSchema)
+      .optional(),
+    onDone: approvalOnDoneSchema.optional(),
     always: z.array(approvalTransitionSchema).optional(),
-    entry: z.array(approvalEffectSchema).optional(),
+    entry: z.array(approvalActionSchema).optional(),
     after: z.array(approvalAfterSchema).optional(),
   })
   .loose();
+
+type ApprovalTransitionNode = { target?: string };
 
 type ApprovalStateNode = {
   initial?: string;
   states?: Record<string, ApprovalStateNode>;
   type?: "parallel" | "final";
-  on?: Record<string, { target?: string } | undefined>;
-  always?: { target?: string }[];
-  after?: { target?: string }[];
+  on?: Record<
+    string,
+    ApprovalTransitionNode | ApprovalTransitionNode[] | undefined
+  >;
+  onDone?: ApprovalTransitionNode;
+  always?: ApprovalTransitionNode[];
+  after?: ApprovalTransitionNode[];
 };
 
 type ApprovalIssueCtx = {
@@ -801,8 +901,15 @@ function refineApprovalStates(
       });
     };
     for (const [event, transition] of Object.entries(state.on ?? {})) {
-      checkTarget(transition?.target, [...statePath, "on", event, "target"]);
+      const list = Array.isArray(transition) ? transition : [transition];
+      list.forEach((item, index) => {
+        const targetPath = Array.isArray(transition)
+          ? [...statePath, "on", event, index, "target"]
+          : [...statePath, "on", event, "target"];
+        checkTarget(item?.target, targetPath);
+      });
     }
+    checkTarget(state.onDone?.target, [...statePath, "onDone", "target"]);
     state.always?.forEach((transition, index) => {
       checkTarget(transition?.target, [...statePath, "always", index, "target"]);
     });
@@ -818,6 +925,8 @@ function refineApprovalStates(
 export const approvalFlowSchema = z
   .object({
     version: z.number().int().positive(),
+    /** Machine id stored on booking snapshots. Omit for a generic flow. */
+    id: z.string().min(1).optional(),
     initial: z.string().min(1),
     states: z.record(z.string(), approvalStateSchema),
   })
@@ -867,8 +976,9 @@ export const tenantSchema = z
     ccEmails: ccEmailsSchema.prefault({}),
     emailNotifications: emailNotificationsSchema.prefault({}),
     /**
-     * Optional booking graph. Absent means this tenant keeps its hardcoded
-     * machine. Not a default: parsing a document must not invent a flow.
+     * Optional booking graph. Parsing a document does not invent one.
+     * Media Commons and ITP receive their checked-in graph in coerce when
+     * this field is absent.
      */
     approvalFlow: approvalFlowSchema.optional(),
   })

@@ -1,53 +1,64 @@
 import "server-only";
 
-import { isMediaCommonsTenant } from "@/components/src/constants/tenants";
 import type { ApprovalFlow } from "@/components/src/client/routes/components/schemaTypes";
+import { isMediaCommonsTenant } from "@/components/src/constants/tenants";
 import {
   evaluateItpShouldAutoApprove,
   evaluateMcShouldAutoApprove,
   type ItpAutoApprovalContext,
   type McAutoApprovalContext,
 } from "@/lib/stateMachines/autoApprovalGuards";
-import { assign, setup } from "xstate";
-import type {
-  MediaCommonsBookingContext,
-  MediaCommonsBookingEvent,
-} from "./mcBookingMachineTypes";
+import { setup } from "xstate";
+import type { MediaCommonsBookingContext } from "./mcBookingMachineTypes";
 import { mcBookingActions, mcBookingGuards } from "./mcBookingMachineImpl";
 
 type ApprovalFlowContext = McAutoApprovalContext &
-  ItpAutoApprovalContext & {
-    calendarEventId?: string | null;
-    email?: string;
-    servicesApproved?: Record<string, boolean>;
-    servicesAutoCloseout?: Record<string, boolean>;
-    pendingSideEffects?: string[];
-  };
+  ItpAutoApprovalContext &
+  MediaCommonsBookingContext;
+
+type ApprovalAction =
+  | string
+  | { type: string; params?: Record<string, string> };
 
 type ApprovalTransition = {
   target: string;
   guard?: string;
+  actions?: ApprovalAction | ApprovalAction[];
 };
 
 type ApprovalStateNode = {
   initial?: string;
   states?: Record<string, ApprovalStateNode>;
   type?: "parallel" | "final";
-  on?: Record<string, ApprovalTransition>;
+  on?: Record<string, ApprovalTransition | ApprovalTransition[]>;
+  onDone?: { target: string };
   always?: ApprovalTransition[];
-  entry?: string[];
-  after?: { delayMs: number; target: string }[];
+  entry?: ApprovalAction[];
+  after?: {
+    delayMs: number;
+    target: string;
+    actions?: ApprovalAction | ApprovalAction[];
+  }[];
 };
 
-function namedGuard(guard?: string) {
-  return guard ? { type: guard } : undefined;
+function compileAction(action: ApprovalAction) {
+  if (typeof action === "string") return action;
+  return action.params
+    ? { type: action.type, params: action.params }
+    : { type: action.type };
+}
+
+function compileActions(actions: ApprovalAction | ApprovalAction[]) {
+  return Array.isArray(actions)
+    ? actions.map(compileAction)
+    : compileAction(actions);
 }
 
 function compileTransition(transition: ApprovalTransition) {
-  const guard = namedGuard(transition.guard);
-  return guard
-    ? { target: transition.target, guard }
-    : { target: transition.target };
+  const compiled: Record<string, unknown> = { target: transition.target };
+  if (transition.guard) compiled.guard = { type: transition.guard };
+  if (transition.actions) compiled.actions = compileActions(transition.actions);
+  return compiled;
 }
 
 function compileState(state: ApprovalStateNode): Record<string, unknown> {
@@ -59,21 +70,24 @@ function compileState(state: ApprovalStateNode): Record<string, unknown> {
     compiled.on = Object.fromEntries(
       Object.entries(state.on).map(([event, transition]) => [
         event,
-        compileTransition(transition),
+        Array.isArray(transition)
+          ? transition.map(compileTransition)
+          : compileTransition(transition),
       ]),
     );
   }
+  if (state.onDone) compiled.onDone = { target: state.onDone.target };
   if (state.always?.length) {
     compiled.always = state.always.map(compileTransition);
   }
   if (state.entry?.length) {
-    compiled.entry = state.entry.map((type) => ({ type }));
+    compiled.entry = state.entry.map(compileAction);
   }
   if (state.after?.length) {
     compiled.after = Object.fromEntries(
       state.after.map((transition) => [
         transition.delayMs,
-        { target: transition.target },
+        compileTransition(transition),
       ]),
     );
   }
@@ -92,61 +106,50 @@ const approvalFlowSetup = setup({
     events: {} as { type: string },
     input: {} as Partial<ApprovalFlowContext> | undefined,
   },
-  actions: {
-    sendHTMLEmail: ({ context, event }) =>
-      mcBookingActions.sendHTMLEmail({
-        context: context as MediaCommonsBookingContext,
-        event: event as MediaCommonsBookingEvent,
-      }),
-    createCalendarEvent: ({ context, event }) =>
-      mcBookingActions.createCalendarEvent({
-        context: context as MediaCommonsBookingContext,
-        event: event as MediaCommonsBookingEvent,
-      }),
-    updateCalendarEvent: ({ context, event }) =>
-      mcBookingActions.updateCalendarEvent({
-        context: context as MediaCommonsBookingContext,
-        event: event as MediaCommonsBookingEvent,
-      }),
-    queueCancelProcessing: assign({
-      pendingSideEffects: ({ context }) => [
-        ...(context.pendingSideEffects ?? []),
-        "cancelProcessing",
-      ],
-    }),
-  },
+  actions: mcBookingActions as never,
   guards: {
-    shouldAutoApprove: ({ context }) =>
+    ...mcBookingGuards,
+    shouldAutoApprove: ({ context }: { context: ApprovalFlowContext }) =>
       isMediaCommonsTenant(context.tenant)
         ? evaluateMcShouldAutoApprove(context)
         : evaluateItpShouldAutoApprove(context),
-    servicesRequested: ({ context }) =>
-      mcBookingGuards.servicesRequested({
-        context: context as MediaCommonsBookingContext,
-      }),
-    isVip: ({ context }) => context.isVip === true,
-  },
+    isVip: ({ context }: { context: ApprovalFlowContext }) =>
+      context.isVip === true,
+  } as never,
 });
 
 /** Build the machine a tenant document's `approvalFlow` describes. */
 export function compileApprovalFlow(flow: ApprovalFlow) {
   const states = flow.states as Record<string, ApprovalStateNode>;
   return approvalFlowSetup.createMachine({
-    id: "Approval Flow",
+    id: flow.id ?? "Approval Flow",
     initial: flow.initial,
     context: ({ input }) => ({
       tenant: input?.tenant,
-      selectedRooms: input?.selectedRooms,
+      selectedRooms: input?.selectedRooms || [],
       formData: input?.formData,
       bookingCalendarInfo: input?.bookingCalendarInfo,
-      isWalkIn: input?.isWalkIn ?? false,
-      isVip: input?.isVip ?? false,
+      isWalkIn: input?.isWalkIn || false,
+      isVip: input?.isVip || false,
       role: input?.role,
+      origin: input?.origin,
       calendarEventId: input?.calendarEventId,
       email: input?.email,
-      servicesRequested: input?.servicesRequested,
-      servicesApproved: input?.servicesApproved,
-      servicesAutoCloseout: input?.servicesAutoCloseout,
+      declineReason: input?.declineReason,
+      automationReason: input?.automationReason,
+      servicesRequested:
+        input?.servicesRequested && typeof input.servicesRequested === "object"
+          ? input.servicesRequested
+          : undefined,
+      servicesApproved:
+        input?.servicesApproved && typeof input.servicesApproved === "object"
+          ? input.servicesApproved
+          : undefined,
+      servicesAutoCloseout:
+        input?.servicesAutoCloseout &&
+        typeof input.servicesAutoCloseout === "object"
+          ? input.servicesAutoCloseout
+          : undefined,
       pendingSideEffects: input?.pendingSideEffects,
       _restoredFromStatus: input?._restoredFromStatus,
     }),

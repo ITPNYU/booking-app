@@ -51,6 +51,7 @@ import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { DatabaseContext } from "../components/Provider";
 import type { SchemaContextType } from "../components/SchemaProvider";
+import { bundledApprovalFlow } from "@/lib/stateMachines/flows/bundledApprovalFlow";
 import {
   approvalFlowEditorStarter,
   defaultScheme,
@@ -91,12 +92,13 @@ type SnackState = {
 type AnyRecord = Record<string, unknown>;
 
 const DEFAULTS = defaultScheme as unknown as AnyRecord;
-// Editor-only. `defaultScheme` omits `approvalFlow` so parsing a tenant does
-// not turn the flow on. The starter is written only after the JSON changes.
-const EDITOR_DEFAULTS: AnyRecord = {
-  ...DEFAULTS,
-  approvalFlow: approvalFlowEditorStarter,
-};
+
+function editorDefaultsFor(tenant: string): AnyRecord {
+  return {
+    ...DEFAULTS,
+    approvalFlow: bundledApprovalFlow(tenant) ?? approvalFlowEditorStarter,
+  };
+}
 
 // ─── Diff Confirmation Dialog ───
 function DiffDialog({
@@ -403,17 +405,19 @@ function DirtyDot() {
 // ─── Sidebar ───
 function SectionNav({
   schema,
+  defaults,
   diffs,
   selected,
   onSelect,
 }: {
   schema: AnyRecord;
+  defaults: AnyRecord;
   diffs: DiffEntry[];
   selected: Selection;
   onSelect: (sel: Selection) => void;
 }) {
   const [resourcesOpen, setResourcesOpen] = useState(true);
-  const keys = useMemo(() => sectionKeys(schema, EDITOR_DEFAULTS), [schema]);
+  const keys = useMemo(() => sectionKeys(schema, defaults), [schema, defaults]);
   const resources = useMemo(() => resourceLabels(schema), [schema]);
 
   const item = (
@@ -763,6 +767,8 @@ export default function SchemaEditor() {
     }
   };
 
+  const editorDefaults = useMemo(() => editorDefaultsFor(tenant), [tenant]);
+
   const isDirty = diffs.length > 0;
   const canSave = isDirty && !saving && !!tenant;
   const schemaBlocksSave = hasParseError || documentErrors.length > 0;
@@ -776,7 +782,7 @@ export default function SchemaEditor() {
   );
 
   const sliceValue = schema
-    ? getSlice(schema, effectiveSelected, EDITOR_DEFAULTS)
+    ? getSlice(schema, effectiveSelected, editorDefaults)
     : undefined;
   const sliceErrors = useMemo(() => {
     if (!schema || hasParseError) return [];
@@ -818,7 +824,7 @@ export default function SchemaEditor() {
       prev
         ? setSlice(prev, effectiveSelected, updated, {
             original: original ?? undefined,
-            fallback: EDITOR_DEFAULTS,
+            fallback: editorDefaults,
           })
         : prev,
     );
@@ -924,6 +930,7 @@ export default function SchemaEditor() {
           >
             <SectionNav
               schema={schema}
+              defaults={editorDefaults}
               diffs={diffs}
               selected={effectiveSelected}
               onSelect={handleSelect}
@@ -989,7 +996,9 @@ export default function SchemaEditor() {
                   label={
                     effectiveSelected.kind === "section" &&
                     effectiveSelected.key === "approvalFlow"
-                      ? "not saved; hardcoded machine still runs"
+                      ? bundledApprovalFlow(tenant)
+                        ? "not saved; checked-in flow still runs"
+                        : "not saved; hardcoded machine still runs"
                       : "not in Firestore, showing code default"
                   }
                   size="small"

@@ -113,7 +113,7 @@ describe("tenant schema zod validation", () => {
         },
       },
     });
-    expect(issues.some((issue) => issue.path.includes("guard"))).toBe(true);
+    expect(issues.some((issue) => issue.path.endsWith("on.approve"))).toBe(true);
     expect(issues.some((issue) => issue.path.includes("entry"))).toBe(true);
   });
 
