@@ -446,11 +446,9 @@ export async function PUT(request: NextRequest) {
     );
 
     if (!xstateData) {
-      const machine = isMediaCommons
-        ? (await import("@/lib/stateMachines/mcBookingMachine"))
-            .mcBookingMachine
-        : (await import("@/lib/stateMachines/itpBookingMachine"))
-            .itpBookingMachine;
+      const { getMachineForTenant } =
+        await import("@/lib/stateMachines/xstatePersistence");
+      const machine = getMachineForTenant(tenant, tenantSchema);
       const freshActor = createActor(machine, {
         input: {
           tenant,
@@ -470,9 +468,7 @@ export async function PUT(request: NextRequest) {
       const currentSnapshot = freshActor.getSnapshot();
 
       xstateData = {
-        machineId: isMediaCommons
-          ? "MC Booking Request"
-          : "ITP Booking Request",
+        machineId: machine.id,
         lastTransition: new Date().toISOString(),
         snapshot: {
           status: currentSnapshot.status,

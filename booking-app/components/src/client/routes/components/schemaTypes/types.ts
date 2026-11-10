@@ -3,6 +3,8 @@
 import type { z } from "zod";
 
 import type {
+  approvalFlowSchema,
+  approvalStateSchema,
   attestationSchema,
   bookingDetailRoleSchema,
   contextLabelsSchema,
@@ -38,6 +40,10 @@ import type {
   timeSensitiveRequestWarningSchema,
   trainingConfigSchema,
 } from "./schemas";
+
+export type ApprovalFlow = z.infer<typeof approvalFlowSchema>;
+
+export type ApprovalState = z.infer<typeof approvalStateSchema>;
 
 export type BookingDetailRole = z.infer<typeof bookingDetailRoleSchema>;
 

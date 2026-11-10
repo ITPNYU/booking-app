@@ -12,6 +12,7 @@ import {
   shouldUseXState,
 } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
 import { BookingLogger } from "@/lib/logger/bookingLogger";
 import * as admin from "firebase-admin";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
@@ -346,7 +347,10 @@ export async function executeXStateTransition(
     // Create updated XState data
     const updatedXStateData: PersistedXStateData = {
       snapshot: cleanUpdatedSnapshot,
-      machineId: getMachineForTenant(tenant).id,
+      machineId: getMachineForTenant(
+        tenant,
+        tenant ? await getCachedTenantSchema(tenant) : null,
+      ).id,
       lastTransition: new Date().toISOString(),
     };
 

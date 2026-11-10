@@ -15,6 +15,7 @@ import {
   tenantSchema,
 } from "./schemas";
 import type {
+  ApprovalFlow,
   BookingDetailRole,
   ContextLabels,
   SchemaContextType,
@@ -73,6 +74,24 @@ export const defaultAttestation = attestationSchema.parse({});
 export const defaultProductionSchedule = productionScheduleSchema.parse({});
 
 export const defaultFormAlerts = formConfigSchema.parse({}).alerts;
+
+/**
+ * Shown in the schema editor when a tenant has no `approvalFlow`. Key order
+ * matches the editor's sorted JSON so an unchanged section stays unwritten.
+ * This is not a Zod default.
+ */
+export const approvalFlowEditorStarter: ApprovalFlow = {
+  initial: "Requested",
+  states: {
+    Approved: {},
+    Requested: {
+      on: {
+        approve: { target: "Approved" },
+      },
+    },
+  },
+  version: 1,
+};
 
 export const defaultScheme: Omit<SchemaContextType, "tenantId"> = tenantSchema
   .omit({ tenantId: true })

@@ -1,3 +1,4 @@
+import type { ApprovalFlow } from "@/components/src/client/routes/components/schemaTypes";
 import { TENANTS } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { serverUpdateDataByCalendarEventId } from "@/components/src/server/admin";
@@ -10,7 +11,9 @@ import {
 } from "@/components/src/utils/tenantUtils";
 import { serverGetDataByCalendarEventId } from "@/lib/firebase/server/adminDb";
 import { createActor } from "xstate";
+import { getCachedTenantSchema } from "@/lib/tenant/getCachedTenantSchema";
 import { serverGetTenantResources } from "@/lib/tenant/serverGetTenantResources";
+import { compileApprovalFlow } from "./approvalFlowMachine";
 import { itpBookingMachine } from "./itpBookingMachine";
 import { mcBookingMachine } from "./mcBookingMachine";
 import { fillMissingMcServiceRegions } from "./mcServiceRegionMigration";
@@ -48,7 +51,13 @@ export function mapBookingStatusToXState(status: string): string {
 /**
  * Get the appropriate machine for a tenant
  */
-export function getMachineForTenant(tenant?: string) {
+export function getMachineForTenant(
+  tenant?: string,
+  schema?: { approvalFlow?: ApprovalFlow } | null,
+) {
+  if (schema?.approvalFlow) {
+    return compileApprovalFlow(schema.approvalFlow);
+  }
   switch (tenant) {
     case TENANTS.MC:
       return mcBookingMachine;
@@ -57,6 +66,11 @@ export function getMachineForTenant(tenant?: string) {
     default:
       return itpBookingMachine; // default to ITP
   }
+}
+
+async function machineForTenant(tenant?: string) {
+  const schema = tenant ? await getCachedTenantSchema(tenant) : null;
+  return getMachineForTenant(tenant, schema);
 }
 
 /**
@@ -79,7 +93,7 @@ export async function createXStateDataFromBookingStatus(
     },
   );
 
-  const machine = getMachineForTenant(tenant);
+  const machine = await machineForTenant(tenant);
   const bookingStatus = getBookingStatusFromData(bookingData);
   const xstateState = mapBookingStatusToXState(bookingStatus);
 
@@ -320,7 +334,7 @@ export async function restoreXStateFromFirestore(
             actualTenant, // Use actualTenant instead of tenant
           );
 
-          const machine = getMachineForTenant(tenant);
+          const machine = await machineForTenant(tenant);
 
           // Create actor with persisted snapshot
           const restoredActor = createActor(machine, {
@@ -395,7 +409,7 @@ export async function restoreXStateFromFirestore(
           tenant,
         );
 
-        const machine = getMachineForTenant(tenant);
+        const machine = await machineForTenant(tenant);
 
         // Create actor with new snapshot
         const restoredActor = createActor(machine, {
@@ -426,7 +440,7 @@ export async function restoreXStateFromFirestore(
     const xstateData = rawXStateData as PersistedXStateData;
 
     // Get the appropriate machine for the tenant
-    const machine = getMachineForTenant(tenant);
+    const machine = await machineForTenant(tenant);
 
     // Validate machine ID
     if (machine.id !== xstateData.machineId) {

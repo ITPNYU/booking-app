@@ -41,6 +41,7 @@ import {
 } from "@/lib/firebase/server/adminDb";
 import { itpBookingMachine } from "@/lib/stateMachines/itpBookingMachine";
 import { mcBookingMachine } from "@/lib/stateMachines/mcBookingMachine";
+import { getMachineForTenant } from "@/lib/stateMachines/xstatePersistence";
 import { NextRequest, NextResponse } from "next/server";
 import { createActor } from "xstate";
 import { sendHTMLEmail } from "@/app/lib/sendHTMLEmail";
@@ -596,7 +597,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Get the appropriate machine for the tenant
-    const machine = getXStateMachine(tenant);
+    const machine = tenantSchema?.approvalFlow
+      ? getMachineForTenant(tenant, tenantSchema)
+      : getXStateMachine(tenant);
 
     // For Media Commons, detect service requests from booking data
     let servicesRequested = {};

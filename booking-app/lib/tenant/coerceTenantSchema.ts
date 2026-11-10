@@ -1,8 +1,10 @@
 import type {
+  ApprovalFlow,
   EmailNotifications,
   Resource,
   SchemaContextType,
 } from "@/components/src/client/routes/components/schemaTypes";
+import { bundledApprovalFlow } from "@/lib/stateMachines/flows/bundledApprovalFlow";
 import {
   generateDefaultSchema,
   normalizeMemoRoles,
@@ -101,6 +103,9 @@ export function coerceTenantSchema(
   const rawDetailsModal = raw.detailsModal as
     | Partial<SchemaContextType["detailsModal"]>
     | undefined;
+  const storedFlow = raw.approvalFlow as ApprovalFlow | undefined;
+  const approvalFlow =
+    storedFlow !== undefined ? storedFlow : bundledApprovalFlow(tenantSlug);
 
   return {
     ...base,
@@ -174,5 +179,6 @@ export function coerceTenantSchema(
     attestations: Array.isArray(raw.attestations)
       ? (raw.attestations as SchemaContextType["attestations"])
       : base.attestations,
+    ...(approvalFlow ? { approvalFlow } : {}),
   } as SchemaContextType;
 }
