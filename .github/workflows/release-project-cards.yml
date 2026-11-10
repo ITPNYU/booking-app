@@ -1,0 +1,105 @@
+name: Release Project Cards
+
+# After a release deploys successfully, update the project cards of the issues
+# linked to the released PRs on the Booking App project board:
+#   staging  -> Status "Test - Staging"
+#   prod     -> Status "Done" and close the issue
+# Closed issues and issues that are not on the project are left alone. A
+# release is the merge of a release PR (main -> staging, main -> prod); the PRs
+# it bundles are read from its commits.
+#
+# Configuration:
+#   secrets.PROJECT_TOKEN  Token that can write the organization project (see
+#                          dev-test-request.yml). When unset, nothing is moved.
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+on:
+  workflow_run:
+    workflows:
+      - "Deploy STAGING to App Engine"
+      - "Deploy PRODUCTION to App Engine"
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Release branch"
+        type: choice
+        options: [staging, prod]
+        required: true
+      head_sha:
+        description: "Merge commit of a release PR into that branch (defaults to the branch tip)"
+        required: false
+      dry_run:
+        description: "Print the changes without applying them"
+        type: boolean
+        default: true
+
+jobs:
+  move_cards:
+    name: Update linked issues on the project board
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       (github.event.workflow_run.head_branch == 'staging' ||
+        github.event.workflow_run.head_branch == 'prod'))
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Pick the target status for this branch
+        id: target
+        env:
+          BRANCH: ${{ github.event.workflow_run.head_branch || github.event.inputs.branch }}
+        run: |
+          case "$BRANCH" in
+            staging) STATUS="Test - Staging"; CLOSE=0 ;;
+            prod)    STATUS="Done";           CLOSE=1 ;;
+            *) echo "Unknown release branch: ${BRANCH}"; exit 1 ;;
+          esac
+          {
+            echo "branch=${BRANCH}"
+            echo "status=${STATUS}"
+            echo "close=${CLOSE}"
+          } >> "$GITHUB_OUTPUT"
+          echo "${BRANCH} -> ${STATUS}"
+
+      - name: Find the PRs in this release
+        id: prs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.target.outputs.branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.inputs.head_sha }}
+        run: |
+          if [ -z "${HEAD_SHA}" ]; then
+            HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/branches/${BRANCH}" --jq '.commit.sha')
+          fi
+          NUMBERS=$(.github/scripts/list_release_prs.sh "${HEAD_SHA}" "${BRANCH}" | tr '\n' ' ')
+          echo "numbers=${NUMBERS}" >> "$GITHUB_OUTPUT"
+          echo "PRs: ${NUMBERS:-none}"
+
+      - name: Update the linked issues' cards
+        if: steps.prs.outputs.numbers != ''
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PROJECT_OWNER: ${{ github.repository_owner }}
+          PROJECT_NUMBER: 2
+          TARGET_STATUS: ${{ steps.target.outputs.status }}
+          CLOSE_ISSUES: ${{ steps.target.outputs.close }}
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+          NUMBERS: ${{ steps.prs.outputs.numbers }}
+        run: |
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "::warning::PROJECT_TOKEN secret is not set; project cards were not updated."
+            exit 0
+          fi
+          .github/scripts/move_project_cards.sh "${NUMBERS}"

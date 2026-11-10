@@ -10,6 +10,7 @@ import { updateCalendarEvent } from "@/components/src/server/calendars";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { getApprovalCcEmail } from "@/components/src/tenantPolicyServer";
 import { BookingStatusLabel } from "@/components/src/types";
+import { normalizeActionNote } from "@/components/src/utils/bookingHistoryNotes";
 import {
   logServerBookingChange,
   serverFetchAllDataFromCollection,
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
   let requestBody: {
     calendarEventId?: string;
     email?: string;
+    note?: unknown;
   } = {};
 
   try {
@@ -111,6 +113,7 @@ export async function POST(req: NextRequest) {
         status: BookingStatusLabel.NO_SHOW,
         changedBy: actorEmail,
         requestNumber: bookingDoc.requestNumber,
+        note: normalizeActionNote(requestBody.note),
         tenant,
       });
     }

@@ -39,6 +39,7 @@ import {
   firstApprovalHistoryNote,
   isSystemHistoryActor,
   resolvePreApprovedHistoryNotes,
+  withActionNote,
 } from "../utils/bookingHistoryNotes";
 import { formatHistoryDateTime } from "../client/utils/date";
 import { parseBookingResourceIds } from "../utils/approversResources";
@@ -367,6 +368,7 @@ export const serverFirstApproveOnly = async (
   id: string,
   email?: string,
   tenant?: string,
+  note?: string,
 ) => {
   console.log(
     `🎯 SERVER FIRST APPROVE ONLY [${tenant?.toUpperCase() || "UNKNOWN"}]:`,
@@ -408,7 +410,10 @@ export const serverFirstApproveOnly = async (
       changedBy: email,
       requestNumber: doc.requestNumber,
       calendarEventId: id,
-      note: await resolveFirstApprovalHistoryNote(email, tenant),
+      note: withActionNote(
+        await resolveFirstApprovalHistoryNote(email, tenant),
+        note,
+      ),
       tenant,
     });
   }
@@ -545,6 +550,7 @@ export const serverApproveBooking = async (
   id: string,
   email: string,
   tenant?: string,
+  note?: string,
 ) => {
   try {
     const bookingStatus = await serverGetDataByCalendarEventId<BookingStatus>(
@@ -555,9 +561,9 @@ export const serverApproveBooking = async (
     const isFinalApproval = bookingStatus?.firstApprovedAt?.toDate() ?? null;
 
     if (isFinalApproval) {
-      await finalApprove(id, email, tenant);
+      await finalApprove(id, email, tenant, note);
     } else {
-      await firstApprove(id, email, tenant);
+      await firstApprove(id, email, tenant, note);
     }
   } catch (error) {
     // Keep the class so /api/approve can tell the booking was approved.
@@ -566,7 +572,12 @@ export const serverApproveBooking = async (
   }
 };
 
-const firstApprove = async (id: string, email: string, tenant?: string) => {
+const firstApprove = async (
+  id: string,
+  email: string,
+  tenant?: string,
+  note?: string,
+) => {
   await serverFirstApprove(id, email, tenant);
 
   // Log the first approval action
@@ -587,7 +598,10 @@ const firstApprove = async (id: string, email: string, tenant?: string) => {
       changedBy: email,
       requestNumber: doc.requestNumber,
       calendarEventId: id,
-      note: await resolveFirstApprovalHistoryNote(email, tenant),
+      note: withActionNote(
+        await resolveFirstApprovalHistoryNote(email, tenant),
+        note,
+      ),
       tenant,
     });
   }
@@ -675,7 +689,7 @@ export const finalApprove = async (
         changedBy: email,
         requestNumber: doc.requestNumber,
         calendarEventId: id,
-        note: note || "",
+        note: withActionNote("", note) ?? "",
         tenant,
       });
     }
