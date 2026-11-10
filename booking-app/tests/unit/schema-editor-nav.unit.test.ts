@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { approvalFlowEditorStarter } from "@/components/src/client/routes/components/schemaTypes";
 import { computeDiff } from "@/lib/utils/schemaDiff";
 import {
   getSlice,
@@ -83,6 +84,29 @@ describe("getSlice / setSlice", () => {
     expect((next.resources as unknown[])[0]).toEqual({ name: "Room 104" });
     expect((next.resources as unknown[])[1]).toBe(schema.resources[1]);
     expect(schema.resources[0].name).toBe("Room 103");
+  });
+
+  it("leaves approvalFlow absent when the editor starter is unchanged", () => {
+    const fallback = { approvalFlow: approvalFlowEditorStarter };
+    const unchanged = setSlice(
+      schema,
+      { kind: "section", key: "approvalFlow" },
+      approvalFlowEditorStarter,
+      { original: schema, fallback },
+    );
+    expect("approvalFlow" in unchanged).toBe(false);
+    expect(sectionKeys(schema, fallback)).toContainEqual({
+      key: "approvalFlow",
+      present: false,
+    });
+
+    const saved = setSlice(
+      schema,
+      { kind: "section", key: "approvalFlow" },
+      { ...approvalFlowEditorStarter, version: 2 },
+      { original: schema, fallback },
+    );
+    expect(saved.approvalFlow).toMatchObject({ version: 2 });
   });
 
   it("keeps an unconfigured key absent when the written value equals the default", () => {

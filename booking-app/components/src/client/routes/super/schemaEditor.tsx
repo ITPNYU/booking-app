@@ -51,7 +51,10 @@ import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { DatabaseContext } from "../components/Provider";
 import type { SchemaContextType } from "../components/SchemaProvider";
-import { defaultScheme } from "../components/SchemaProvider";
+import {
+  approvalFlowEditorStarter,
+  defaultScheme,
+} from "../components/SchemaProvider";
 import {
   getSlice,
   isDirtyUnder,
@@ -88,6 +91,12 @@ type SnackState = {
 type AnyRecord = Record<string, unknown>;
 
 const DEFAULTS = defaultScheme as unknown as AnyRecord;
+// Editor-only. `defaultScheme` omits `approvalFlow` so parsing a tenant does
+// not turn the flow on. The starter is written only after the JSON changes.
+const EDITOR_DEFAULTS: AnyRecord = {
+  ...DEFAULTS,
+  approvalFlow: approvalFlowEditorStarter,
+};
 
 // ─── Diff Confirmation Dialog ───
 function DiffDialog({
@@ -404,7 +413,7 @@ function SectionNav({
   onSelect: (sel: Selection) => void;
 }) {
   const [resourcesOpen, setResourcesOpen] = useState(true);
-  const keys = useMemo(() => sectionKeys(schema, DEFAULTS), [schema]);
+  const keys = useMemo(() => sectionKeys(schema, EDITOR_DEFAULTS), [schema]);
   const resources = useMemo(() => resourceLabels(schema), [schema]);
 
   const item = (
@@ -767,7 +776,7 @@ export default function SchemaEditor() {
   );
 
   const sliceValue = schema
-    ? getSlice(schema, effectiveSelected, DEFAULTS)
+    ? getSlice(schema, effectiveSelected, EDITOR_DEFAULTS)
     : undefined;
   const sliceErrors = useMemo(() => {
     if (!schema || hasParseError) return [];
@@ -809,7 +818,7 @@ export default function SchemaEditor() {
       prev
         ? setSlice(prev, effectiveSelected, updated, {
             original: original ?? undefined,
-            fallback: DEFAULTS,
+            fallback: EDITOR_DEFAULTS,
           })
         : prev,
     );
@@ -977,7 +986,12 @@ export default function SchemaEditor() {
               )}
               {sectionUnconfigured && (
                 <Chip
-                  label="not in Firestore, showing code default"
+                  label={
+                    effectiveSelected.kind === "section" &&
+                    effectiveSelected.key === "approvalFlow"
+                      ? "not saved; hardcoded machine still runs"
+                      : "not in Firestore, showing code default"
+                  }
                   size="small"
                   color="warning"
                   variant="outlined"
