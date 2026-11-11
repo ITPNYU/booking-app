@@ -138,7 +138,8 @@ jobs:
           # Same content as the Chat message: a heading, then one linked "#number title" per issue.
           {
             printf '<p><b>%s %s</b></p>\n<ul>\n' "${EMOJI}" "${TITLE}"
-            jq -r '.[] | "<li><a href=\"\(.url | @html)\">#\(.number) \(.title | @html)</a></li>"' issues.json
+            # Some mail clients do not render &apos;, so use the numeric form.
+            jq -r '.[] | "<li><a href=\"\(.url | @html)\">#\(.number) \(.title | @html)</a></li>" | gsub("&apos;"; "&#39;")' issues.json
             printf '</ul>\n'
           } > body.html
 
