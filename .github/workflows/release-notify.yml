@@ -19,6 +19,8 @@ name: Release Notify
 permissions:
   contents: read
   pull-requests: write
+  # Creating the `announced-*` label the first time needs issues: write.
+  issues: write
 
 on:
   workflow_run:
