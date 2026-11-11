@@ -135,10 +135,10 @@ jobs:
           EMOJI: ${{ steps.issues.outputs.emoji }}
           RELEASE_PR: ${{ steps.issues.outputs.release_pr }}
         run: |
-          # Same content as the Chat message: a heading, then one linked title per issue.
+          # Same content as the Chat message: a heading, then one linked "#number title" per issue.
           {
             printf '<p><b>%s %s</b></p>\n<ul>\n' "${EMOJI}" "${TITLE}"
-            jq -r '.[] | "<li><a href=\"\(.url | @html)\">\(.title | @html)</a></li>"' issues.json
+            jq -r '.[] | "<li><a href=\"\(.url | @html)\">#\(.number) \(.title | @html)</a></li>"' issues.json
             printf '</ul>\n'
           } > body.html
 
@@ -226,7 +226,7 @@ jobs:
         run: |
           # <URL|text> renders as a link in Google Chat; "<", ">" and "|" inside the
           # title would end the link early, so they are swapped for full-width forms.
-          LIST=$(jq -r '.[] | "• <\(.url)|\(.title | gsub("<"; "＜") | gsub(">"; "＞") | gsub("\\|"; "｜"))>"' issues.json)
+          LIST=$(jq -r '.[] | "• <\(.url)|#\(.number) \(.title | gsub("<"; "＜") | gsub(">"; "＞") | gsub("\\|"; "｜"))>"' issues.json)
           TEXT=$(printf '%s\n' "${EMOJI} *${TITLE}*" "${LIST}")
           PAYLOAD=$(jq -n --arg text "$TEXT" '{text: $text}')
 
