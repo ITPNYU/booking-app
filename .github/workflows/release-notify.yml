@@ -9,8 +9,9 @@ name: Release Notify
 # posted when the release has no linked issues.
 #
 # Idempotency: the release PR is labeled `announced-staging` / `announced-prod`
-# once its message is posted, and a labeled release is skipped, so re-running or
-# repeating a deploy never posts the same release twice.
+# right before its message is posted, and a labeled release is skipped, so
+# re-running or repeating a deploy never posts the same release twice. The label
+# is removed again when the post fails.
 #
 # Configuration:
 #   secrets.GCHAT_RELEASE_WEBHOOK_URL  Incoming webhook of the client-facing space
@@ -120,6 +121,11 @@ jobs:
             exit 1
           fi
 
+          # Claim the release before posting, so a failure after the post can
+          # never leave it postable again. The claim is released if the post fails.
+          gh label create "announced-${BRANCH}" --repo "$GITHUB_REPOSITORY" --color 5319E7 --description "Release was announced to the client space" --force
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${RELEASE_PR}/labels" -f "labels[]=announced-${BRANCH}" > /dev/null
+
           HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
             -H "Content-Type: application/json; charset=UTF-8" \
             --data "${PAYLOAD}" \
@@ -128,11 +134,11 @@ jobs:
 
           if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
             echo "Release notification sent (HTTP ${HTTP_STATUS})"
-            # Mark the release PR so a re-run of the deploy does not post again.
-            gh label create "announced-${BRANCH}" --repo "$GITHUB_REPOSITORY" --color 5319E7 --description "Release was announced to the client space" --force
-            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${RELEASE_PR}/labels" -f "labels[]=announced-${BRANCH}" > /dev/null
           else
             echo "Failed to send release notification (HTTP ${HTTP_STATUS})"
             cat /tmp/response.txt
+            # Nothing was posted: release the claim so a re-run can post.
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/issues/${RELEASE_PR}/labels/announced-${BRANCH}" > /dev/null \
+              || echo "::warning::Could not remove announced-${BRANCH} from #${RELEASE_PR}; remove it by hand before re-running."
             exit 1
           fi
