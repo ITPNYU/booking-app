@@ -25,7 +25,9 @@ name: Release Notify
 #                                      mediacommons.supervisors@nyu.edu.
 #   secrets.GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN
 #                                      The Google account the app already sends
-#                                      booking emails from (Gmail API).
+#                                      booking emails from (Gmail API). Read
+#                                      from the production environment for
+#                                      both staging and prod releases.
 #   vars.RELEASE_NOTIFY_GCHAT          "true" to also post to Google Chat.
 #   secrets.GCHAT_RELEASE_WEBHOOK_URL  Incoming webhook of the client-facing space
 #                                      (separate from the team space webhook).
@@ -74,6 +76,9 @@ jobs:
        (github.event.workflow_run.head_branch == 'staging' ||
         github.event.workflow_run.head_branch == 'prod'))
     runs-on: ubuntu-latest
+    # The current GOOGLE_REFRESH_TOKEN is the production environment's secret;
+    # the repository-level one is stale.
+    environment: production
 
     steps:
       - name: Check out the scripts
@@ -162,14 +167,16 @@ jobs:
           fi
 
           # Same Google account and Gmail API the app sends booking emails with.
-          ACCESS_TOKEN=$(curl -s -X POST https://oauth2.googleapis.com/token \
+          curl -s -o /tmp/token.json -X POST https://oauth2.googleapis.com/token \
             --data-urlencode "client_id=${GOOGLE_CLIENT_ID}" \
             --data-urlencode "client_secret=${GOOGLE_CLIENT_SECRET}" \
             --data-urlencode "refresh_token=${GOOGLE_REFRESH_TOKEN}" \
             --data-urlencode "grant_type=refresh_token" \
-            --connect-timeout 10 --max-time 30 | jq -r '.access_token // empty' || true)
+            --connect-timeout 10 --max-time 30 || true
+          ACCESS_TOKEN=$(jq -r '.access_token // empty' /tmp/token.json 2>/dev/null || true)
           if [ -z "${ACCESS_TOKEN}" ]; then
             echo "Failed to get a Google access token."
+            jq -r '"\(.error // "no response"): \(.error_description // "")"' /tmp/token.json 2>/dev/null || true
             release_claim
             exit 1
           fi
