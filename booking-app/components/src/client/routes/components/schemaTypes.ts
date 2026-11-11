@@ -5,6 +5,10 @@
 // scripts) without pulling the client-only `SchemaProvider` into the server
 // bundle. `SchemaProvider.tsx` re-exports everything here for client consumers.
 
+import {
+  DEFAULT_REASSIGNED_PREVIOUS_USER_MESSAGE,
+  DEFAULT_REASSIGNED_USER_MESSAGE,
+} from "@/components/src/constants/reassignEmails";
 import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { isMediaCommonsTenant } from "@/components/src/constants/tenants";
 
@@ -461,6 +465,16 @@ export type EmailNotifications = {
   noShow: string;
   closed: string;
   approvedUser: string;
+  /**
+   * Opening of the email to a booking's new requester after an admin
+   * reassigns it. The usual message for the booking's status follows it.
+   */
+  reassignedUser: string;
+  /**
+   * Email to a booking's previous requester after an admin reassigns it.
+   * `${newRequester}` is replaced with the new requester's name and email.
+   */
+  reassignedPreviousUser: string;
 };
 
 export type SchemaContextType = {
@@ -771,6 +785,8 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
     noShow: "",
     closed: "",
     approvedUser: "",
+    reassignedUser: DEFAULT_REASSIGNED_USER_MESSAGE,
+    reassignedPreviousUser: DEFAULT_REASSIGNED_PREVIOUS_USER_MESSAGE,
   },
 };
 

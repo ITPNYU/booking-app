@@ -406,17 +406,20 @@ describe("useBookingActions Hook", () => {
       Actions.FIRST_APPROVE,
       Actions.CANCEL,
       Actions.DECLINE,
+      Actions.REASSIGN,
     ]);
     testAdminContext(BookingStatusLabel.PRE_APPROVED, [
       Actions.FINAL_APPROVE,
       Actions.CANCEL,
       Actions.DECLINE,
+      Actions.REASSIGN,
     ]);
     testAdminContext(BookingStatusLabel.APPROVED, [
       Actions.CHECK_IN,
       Actions.MODIFICATION,
       Actions.CANCEL,
       Actions.DECLINE,
+      Actions.REASSIGN,
     ]);
     testAdminContext(BookingStatusLabel.EQUIPMENT, [
       Actions.FINAL_APPROVE,
@@ -927,6 +930,7 @@ describe("useBookingActions Hook", () => {
             Actions.FIRST_APPROVE,
             Actions.CANCEL,
             Actions.DECLINE,
+            Actions.REASSIGN,
           ],
         };
 
@@ -959,6 +963,7 @@ describe("useBookingActions Hook", () => {
             Actions.MODIFICATION,
             Actions.CANCEL,
             Actions.DECLINE,
+            Actions.REASSIGN,
           ],
         };
 

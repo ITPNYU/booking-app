@@ -19,6 +19,7 @@ import {
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
 import { getTenantPolicy } from "@/components/src/tenantPolicy";
+import { canReassignRequester } from "@/components/src/utils/reassignRequester";
 import {
   createXStateChecker,
   getXStateContext,
@@ -92,6 +93,8 @@ export enum Actions {
   CLOSEOUT_SECURITY_SERVICE = "Closeout Security",
   CLOSEOUT_SETUP_SERVICE = "Closeout Setup",
   CLOSEOUT_FURNISHINGS_SERVICE = "Closeout Furniture",
+  // Admin: hand the booking to a different requester
+  REASSIGN = "Reassign Requester",
   PLACEHOLDER = "",
 }
 
@@ -371,6 +374,13 @@ export default function useBookingActions({
       optimisticNextStatus: status,
       skipReload: true,
     },
+    // BookingActions opens ReassignRequesterDialog for this action, and the
+    // dialog sends the request itself so errors stay next to the form.
+    [Actions.REASSIGN]: {
+      action: async () => {},
+      optimisticNextStatus: status,
+      skipReload: true,
+    },
   };
 
   // Common action definition function
@@ -532,7 +542,11 @@ export default function useBookingActions({
         }
         break;
 
-      default: // ADMIN
+      default: {
+        // ADMIN
+        const reassignOption = canReassignRequester(status)
+          ? [Actions.REASSIGN]
+          : [];
         if (
           status === BookingStatusLabel.DECLINED ||
           status === BookingStatusLabel.CLOSED ||
@@ -672,7 +686,9 @@ export default function useBookingActions({
           options.push(Actions.CANCEL);
           options.push(Actions.DECLINE);
         }
+        options.push(...reassignOption);
         break;
+      }
     }
 
     return options;

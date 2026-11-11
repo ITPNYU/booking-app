@@ -28,6 +28,9 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import Loading from "../../components/Loading";
 import { DatabaseContext } from "../../components/Provider";
 import shouldDisableCheckIn from "../hooks/shouldDisableCheckIn";
+import ReassignRequesterDialog, {
+  ReassignResult,
+} from "./ReassignRequesterDialog";
 
 const DEFAULT_ERROR_MESSAGE = "Failed to perform action on booking";
 
@@ -36,11 +39,13 @@ const LATE_CANCEL_WARNING =
 
 // Edit and Modification open another page. Send to Equipment goes through
 // /api/equipment, which takes no note, and Equipment Approve does nothing.
+// Reassign Requester has its own dialog and writes its own history note.
 const ACTIONS_WITHOUT_NOTE = new Set<Actions>([
   Actions.EDIT,
   Actions.MODIFICATION,
   Actions.SEND_TO_EQUIPMENT,
   Actions.EQUIPMENT_APPROVE,
+  Actions.REASSIGN,
 ]);
 
 const isDeclineAction = (action: Actions) =>
@@ -152,7 +157,45 @@ export default function BookingActions(props: Props) {
     }
   };
 
+  const onReassigned = async ({ name, warning }: ReassignResult) => {
+    setSelectedAction(Actions.PLACEHOLDER);
+    if (warning) {
+      onError(new Error(warning), "warning");
+    } else {
+      setErrorMessage(`Booking reassigned to ${name}.`);
+      setToastSeverity("success");
+      setShowError(true);
+    }
+    setUiLoading(true);
+    await reload();
+    setUiLoading(false);
+  };
+
   const onAction = useMemo(() => {
+    if (selectedAction === Actions.REASSIGN) {
+      const booking = allBookings.find(
+        (b) => b.calendarEventId === calendarEventId,
+      );
+      return (
+        <ReassignRequesterDialog
+          calendarEventId={calendarEventId}
+          currentRequester={
+            booking && {
+              firstName: booking.firstName,
+              lastName: booking.lastName,
+              email: booking.email,
+              role: booking.role,
+            }
+          }
+          onDone={onReassigned}
+        >
+          <IconButton color={"primary"} aria-label="Confirm Reassign Requester">
+            <Check />
+          </IconButton>
+        </ReassignRequesterDialog>
+      );
+    }
+
     const confirmLabel =
       selectedAction === Actions.DECLINE
         ? "Confirm decline"
@@ -205,7 +248,7 @@ export default function BookingActions(props: Props) {
         <Check />
       </IconButton>
     );
-  }, [selectedAction, note]);
+  }, [selectedAction, note, allBookings, calendarEventId]);
 
   // Staff can attach an optional note to the selected action. It is saved on
   // the history entry the action writes. Declines take their reason in the
