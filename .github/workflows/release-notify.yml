@@ -135,6 +135,15 @@ jobs:
           EMOJI: ${{ steps.issues.outputs.emoji }}
           RELEASE_PR: ${{ steps.issues.outputs.release_pr }}
         run: |
+          # EMAIL_TO goes into the To: header, so it must be plain addresses
+          # separated by commas: no line breaks or anything else that could add
+          # a header.
+          ADDRESS='[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+'
+          if ! [[ "${EMAIL_TO}" =~ ^${ADDRESS}(,\ *${ADDRESS})*$ ]]; then
+            echo "Error: the recipients must be email addresses separated by commas."
+            exit 1
+          fi
+
           # Same content as the Chat message: a heading, then one linked "#number title" per issue.
           {
             printf '<p><b>%s %s</b></p>\n<ul>\n' "${EMOJI}" "${TITLE}"
