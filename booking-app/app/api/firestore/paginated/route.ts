@@ -16,6 +16,7 @@ const SEARCHABLE_FIELDS = [
   "firstName",
   "lastName",
   "roomId",
+  "webcheckoutCartNumber",
 ];
 
 function parseDate(value: unknown): Date | null {

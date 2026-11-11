@@ -161,8 +161,8 @@ export function resourceLabelForPath(
 }
 
 /**
- * Top-level keys to list in the sidebar: the code-default order first, then
- * any extra keys the stored schema has. `present` marks keys the stored
+ * Top-level keys to list in the sidebar, alphabetically. Includes code-default
+ * keys the stored schema does not have yet. `present` marks keys the stored
  * schema actually contains.
  */
 export function sectionKeys(
@@ -172,7 +172,7 @@ export function sectionKeys(
   const ordered = [
     ...Object.keys(defaults),
     ...Object.keys(schema).filter((k) => !(k in defaults)),
-  ];
+  ].sort();
   return ordered.map((key) => ({ key, present: key in schema }));
 }
 
