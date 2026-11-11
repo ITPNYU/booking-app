@@ -3,7 +3,11 @@ import { ChevronRight } from "@mui/icons-material";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { useParams, useRouter } from "next/navigation";
-import { BookingFormDropdown, BookingFormTextField } from "./BookingFormInputs";
+import {
+  BookingFormDropdown,
+  BookingFormMultiSelect,
+  BookingFormTextField,
+} from "./BookingFormInputs";
 import {
   AttendeeAffiliation,
   FormContextLevel,
@@ -49,12 +53,8 @@ export default function DetailsInput({
   userApiData,
 }: Props) {
   const { userEmail, settings } = useContext(DatabaseContext);
-  const {
-    selectedRooms,
-    formData,
-    setIsDetailsValid,
-    bookingCalendarInfo,
-  } = useContext(BookingContext);
+  const { selectedRooms, formData, setIsDetailsValid, bookingCalendarInfo } =
+    useContext(BookingContext);
   const blocked = useRequestBlocked();
   const router = useRouter();
   const { tenant } = useParams();
@@ -71,8 +71,14 @@ export default function DetailsInput({
   );
 
   const {
-    form: { showNNumber, showSponsor, showBookingType, productionSchedule },
-    mappings: { role: roleMapping },
+    form: {
+      showNNumber,
+      showSponsor,
+      showBookingType,
+      showDepartmentCollaboration,
+      productionSchedule,
+    },
+    mappings: { role: roleMapping, program: programMapping },
   } = useTenantSchema();
 
   const {
@@ -81,8 +87,44 @@ export default function DetailsInput({
     trigger,
     watch,
     reset,
+    setValue,
+    clearErrors,
     formState: { errors, isValid },
   } = useRequestFormState({ userApiData, isVIP, isWalkIn });
+
+  // Departments a collaboration can name: the same list as the Affiliation
+  // step, plus Other.
+  const collaborationDepartmentOptions = useMemo(() => {
+    const departments = Object.keys(programMapping || {}).sort((a, b) =>
+      a.localeCompare(b),
+    );
+    return departments.includes("Other")
+      ? departments
+      : [...departments, "Other"];
+  }, [programMapping]);
+  const isDepartmentCollaboration = watch("departmentCollaboration") === "Yes";
+  const collaboratingDepartments = watch("collaboratingDepartments");
+  const hasOtherCollaboratingDepartment =
+    isDepartmentCollaboration &&
+    Array.isArray(collaboratingDepartments) &&
+    collaboratingDepartments.includes("Other");
+
+  // Answering No drops any departments picked while the answer was Yes,
+  // with any error shown for them. (Hidden fields aren't validated.)
+  useEffect(() => {
+    if (!isDepartmentCollaboration) {
+      setValue("collaboratingDepartments", [], { shouldValidate: false });
+      clearErrors("collaboratingDepartments");
+    }
+  }, [isDepartmentCollaboration, setValue, clearErrors]);
+
+  // Unticking Other drops the department name typed for it.
+  useEffect(() => {
+    if (!hasOtherCollaboratingDepartment) {
+      setValue("otherCollaboratingDepartments", "", { shouldValidate: false });
+      clearErrors("otherCollaboratingDepartments");
+    }
+  }, [hasOtherCollaboratingDepartment, setValue, clearErrors]);
 
   // The missing-data guard lets a request onto Services only while the
   // Details answer set is valid. The Services form cannot see these fields,
@@ -387,6 +429,35 @@ export default function DetailsInput({
             {...{ control, errors, trigger }}
           />
         )}
+        {!isMod && showDepartmentCollaboration && (
+          <BookingFormDropdown
+            id="departmentCollaboration"
+            label="Is this a collaboration between two or more departments?"
+            options={["Yes", "No"]}
+            dataTestId="department-collaboration-select"
+            {...{ control, errors, trigger }}
+          />
+        )}
+        {!isMod && showDepartmentCollaboration && isDepartmentCollaboration && (
+          <BookingFormMultiSelect
+            id="collaboratingDepartments"
+            label="Collaborating Departments"
+            description="Select every department involved, including your own."
+            options={collaborationDepartmentOptions}
+            dataTestId="collaborating-departments-select"
+            {...{ control, errors, trigger }}
+          />
+        )}
+        {!isMod &&
+          showDepartmentCollaboration &&
+          hasOtherCollaboratingDepartment && (
+            <BookingFormTextField
+              id="otherCollaboratingDepartments"
+              label="Other Collaborating Department(s)"
+              description="Name the department(s) not in the list."
+              {...{ control, errors, trigger }}
+            />
+          )}
         <BookingFormTextField
           id="expectedAttendance"
           label="Expected Attendance"

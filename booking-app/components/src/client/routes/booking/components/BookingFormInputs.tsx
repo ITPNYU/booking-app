@@ -139,6 +139,95 @@ export function BookingFormDropdown(props: DropdownInputs) {
   );
 }
 
+interface MultiSelectInputs {
+  id: "collaboratingDepartments";
+  label: string;
+  options: string[];
+  description?: React.ReactNode;
+  control: Control<Inputs, any>;
+  errors: FieldErrors<Inputs>;
+  trigger: UseFormTrigger<Inputs>;
+  dataTestId?: string;
+}
+
+/** A required multi-select dropdown; at least one option must be chosen. */
+export function BookingFormMultiSelect(props: MultiSelectInputs) {
+  const { id, label, options, description = null, control, errors, trigger, dataTestId } =
+    props;
+
+  return (
+    <Controller
+      name={id}
+      control={control}
+      defaultValue={[]}
+      rules={{
+        validate: (value) =>
+          (Array.isArray(value) && value.length > 0) ||
+          `${label} is required`,
+      }}
+      render={({ field }) => (
+        <FormControl
+          error={errors[id] != null}
+          sx={{ marginBottom: 4 }}
+          fullWidth
+        >
+          <Label id={`${id}-label`} htmlFor={id}>{`${label}*`}</Label>
+          {description && (
+            <div style={{ fontSize: "0.75rem" }}>{description}</div>
+          )}
+          <Select
+            multiple
+            id={id}
+            name={field.name}
+            ref={field.ref}
+            value={Array.isArray(field.value) ? field.value : []}
+            aria-labelledby={`${id}-label`}
+            inputProps={{ "aria-required": true }}
+            onBlur={() => trigger(id)}
+            onChange={(e) => {
+              const { value } = e.target;
+              field.onChange(
+                typeof value === "string" ? value.split(",") : value,
+              );
+              trigger(id);
+            }}
+            data-testid={dataTestId}
+            renderValue={(selected) =>
+              selected.length === 0 ? (
+                <p style={{ color: "gray" }}>Select one or more</p>
+              ) : (
+                selected.join(", ")
+              )
+            }
+            displayEmpty
+            MenuProps={{
+              PaperProps: {
+                style: { maxHeight: 300 },
+                ...(dataTestId && { "data-testid": `${dataTestId}-menu` }),
+              },
+            }}
+          >
+            {options.map((option) => (
+              <MenuItem key={option} value={option}>
+                <Checkbox
+                  checked={
+                    Array.isArray(field.value) && field.value.includes(option)
+                  }
+                  size="small"
+                />
+                {option}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>
+            {typeof errors[id]?.message === "string" ? errors[id]?.message : ""}
+          </FormHelperText>
+        </FormControl>
+      )}
+    />
+  );
+}
+
 interface TextFieldProps extends Props {
   description?: React.ReactNode;
   pattern?: ValidationRule<RegExp>;
