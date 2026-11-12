@@ -59,6 +59,7 @@ const mockDatabaseContext = {
   bookingsLoading: false,
   allBookings: [],
   reloadFutureBookings: vi.fn(),
+  fetchAllBookings: vi.fn(),
 };
 
 const mockSchemaContext = generateDefaultSchema("mc");
@@ -108,7 +109,6 @@ describe("BookingActions Component - Equipment Context", () => {
         [Actions.CANCEL]: {
           action: vi.fn(),
           optimisticNextStatus: BookingStatusLabel.CANCELED,
-          confirmation: true,
         },
         [Actions.NO_SHOW]: {
           action: vi.fn(),
@@ -141,17 +141,14 @@ describe("BookingActions Component - Equipment Context", () => {
         [Actions.DECLINE]: {
           action: vi.fn(),
           optimisticNextStatus: BookingStatusLabel.DECLINED,
-          confirmation: true,
         },
         [Actions.EDIT]: {
           action: vi.fn(),
           optimisticNextStatus: BookingStatusLabel.UNKNOWN,
-          confirmation: false,
         },
         [Actions.MODIFICATION]: {
           action: vi.fn(),
           optimisticNextStatus: BookingStatusLabel.MODIFIED,
-          confirmation: false,
         },
         [Actions.PLACEHOLDER]: {
           action: vi.fn(),
@@ -230,7 +227,6 @@ describe("BookingActions Component - Equipment Context", () => {
           [Actions.CANCEL]: {
             action: vi.fn(),
             optimisticNextStatus: BookingStatusLabel.CANCELED,
-            confirmation: true,
           },
           [Actions.NO_SHOW]: {
             action: vi.fn(),
@@ -263,17 +259,14 @@ describe("BookingActions Component - Equipment Context", () => {
           [Actions.DECLINE]: {
             action: vi.fn(),
             optimisticNextStatus: BookingStatusLabel.DECLINED,
-            confirmation: true,
           },
           [Actions.EDIT]: {
             action: vi.fn(),
             optimisticNextStatus: BookingStatusLabel.UNKNOWN,
-            confirmation: false,
           },
           [Actions.MODIFICATION]: {
             action: mockModificationAction,
             optimisticNextStatus: BookingStatusLabel.MODIFIED,
-            confirmation: false,
           },
           [Actions.PLACEHOLDER]: {
             action: vi.fn(),
@@ -311,7 +304,6 @@ describe("BookingActions Component - Equipment Context", () => {
           [Actions.CANCEL]: {
             action: vi.fn(),
             optimisticNextStatus: BookingStatusLabel.CANCELED,
-            confirmation: true,
           },
           [Actions.NO_SHOW]: {
             action: vi.fn(),
@@ -344,17 +336,14 @@ describe("BookingActions Component - Equipment Context", () => {
           [Actions.DECLINE]: {
             action: mockDeclineAction,
             optimisticNextStatus: BookingStatusLabel.DECLINED,
-            confirmation: true,
           },
           [Actions.EDIT]: {
             action: vi.fn(),
             optimisticNextStatus: BookingStatusLabel.UNKNOWN,
-            confirmation: false,
           },
           [Actions.MODIFICATION]: {
             action: vi.fn(),
             optimisticNextStatus: BookingStatusLabel.MODIFIED,
-            confirmation: false,
           },
           [Actions.PLACEHOLDER]: {
             action: vi.fn(),
@@ -467,7 +456,6 @@ describe("BookingActions Component - Equipment Context", () => {
           [Actions.CANCEL]: {
             action: vi.fn(),
             optimisticNextStatus: BookingStatusLabel.CANCELED,
-            confirmation: true,
           },
           [Actions.NO_SHOW]: {
             action: vi.fn(),
@@ -500,17 +488,14 @@ describe("BookingActions Component - Equipment Context", () => {
           [Actions.DECLINE]: {
             action: vi.fn(),
             optimisticNextStatus: BookingStatusLabel.DECLINED,
-            confirmation: true,
           },
           [Actions.EDIT]: {
             action: vi.fn(),
             optimisticNextStatus: BookingStatusLabel.UNKNOWN,
-            confirmation: false,
           },
           [Actions.MODIFICATION]: {
             action: vi.fn(),
             optimisticNextStatus: BookingStatusLabel.MODIFIED,
-            confirmation: false,
           },
           [Actions.PLACEHOLDER]: {
             action: vi.fn(),

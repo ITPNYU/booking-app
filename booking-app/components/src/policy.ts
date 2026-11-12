@@ -5,7 +5,9 @@ import { BookingStatusLabel } from "./types";
 export enum TableNames {
   ADMINS = "usersAdmin",
   APPROVERS = "usersApprovers",
-  RESOURCE_APPROVERS = "usersResourceApprovers",
+  /** One doc per resource (docId = resourceId): its resource and service approvers. */
+  APPROVERS_RESOURCES = "usersApproversResources",
+  /** Per tenant, like preBanLogs. A ban blocks booking in that tenant only. */
   BANNED = "usersBanned",
   BOOKING = "bookings",
   BOOKING_TYPES = "bookingTypes",
@@ -22,7 +24,6 @@ export enum TableNames {
   BLACKOUT_PERIODS = "blackoutPeriods",
   TENANT_SCHEMA = "tenantSchema",
   USERS_RIGHTS = "usersRights",
-  SERVICE_APPROVERS = "usersServiceApprovers",
 }
 
 // Utility function to get tenant-specific collection names
@@ -34,7 +35,7 @@ export const getTenantCollectionName = (
     return baseCollection;
   }
 
-  // Collections that should be tenant-specific
+  // Collections that should be tenant-specific.
   const tenantSpecificCollections = [
     "bookings",
     "bookingLogs",
@@ -43,12 +44,12 @@ export const getTenantCollectionName = (
     "counters",
     "operationHours",
     "preBanLogs",
+    "usersBanned",
     "settings",
     "usersWhitelist",
     "usersApprovers",
-    "usersResourceApprovers",
+    "usersApproversResources",
     "usersRights",
-    "usersServiceApprovers",
     "counters",
   ];
 
@@ -101,36 +102,11 @@ export const BOOKING_TABLE_HIDE_STATUS_TIME_ELAPSED = [
 export const normalizeApproverEmail = (email: string): string =>
   email.trim().toLowerCase();
 
-const encodeApproverIdPart = (value: string): string =>
-  encodeURIComponent(value.trim());
-
-const encodeApproverIdSegment = (value: string): string => {
-  const encodedValue = encodeApproverIdPart(value);
-  return `${encodedValue.length}-${encodedValue}`;
-};
-
-export const getServiceApproverDocumentId = (
-  resourceId: string,
-  service: string,
-  email: string,
-): string =>
-  `${encodeApproverIdSegment(resourceId)}${encodeApproverIdSegment(
-    service,
-  )}${encodeApproverIdSegment(normalizeApproverEmail(email))}`;
 export enum ApproverLevel {
   FIRST = 1,
   FINAL = 2,
   EQUIPMENT = 3,
 }
-
-export const getResourceApproverDocumentId = (
-  resourceId: string,
-  email: string,
-): string => {
-  const encodedResourceId = encodeApproverIdPart(resourceId);
-  const encodedEmail = encodeApproverIdPart(normalizeApproverEmail(email));
-  return `${encodedResourceId.length}-${encodedResourceId}${encodedEmail}`;
-};
 
 /** ******** CONTACTS ************/
 

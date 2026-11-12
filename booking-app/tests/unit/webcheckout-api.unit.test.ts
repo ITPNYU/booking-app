@@ -79,7 +79,7 @@ describe("WebCheckout API Route", () => {
 
   const createMockRequest = (cartNumber: string) => {
     return new NextRequest(
-      `http://localhost/api/webcheckout/cart/${cartNumber}`
+      `http://localhost/api/webcheckout/cart/${cartNumber}`,
     );
   };
 
@@ -161,7 +161,7 @@ describe("WebCheckout API Route", () => {
 
       expect(response.status).toBe(401);
       expect(data.error).toBe(
-        "WebCheckout authentication failed - no session token"
+        "WebCheckout authentication failed - no session token",
       );
     });
   });
@@ -367,6 +367,61 @@ describe("WebCheckout API Route", () => {
       expect(response.status).toBe(200);
       expect(data.totalItems).toBe(4); // 2 cameras + 1 lens + 1 tripod
     });
+
+    it("reads cart contents when groups is the documented JSON object", async () => {
+      const mockDetailResponseObjectGroups = {
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: "ok",
+            payload: {
+              name: "CART123",
+              state: "CHECKOUT",
+              allocationContentsSummary: {
+                lock: null,
+                groups: {
+                  "Checked out": {
+                    label: "Checked out",
+                    items: [
+                      {
+                        label: "Camera",
+                        subitems: [
+                          { label: "Canon EOS R5 - Serial 001", due: null },
+                        ],
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          }),
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(mockAuthResponse)
+        .mockResolvedValueOnce(mockSearchResponse)
+        .mockResolvedValueOnce(mockDetailResponseObjectGroups);
+
+      const request = createMockRequest("CART123");
+      const params = createMockParams("CART123");
+
+      const response = await GET(request, params);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.totalItems).toBe(1);
+      expect(data.equipmentGroups).toEqual([
+        {
+          label: "Checked out",
+          items: [
+            {
+              name: "Camera",
+              subitems: [{ label: "Canon EOS R5 - Serial 001", due: null }],
+            },
+          ],
+        },
+      ]);
+    });
   });
 
   describe("Error Handling", () => {
@@ -518,7 +573,7 @@ describe("WebCheckout API Route", () => {
 
       expect(response.status).toBe(401);
       expect(data.error).toBe(
-        "WebCheckout session is invalid or expired even after re-authentication"
+        "WebCheckout session is invalid or expired even after re-authentication",
       );
     });
 
@@ -567,7 +622,7 @@ describe("WebCheckout API Route", () => {
 
       expect(response.status).toBe(401);
       expect(data.error).toBe(
-        "WebCheckout session is invalid or expired even after re-authentication"
+        "WebCheckout session is invalid or expired even after re-authentication",
       );
     });
   });

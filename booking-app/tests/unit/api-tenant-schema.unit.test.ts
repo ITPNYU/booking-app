@@ -4,7 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 const mockServerGetDocumentById = vi.fn();
 const mockServerSaveDataToFirestoreWithId = vi.fn();
 const mockFirestoreSet = vi.fn();
-const mockFirestoreDoc = vi.fn(() => ({ set: mockFirestoreSet }));
+const mockFirestoreDelete = vi.fn();
+const mockFirestoreDoc = vi.fn(() => ({
+  set: mockFirestoreSet,
+  delete: mockFirestoreDelete,
+}));
 const mockFirestoreCollection = vi.fn(() => ({ doc: mockFirestoreDoc }));
 const mockRequireSession = vi.fn();
 const mockRequireSuperAdmin = vi.fn();
@@ -45,7 +49,7 @@ vi.mock("@/lib/api/requireSuperAdmin", () => ({
   requireSuperAdmin: (...args: any[]) => mockRequireSuperAdmin(...args),
 }));
 
-import { GET, PUT } from "@/app/api/tenantSchema/[tenant]/route";
+import { DELETE, GET, POST, PUT } from "@/app/api/tenantSchema/[tenant]/route";
 
 const createRequest = (method: string, body?: any) =>
   new NextRequest("http://localhost:3000/api/tenantSchema/mc", {
@@ -226,4 +230,244 @@ describe("PUT /api/tenantSchema/[tenant]", () => {
       expect.objectContaining({ tenantId: "mc" }),
     );
   });
+});
+
+describe("tenantSchema/_template resource default", () => {
+  const templateParams = Promise.resolve({ tenant: "_template" });
+
+  it("returns the stored document without coercing it into a tenant schema", async () => {
+    mockServerGetDocumentById.mockResolvedValue({
+      resourceDefault: { name: "Default room", resourceId: "" },
+    });
+
+    const response = await GET(createRequest("GET"), { params: templateParams });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(200);
+    expect(data.resourceDefault.name).toBe("Default room");
+    expect(data.policy).toBeUndefined();
+    expect(data.resources).toBeUndefined();
+  });
+
+  it("returns a JSON error when loading the template fails", async () => {
+    mockServerGetDocumentById.mockRejectedValue(new Error("firestore down"));
+
+    const response = await GET(createRequest("GET"), { params: templateParams });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(500);
+    expect(data.error).toMatch(/failed to fetch/i);
+  });
+
+  it("returns a JSON error when saving the template fails", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+    mockServerSaveDataToFirestoreWithId.mockRejectedValue(new Error("firestore down"));
+
+    const response = await PUT(
+      createRequest("PUT", {
+        resourceDefault: { name: "Default room", resourceId: "" },
+      }),
+      { params: templateParams },
+    );
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(500);
+    expect(data.error).toMatch(/failed to update/i);
+  });
+
+  it("returns 404 when the template document is missing", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+
+    const response = await GET(createRequest("GET"), { params: templateParams });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(404);
+    expect(data.error).toMatch(/not found/i);
+  });
+
+  it("saves resourceDefault without turning the document into a tenant", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+    mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
+
+    const response = await PUT(
+      createRequest("PUT", {
+        resourceDefault: { name: "Default room", resourceId: "" },
+      }),
+      { params: templateParams },
+    );
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalledWith(
+      "tenantSchema",
+      "_template",
+      {
+        resourceDefault: { name: "Default room", resourceId: "" },
+      },
+    );
+  });
+
+  it("does not persist extra fields on the template document", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+    mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
+
+    const response = await PUT(
+      createRequest("PUT", {
+        tenantId: "mc",
+        policy: "<p>unrelated</p>",
+        resources: [{ name: "Room", resourceId: "1" }],
+        resourceDefault: { name: "Default room", resourceId: "" },
+      }),
+      { params: templateParams },
+    );
+    const { status } = await parseJson(response);
+
+    expect(status).toBe(200);
+    expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalledWith(
+      "tenantSchema",
+      "_template",
+      {
+        resourceDefault: { name: "Default room", resourceId: "" },
+      },
+    );
+  });
+
+  it("rejects a template save that has no resourceDefault object", async () => {
+    const response = await PUT(createRequest("PUT", { name: "no default" }), {
+      params: templateParams,
+    });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(400);
+    expect(data.error).toMatch(/resourceDefault/);
+    expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
+  });
+
+  it("initializes the stored default once", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+    mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
+
+    const response = await POST(
+      createRequest("POST", { action: "initialize-resource-default" }),
+      { params: templateParams },
+    );
+    const { status } = await parseJson(response);
+
+    expect(status).toBe(200);
+    const saved = mockServerSaveDataToFirestoreWithId.mock.calls[0][2];
+    expect(saved.tenantId).toBeUndefined();
+    expect(saved.resourceDefault.resourceId).toBe("");
+    expect(saved.resourceDefault.staffingSections).not.toHaveProperty(
+      "__defaults__",
+    );
+  });
+
+  it("does not overwrite an existing resource default", async () => {
+    mockServerGetDocumentById.mockResolvedValue({
+      resourceDefault: { name: "Kept", resourceId: "" },
+    });
+
+    const response = await POST(
+      createRequest("POST", { action: "initialize-resource-default" }),
+      { params: templateParams },
+    );
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(409);
+    expect(data.error).toMatch(/already exists/i);
+    expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
+  });
+
+  it("does not create a tenant schema", async () => {
+    const response = await POST(
+      createRequest("POST", { action: "initialize-resource-default" }),
+      { params },
+    );
+    const { status } = await parseJson(response);
+
+    expect(status).toBe(404);
+    expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
+  });
+});
+
+describe("PUT /api/tenantSchema/[tenant] created slug", () => {
+  it("updates an existing created schema", async () => {
+    mockServerGetDocumentById.mockResolvedValue({ tenantId: "studio" });
+    mockServerSaveDataToFirestoreWithId.mockResolvedValue(undefined);
+
+    const response = await PUT(createRequest("PUT", mockSchema), {
+      params: Promise.resolve({ tenant: "studio" }),
+    });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(mockServerSaveDataToFirestoreWithId).toHaveBeenCalledWith(
+      "tenantSchema",
+      "studio",
+      expect.objectContaining({ tenantId: "studio" }),
+    );
+  });
+
+  it("does not create a schema that has not been posted yet", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+
+    const response = await PUT(createRequest("PUT", mockSchema), {
+      params: Promise.resolve({ tenant: "studio" }),
+    });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(404);
+    expect(data.error).toMatch(/not found/i);
+    expect(mockServerSaveDataToFirestoreWithId).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE /api/tenantSchema/[tenant]", () => {
+  it("backs up and deletes a created schema", async () => {
+    mockServerGetDocumentById.mockResolvedValue({ tenantId: "studio", resources: [] });
+    mockFirestoreDelete.mockResolvedValue(undefined);
+
+    const response = await DELETE(createRequest("DELETE"), {
+      params: Promise.resolve({ tenant: "studio" }),
+    });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(data.backupCreated).toBe(true);
+    expect(mockFirestoreCollection).toHaveBeenCalledWith("tenantSchemaBackup");
+    expect(mockFirestoreDoc).toHaveBeenCalledWith(
+      expect.stringContaining("studio-backup-ui-delete-"),
+    );
+    expect(mockFirestoreDelete).toHaveBeenCalled();
+  });
+
+  it("returns 404 when the schema is already gone", async () => {
+    mockServerGetDocumentById.mockResolvedValue(null);
+
+    const response = await DELETE(createRequest("DELETE"), {
+      params: Promise.resolve({ tenant: "studio" }),
+    });
+    const { data, status } = await parseJson(response);
+
+    expect(status).toBe(404);
+    expect(data.error).toMatch(/not found/i);
+    expect(mockFirestoreDelete).not.toHaveBeenCalled();
+  });
+
+  it.each(["mc", "itp", "_template", "mediaCommons"])(
+    "refuses to delete %s",
+    async (tenant) => {
+      const response = await DELETE(createRequest("DELETE"), {
+        params: Promise.resolve({ tenant }),
+      });
+      const { data, status } = await parseJson(response);
+
+      expect(status).toBe(400);
+      expect(data.error).toMatch(/cannot delete/i);
+      expect(mockFirestoreDelete).not.toHaveBeenCalled();
+    },
+  );
 });

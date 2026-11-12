@@ -27,6 +27,11 @@ if (typeof window === "undefined") {
   Handlebars = require("handlebars");
 }
 
+/** Email templates under app/templates, keyed by the public template name. */
+const EMAIL_TEMPLATE_FILES: Readonly<Record<string, string>> = {
+  booking_detail: "booking_detail.html",
+};
+
 interface SendHTMLEmailParams {
   templateName: string;
   contents: Record<string, unknown>;
@@ -53,8 +58,10 @@ export const getApprovalUrl = (
     case ApproverType.LIAISON:
       urlPath = `/${resolvedTenant}/liaison`;
       break;
+    // Final approvers include per-resource approvers who are not admins and
+    // cannot open /admin. The approve page sends admins on to /admin.
     case ApproverType.FINAL_APPROVER:
-      urlPath = `/${resolvedTenant}/admin`;
+      urlPath = `/${resolvedTenant}/approve`;
       break;
     default:
       urlPath = "/";
@@ -79,6 +86,14 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
     subjectStatusOverride,
   } = params;
 
+  // `templateName` arrives from the request body of /api/sendEmail, so it
+  // must never reach the filesystem directly. Resolve it through a fixed
+  // table of known template files before doing any other work.
+  const templateFile = EMAIL_TEMPLATE_FILES[templateName];
+  if (!templateFile) {
+    throw new Error(`Unknown email template: ${String(templateName)}`);
+  }
+
   // Check if we're in development and if the target email is an admin
   const isDevelopment = process.env.NEXT_PUBLIC_BRANCH_NAME === "development";
   let finalTargetEmail = targetEmail;
@@ -101,11 +116,7 @@ export const sendHTMLEmail = async (params: SendHTMLEmailParams) => {
   // Get booking logs
   const bookingLogs = await getBookingLogs(requestNumber, tenant);
 
-  const templatePath = path.join(
-    process.cwd(),
-    "app/templates",
-    `${templateName}.html`,
-  );
+  const templatePath = path.join(process.cwd(), "app/templates", templateFile);
   const templateSource = fs.readFileSync(templatePath, "utf8");
 
   // Register date formatting helper

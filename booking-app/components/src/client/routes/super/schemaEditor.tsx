@@ -41,7 +41,11 @@ import {
   formatValue,
   type DiffEntry,
 } from "@/lib/utils/schemaDiff";
+import { isTemplateSchemaId, TEMPLATE_SCHEMA_ID } from "@/lib/tenant/resourceDefault";
+import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
+import { isValidTenant } from "@/components/src/constants/tenants";
 import { DatabaseContext } from "../components/Provider";
+import type { SchemaContextType } from "../components/SchemaProvider";
 import { defaultScheme } from "../components/SchemaProvider";
 import {
   getSlice,
@@ -57,6 +61,19 @@ import {
   sortKeysDeep,
   type Selection,
 } from "./schemaEditorNav";
+import SchemaResourceForm, {
+  initializeResourceDefault,
+} from "./schemaResourceForm";
+import { SchemaValueFields } from "./schemaResourceFields";
+import SchemaCreateForm from "./schemaCreateForm";
+
+const BUILTIN_SCHEMA_TARGETS = ["mc", "itp", TEMPLATE_SCHEMA_ID];
+
+function mergeSchemaTargets(ids: string[]): string[] {
+  return [...new Set([...BUILTIN_SCHEMA_TARGETS, ...ids])].sort((a, b) =>
+    a.localeCompare(b),
+  );
+}
 
 type SnackState = {
   open: boolean;
@@ -302,6 +319,7 @@ function JsonEditor({
           handleChange(e.target.value)
         }
         spellCheck={false}
+        aria-label="Schema JSON"
         sx={{
           width: "100%",
           minHeight,
@@ -507,6 +525,13 @@ function UnconfiguredFieldsBanner({ schema }: { schema: AnyRecord }) {
 export default function SchemaEditor() {
   const { userEmail } = useContext(DatabaseContext);
   const [tenant, setTenant] = useState<string>("");
+  const [schemaTargets, setSchemaTargets] = useState<string[]>(
+    BUILTIN_SCHEMA_TARGETS,
+  );
+  const [createOpen, setCreateOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [schema, setSchema] = useState<AnyRecord | null>(null);
   const [originalSchema, setOriginalSchema] = useState<string>("");
   const [selected, setSelected] = useState<Selection>(SELECT_ALL);
@@ -514,6 +539,8 @@ export default function SchemaEditor() {
   // not reached `schema`, so leaving the slice would discard it.
   const [hasParseError, setHasParseError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [templateMissing, setTemplateMissing] = useState(false);
+  const [initializing, setInitializing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [diffDialogOpen, setDiffDialogOpen] = useState(false);
   const [snack, setSnack] = useState<SnackState>({
@@ -521,21 +548,44 @@ export default function SchemaEditor() {
     message: "",
     severity: "success",
   });
+  const fetchGeneration = useRef(0);
 
   const fetchSchema = useCallback(async (tenantId: string) => {
+    const generation = ++fetchGeneration.current;
     setLoading(true);
+    setTemplateMissing(false);
     try {
       const res = await fetch(`/api/tenantSchema/${tenantId}?raw=1`);
+      if (generation !== fetchGeneration.current) return;
+      if (res.status === 404 && isTemplateSchemaId(tenantId)) {
+        setSchema(null);
+        setOriginalSchema("");
+        setTemplateMissing(true);
+        return;
+      }
       if (!res.ok) throw new Error(`Failed to fetch schema: ${res.status}`);
       const data = await res.json();
       setSchema(data);
       setOriginalSchema(JSON.stringify(data));
     } catch (err: any) {
+      if (generation !== fetchGeneration.current) return;
       setSnack({ open: true, message: err.message, severity: "error" });
     } finally {
-      setLoading(false);
+      if (generation === fetchGeneration.current) setLoading(false);
     }
   }, []);
+
+  const handleInitializeTemplate = async () => {
+    setInitializing(true);
+    try {
+      await initializeResourceDefault();
+      await fetchSchema(TEMPLATE_SCHEMA_ID);
+    } catch (err: any) {
+      setSnack({ open: true, message: err.message, severity: "error" });
+    } finally {
+      setInitializing(false);
+    }
+  };
 
   useEffect(() => {
     if (tenant) {
@@ -545,6 +595,27 @@ export default function SchemaEditor() {
       setOriginalSchema("");
     }
   }, [tenant, fetchSchema]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/tenantSchema");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data.ids)) {
+          setSchemaTargets(
+            mergeSchemaTargets(data.ids.filter((id) => typeof id === "string")),
+          );
+        }
+      } catch {
+        // Keep mc, itp, and _template when the directory cannot be loaded.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const original = useMemo<AnyRecord | null>(
     () => (originalSchema ? JSON.parse(originalSchema) : null),
@@ -631,11 +702,52 @@ export default function SchemaEditor() {
   const handleTenantChange = (next: string) => {
     if (next === tenant) return;
     if (!confirmLeaveSlice()) return;
+    setSelected(SELECT_ALL);
     setTenant(next);
+  };
+
+  const canDeleteSchema =
+    isCreatableTenantSlug(tenant) && !isValidTenant(tenant);
+
+  const handleConfirmDelete = async () => {
+    const target = deleteTarget;
+    if (!target || !isCreatableTenantSlug(target) || isValidTenant(target)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/tenantSchema/${target}`, { method: "DELETE" });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(result.error || `Failed: ${res.status}`);
+      }
+      setSchemaTargets((current) => current.filter((id) => id !== target));
+      if (tenant === target) {
+        setSelected(SELECT_ALL);
+        setTenant("");
+      }
+      setDeleteOpen(false);
+      setSnack({
+        open: true,
+        message: `Schema for "${target}" deleted. A backup was saved first.`,
+        severity: "success",
+      });
+    } catch (err: any) {
+      setSnack({ open: true, message: err.message, severity: "error" });
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const isDirty = diffs.length > 0;
   const canSave = isDirty && !saving && !!tenant;
+  const storedDefault = (schema as { resourceDefault?: unknown } | null)
+    ?.resourceDefault;
+  const templateNeedsDefault =
+    isTemplateSchemaId(tenant) &&
+    !templateMissing &&
+    !!schema &&
+    (!storedDefault ||
+      typeof storedDefault !== "object" ||
+      Array.isArray(storedDefault));
 
   const labelFor = useCallback(
     (path: string) =>
@@ -656,6 +768,30 @@ export default function SchemaEditor() {
     effectiveSelected.kind === "section" && schema
       ? !(effectiveSelected.key in schema)
       : false;
+  const showResourceForm =
+    !isTemplateSchemaId(tenant) &&
+    (effectiveSelected.kind === "resource" ||
+      (effectiveSelected.kind === "section" &&
+        effectiveSelected.key === "resources"));
+  const showFieldForm = effectiveSelected.kind !== "all" && !showResourceForm;
+  const sliceFieldKey =
+    effectiveSelected.kind === "section" ? effectiveSelected.key : "schema";
+
+  const writeSlice = (updated: unknown) => {
+    setSchema((prev) =>
+      prev
+        ? setSlice(prev, effectiveSelected, updated, {
+            original: original ?? undefined,
+            fallback: DEFAULTS,
+          })
+        : prev,
+    );
+  };
+
+  const applySlice = (updated: unknown) => {
+    if (!confirmLeaveSlice()) return;
+    writeSlice(updated);
+  };
 
   return (
     <Box>
@@ -663,7 +799,8 @@ export default function SchemaEditor() {
         Tenant Schema Editor
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        A backup is created automatically before each save.
+        Edits stay on this page until you confirm Save. A backup is created
+        automatically before each save and before a created schema is deleted.
       </Typography>
 
       <Box display="flex" gap={2} alignItems="center" mb={2} flexWrap="wrap">
@@ -674,13 +811,29 @@ export default function SchemaEditor() {
             label="Tenant"
             onChange={(e) => handleTenantChange(e.target.value)}
           >
-            {["mc", "itp"].map((t) => (
+            {schemaTargets.map((t) => (
               <MenuItem key={t} value={t}>
-                {t}
+                {t === TEMPLATE_SCHEMA_ID ? "_template (defaults)" : t}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
+        <Button variant="outlined" onClick={() => setCreateOpen(true)}>
+          New tenant
+        </Button>
+        {canDeleteSchema && (
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={() => {
+              setDeleteTarget(tenant);
+              setDeleteOpen(true);
+            }}
+            disabled={deleting}
+          >
+            Delete schema
+          </Button>
+        )}
 
         {canSave && (
           <>
@@ -713,7 +866,27 @@ export default function SchemaEditor() {
         </Box>
       )}
 
-      {schema && !loading && <UnconfiguredFieldsBanner schema={schema} />}
+      {(templateMissing || templateNeedsDefault) && !loading && (
+        <Alert
+          severity="info"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={handleInitializeTemplate}
+              disabled={initializing}
+            >
+              Initialize resource default
+            </Button>
+          }
+        >
+          No resource default is stored in the database yet.
+        </Alert>
+      )}
+
+      {schema && !loading && !isTemplateSchemaId(tenant) && (
+        <UnconfiguredFieldsBanner schema={schema} />
+      )}
 
       {schema && !loading && (
         <Box display="flex" gap={2} alignItems="flex-start">
@@ -801,19 +974,27 @@ export default function SchemaEditor() {
               )}
             </Box>
 
+            {showResourceForm && (
+              <SchemaResourceForm
+                schema={schema as SchemaContextType}
+                beforeSchemaChange={confirmLeaveSlice}
+                onSchemaChange={(updated) => setSchema(updated)}
+              />
+            )}
+            {showFieldForm && (
+              <Box component="section" aria-label="Schema fields" sx={{ mb: 2 }}>
+                <SchemaValueFields
+                  fieldKey={sliceFieldKey}
+                  value={sliceValue}
+                  onChange={applySlice}
+                />
+              </Box>
+            )}
+
             <JsonEditor
               key={`${tenant}:${selectionId(effectiveSelected)}`}
               value={sliceValue}
-              onChange={(updated) =>
-                setSchema((prev) =>
-                  prev
-                    ? setSlice(prev, effectiveSelected, updated, {
-                        original: original ?? undefined,
-                        fallback: DEFAULTS,
-                      })
-                    : prev,
-                )
-              }
+              onChange={writeSlice}
               onParseErrorChange={setHasParseError}
               minHeight={effectiveSelected.kind === "all" ? 600 : 400}
             />
@@ -829,6 +1010,46 @@ export default function SchemaEditor() {
         onConfirm={handleConfirmSave}
         onCancel={() => setDiffDialogOpen(false)}
       />
+
+      <SchemaCreateForm
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(tenantId) => {
+          setSchemaTargets((current) => mergeSchemaTargets([...current, tenantId]));
+          setCreateOpen(false);
+          handleTenantChange(tenantId);
+        }}
+      />
+
+      <Dialog
+        open={deleteOpen}
+        onClose={deleting ? undefined : () => setDeleteOpen(false)}
+        TransitionProps={{ onExited: () => setDeleteTarget(null) }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete tenant schema</DialogTitle>
+        <DialogContent dividers>
+          <Typography variant="body2">
+            This deletes the Firestore schema for &quot;{deleteTarget}&quot;. A
+            backup is saved first. Media Commons, ITP, and the resource default
+            cannot be deleted.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteOpen(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDelete}
+            disabled={deleting}
+          >
+            {deleting ? <CircularProgress size={20} /> : "Delete tenant schema"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snack.open}

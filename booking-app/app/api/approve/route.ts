@@ -12,19 +12,21 @@ import {
   resolveFirstApprovalHistoryNote,
   serverApproveBooking,
 } from "@/components/src/server/admin";
-import { BookingStatusLabel, PagePermission } from "@/components/src/types";
-import { ADMIN_POLICY_APPROVED_NOTE } from "@/components/src/utils/bookingHistoryNotes";
+import { BookingStatusLabel } from "@/components/src/types";
+import {
+  ADMIN_POLICY_APPROVED_NOTE,
+  normalizeActionNote,
+  withActionNote,
+} from "@/components/src/utils/bookingHistoryNotes";
 import {
   getMediaCommonsServices,
   isMediaCommons,
 } from "@/components/src/utils/tenantUtils";
-import { resolveCallerRole } from "@/lib/api/authz";
+import { authorizeBookingDecision } from "@/lib/api/bookingDecisionAuthz";
 import { requireSession } from "@/lib/api/requireSession";
 import {
   logServerBookingChange,
   serverGetDataByCalendarEventId,
-  serverGetFinalApproverEmail,
-  serverListResourceApproversByEmail,
 } from "@/lib/firebase/server/adminDb";
 import { executeXStateTransition } from "@/lib/stateMachines/xstateUtilsV5";
 import { NextRequest, NextResponse } from "next/server";
@@ -62,12 +64,6 @@ async function hasUnprocessedServices(
   return false;
 }
 
-const parseBookingResourceIds = (roomId: unknown): string[] =>
-  String(roomId ?? "")
-    .split(",")
-    .map(resourceId => resourceId.trim())
-    .filter(Boolean);
-
 // serverApproveBooking rethrows failures as plain { status, message } objects.
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) return error.message;
@@ -101,42 +97,6 @@ const getErrorStatus = (error: unknown): number =>
     ? error.status
     : 500;
 
-async function authorizeApproval(
-  email: string,
-  tenant: string,
-  booking: Record<string, unknown>,
-): Promise<boolean> {
-  const role = await resolveCallerRole(
-    { email, netId: email.split("@")[0] },
-    tenant,
-  );
-  if (role === PagePermission.ADMIN || role === PagePermission.SUPER_ADMIN) {
-    return true;
-  }
-
-  if (!booking.firstApprovedAt) {
-    return role === PagePermission.LIAISON;
-  }
-
-  const normalizedEmail = email.trim().toLowerCase();
-  const tenantFinalApprover = await serverGetFinalApproverEmail(tenant);
-  if (tenantFinalApprover?.trim().toLowerCase() === normalizedEmail) {
-    return true;
-  }
-
-  const resourceIds = parseBookingResourceIds(booking.roomId);
-  if (resourceIds.length === 0) return false;
-
-  const assignments = await serverListResourceApproversByEmail(
-    normalizedEmail,
-    tenant,
-  );
-  const assignedResourceIds = new Set(
-    assignments.map(assignment => assignment.resourceId),
-  );
-  return resourceIds.every(resourceId => assignedResourceIds.has(resourceId));
-}
-
 /**
  * Checks if the XState result indicates a transition to Services Request parallel state
  * This typically happens for Media Commons bookings with requested services
@@ -147,7 +107,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await req.json();
+  let id: unknown;
+  let rawNote: unknown;
+  try {
+    ({ id, note: rawNote } = await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  if (typeof id !== "string" || !id.trim()) {
+    return NextResponse.json({ error: "id required" }, { status: 400 });
+  }
+  // Optional note from the approver, added to the history entry.
+  const note = normalizeActionNote(rawNote);
 
   // Get tenant from x-tenant header, fallback to default tenant
   const tenant = req.headers.get("x-tenant") || DEFAULT_TENANT;
@@ -163,7 +134,7 @@ export async function POST(req: NextRequest) {
     if (!booking) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
-    if (!(await authorizeApproval(email, tenant, booking))) {
+    if (!(await authorizeBookingDecision(email, tenant, booking, "approve"))) {
       return NextResponse.json(
         { error: "You are not authorized to approve this booking" },
         { status: 403 },
@@ -228,7 +199,7 @@ export async function POST(req: NextRequest) {
         `🔄 FALLING BACK TO TRADITIONAL APPROVAL [${tenant?.toUpperCase()}]:`,
         { calendarEventId: id },
       );
-      await serverApproveBooking(id, email, tenant);
+      await serverApproveBooking(id, email, tenant, note);
     } else {
       console.log(`✅ XSTATE APPROVAL SUCCESS [${tenant?.toUpperCase()}]:`, {
         calendarEventId: id,
@@ -252,7 +223,7 @@ export async function POST(req: NextRequest) {
             await import("@/components/src/server/admin");
 
           // finalApprove handles: serverFinalApprove + logging + serverApproveEvent
-          await finalApprove(id, email, tenant);
+          await finalApprove(id, email, tenant, note);
 
           console.log(
             `✅ APPROVED PROCESSING COMPLETED [${tenant?.toUpperCase()}]:`,
@@ -289,7 +260,7 @@ export async function POST(req: NextRequest) {
           const { serverFirstApproveOnly } =
             await import("@/components/src/server/admin");
 
-          await serverFirstApproveOnly(id, email, tenant);
+          await serverFirstApproveOnly(id, email, tenant, note);
 
           console.log(
             `✅ PRE-APPROVED SIDE EFFECTS COMPLETED [${tenant?.toUpperCase()}]:`,
@@ -338,9 +309,12 @@ export async function POST(req: NextRequest) {
             // final-approver → Services Request step, not the initial liaison
             // sign-off. Role lookup cannot tell those apart (FINAL approvers
             // resolve to LIAISON).
-            note: booking.firstApprovedAt
-              ? ADMIN_POLICY_APPROVED_NOTE
-              : await resolveFirstApprovalHistoryNote(email, tenant),
+            note: withActionNote(
+              booking.firstApprovedAt
+                ? ADMIN_POLICY_APPROVED_NOTE
+                : await resolveFirstApprovalHistoryNote(email, tenant),
+              note,
+            ),
             tenant,
           });
 

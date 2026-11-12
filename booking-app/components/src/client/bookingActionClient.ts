@@ -123,13 +123,14 @@ export const cancel = async (
   email: string,
   netId: string,
   tenant?: string,
+  note?: string,
 ) => {
   const xstateResult = await callXStateTransitionAPI(
     id,
     "cancel",
     email,
     tenant,
-    undefined,
+    note,
     netId,
   );
 
@@ -145,6 +146,7 @@ export const cancel = async (
         email,
         netId,
         tenant,
+        note,
       }),
     });
     return;
@@ -189,25 +191,51 @@ export const decline = async (
       }
       return;
     }
+    // The fallback applies the same check, so do not retry a refusal.
+    if (xstateResult.status === 403) {
+      throw new NotAnApproverError(
+        xstateResult.error || "You are not authorized to decline this booking",
+      );
+    }
+    if (xstateResult.status === 401) {
+      throw new Error(xstateResult.error || "Unauthorized");
+    }
   }
 
   // Full traditional fallback (Firestore + email + calendar) via server route
-  await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/decline-processing`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-tenant": tenant || DEFAULT_TENANT,
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/decline-processing`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify({
+        calendarEventId: id,
+        email,
+        reason,
+        tenant,
+      }),
     },
-    body: JSON.stringify({
-      calendarEventId: id,
-      email,
-      reason,
-      tenant,
-    }),
-  });
+  );
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    if (response.status === 403) {
+      throw new NotAnApproverError(
+        result.error || "You are not authorized to decline this booking",
+      );
+    }
+    throw new Error(result.error || "Failed to decline booking");
+  }
 };
 
-export const checkin = async (id: string, email: string, tenant?: string) => {
+export const checkin = async (
+  id: string,
+  email: string,
+  tenant?: string,
+  note?: string,
+) => {
   const xstateResult = await callXStateTransitionAPI(
     id,
     "checkIn",
@@ -226,11 +254,17 @@ export const checkin = async (id: string, email: string, tenant?: string) => {
       calendarEventId: id,
       email,
       tenant,
+      note,
     }),
   });
 };
 
-export const checkOut = async (id: string, email: string, tenant?: string) => {
+export const checkOut = async (
+  id: string,
+  email: string,
+  tenant?: string,
+  note?: string,
+) => {
   const xstateResult = await callXStateTransitionAPI(
     id,
     "checkOut",
@@ -249,6 +283,7 @@ export const checkOut = async (id: string, email: string, tenant?: string) => {
       calendarEventId: id,
       email,
       tenant,
+      note,
     }),
   });
 
@@ -262,6 +297,7 @@ export const noShow = async (
   email: string,
   netId: string,
   tenant?: string,
+  note?: string,
 ) => {
   if (shouldUseXState(tenant)) {
     const xstateResult = await callXStateTransitionAPI(
@@ -269,7 +305,7 @@ export const noShow = async (
       "noShow",
       email,
       tenant,
-      undefined,
+      note,
       netId,
     );
 
@@ -302,6 +338,7 @@ export const noShow = async (
         email,
         netId,
         tenant,
+        note,
       }),
     },
   );
@@ -316,6 +353,7 @@ export const clientApproveBooking = async (
   id: string,
   email: string,
   tenant?: string,
+  note?: string,
 ) => {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_BASE_URL}/api/approve`,
@@ -325,7 +363,7 @@ export const clientApproveBooking = async (
         "Content-Type": "application/json",
         "x-tenant": tenant || DEFAULT_TENANT,
       },
-      body: JSON.stringify({ id, email }),
+      body: JSON.stringify({ id, email, note }),
     },
   );
 
@@ -336,9 +374,51 @@ export const clientApproveBooking = async (
         result.error || "Booking was approved, but a follow-up step failed",
       );
     }
+    if (response.status === 403) {
+      throw new NotAnApproverError(
+        result.error || "You are not authorized to approve this booking",
+      );
+    }
     throw new Error(result.error || "Failed to approve booking");
   }
 };
+
+/**
+ * Add a note to a booking's history without changing its status (#1409).
+ * Throws with the server's message when the note isn't saved.
+ */
+export const clientAddBookingNote = async (
+  calendarEventId: string,
+  note: string,
+  tenant?: string,
+) => {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/booking-notes`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify({ calendarEventId, note }),
+    },
+  );
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.error || "Failed to add note");
+  }
+};
+
+/**
+ * The server refused an approve or decline (403): the caller is not one of
+ * the booking's approvers (see authorizeBookingDecision).
+ */
+export class NotAnApproverError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotAnApproverError";
+  }
+}
 
 /**
  * The booking was approved, but a follow-up step (e.g. updating the Google

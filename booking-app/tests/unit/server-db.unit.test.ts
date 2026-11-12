@@ -61,6 +61,7 @@ vi.mock("@/components/src/types", () => ({
     APPROVED: "APPROVED",
     CANCELED: "CANCELED",
     NO_SHOW: "NO_SHOW",
+    NOTE: "NOTE",
   },
   PagePermission: {
     ADMIN: "ADMIN",
@@ -251,6 +252,87 @@ describe("server/db", () => {
     );
   });
 
+  it("processCancelBooking records the canceler's note on the CANCELED history entry", async () => {
+    mockServerFetchAllDataFromCollection.mockImplementation(
+      async (tableName: string) =>
+        tableName === "bookingLogs"
+          ? [{ status: "APPROVED", changedAt: { seconds: 100 } }]
+          : [],
+    );
+
+    const { processCancelBooking } = await import("@/components/src/server/db");
+    await processCancelBooking(
+      "cal-note-1",
+      "user@nyu.edu",
+      "netX",
+      "mc",
+      "Event moved to next week",
+    );
+
+    expect(mockServerSaveDataToFirestore).toHaveBeenCalledWith(
+      "bookingLogs",
+      expect.objectContaining({
+        status: "CANCELED",
+        changedBy: "user@nyu.edu",
+        note: "Event moved to next week",
+      }),
+      "mc",
+    );
+  });
+
+  it("processCancelBooking keeps the automatic note after a no-show, where that action's note was recorded", async () => {
+    mockServerFetchAllDataFromCollection.mockImplementation(
+      async (tableName: string) =>
+        tableName === "bookingLogs"
+          ? [{ status: "NO_SHOW", changedAt: { seconds: 100 } }]
+          : [],
+    );
+
+    const { processCancelBooking } = await import("@/components/src/server/db");
+    await processCancelBooking(
+      "cal-note-2",
+      "pa@nyu.edu",
+      "netX",
+      "mc",
+      "Waited 30 minutes",
+    );
+
+    expect(mockServerSaveDataToFirestore).toHaveBeenCalledWith(
+      "bookingLogs",
+      expect.objectContaining({
+        status: "CANCELED",
+        changedBy: "System",
+        note: "Canceled due to no show",
+      }),
+      "mc",
+    );
+  });
+
+  it("processCancelBooking looks past history notes to find the previous status", async () => {
+    mockServerFetchAllDataFromCollection.mockImplementation(
+      async (tableName: string) =>
+        tableName === "bookingLogs"
+          ? [
+              { status: "NO_SHOW", changedAt: { seconds: 100 } },
+              { status: "NOTE", changedAt: { seconds: 200 } },
+            ]
+          : [],
+    );
+
+    const { processCancelBooking } = await import("@/components/src/server/db");
+    await processCancelBooking("cal-note-3", "pa@nyu.edu", "netX", "mc");
+
+    expect(mockServerSaveDataToFirestore).toHaveBeenCalledWith(
+      "bookingLogs",
+      expect.objectContaining({
+        status: "CANCELED",
+        changedBy: "System",
+        note: "Canceled due to no show",
+      }),
+      "mc",
+    );
+  });
+
   it("executeTraditionalNoShow awaits the new log and ignores excused logs for tenant violationCount", async () => {
     let resolveSave!: () => void;
     const saveCompleted = new Promise<void>((resolve) => {
@@ -329,6 +411,30 @@ describe("server/db", () => {
     const payload = JSON.parse((requestInit as RequestInit).body as string);
     expect(payload.targetEmail).toBe("guest@nyu.edu");
     expect(payload.contents.headerMessage).toBe("No show count: 2");
+  });
+
+  it("finishes a no-show when the pre-ban log write fails", async () => {
+    mockClientSaveDataToFirestore.mockRejectedValueOnce(
+      new Error("firestore unavailable"),
+    );
+    mockGetTenantEmailConfig.mockResolvedValue({
+      schemaName: "Media Commons",
+      emailNotifications: {
+        noShow: "No show count: ${violationCount}",
+      },
+    });
+
+    const { executeTraditionalNoShow } =
+      await import("@/components/src/server/db");
+
+    await expect(
+      executeTraditionalNoShow("cal-noshow-1", "staff@nyu.edu", "netX", "mc"),
+    ).resolves.toBeUndefined();
+    expect(mockServerFetchAllDataFromCollection).toHaveBeenCalledWith(
+      "preBanLogs",
+      undefined,
+      "mc",
+    );
   });
 
   it("fetchAllBookings delegates to getPaginatedData", async () => {

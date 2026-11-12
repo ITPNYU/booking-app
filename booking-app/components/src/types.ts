@@ -19,8 +19,12 @@ export enum AttendeeAffiliation {
 }
 
 export type Ban = {
+  id?: string;
   email: string;
   bannedAt: string;
+  /** Absent on a permanent ban. Timed bans block only while now is in [startsAt, endsAt). */
+  startsAt?: unknown;
+  endsAt?: unknown;
 };
 
 export type Booking = Inputs &
@@ -98,6 +102,8 @@ export enum BookingStatusLabel {
   CLOSED = "CLOSED",
   EQUIPMENT = "EQUIPMENT",
   NO_SHOW = "NO-SHOW",
+  /** A history note added by staff; not a booking status (#1409). */
+  NOTE = "NOTE",
   PENDING = "PENDING",
   PRE_APPROVED = "PRE-APPROVED",
   DECLINED = "DECLINED",

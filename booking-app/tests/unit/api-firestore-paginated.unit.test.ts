@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => {
   let limitValue: number | undefined;
   let orderByField: string | undefined;
   let orderByDirection: string | undefined;
+  let snapshotDocs: Array<{
+    id: string;
+    data: () => Record<string, unknown>;
+  }> = [];
 
   const makeQuery = () => {
     const q: any = {
@@ -25,7 +29,7 @@ const mocks = vi.hoisted(() => {
         limitValue = n;
         return q;
       }),
-      get: vi.fn(async () => ({ docs: [] })),
+      get: vi.fn(async () => ({ docs: snapshotDocs })),
     };
     return q;
   };
@@ -47,11 +51,17 @@ const mocks = vi.hoisted(() => {
     getLimit: () => limitValue,
     getOrderByField: () => orderByField,
     getOrderByDirection: () => orderByDirection,
+    setDocs: (
+      docs: Array<{ id: string; data: () => Record<string, unknown> }>,
+    ) => {
+      snapshotDocs = docs;
+    },
     reset: () => {
       whereCalls.length = 0;
       limitValue = undefined;
       orderByField = undefined;
       orderByDirection = undefined;
+      snapshotDocs = [];
     },
     mockRequireSession: vi.fn(),
     mockAuthorizeRead: vi.fn(),
@@ -72,6 +82,15 @@ vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
   default: {
     firestore: mocks.mockFirestoreFn,
   },
+}));
+
+vi.mock("@/lib/api/bookingRedaction", () => ({
+  redactBookingDocsForCaller: async (
+    _session: unknown,
+    _tenant: unknown,
+    _collection: unknown,
+    docs: unknown[],
+  ) => docs,
 }));
 
 import { POST } from "@/app/api/firestore/paginated/route";
@@ -341,5 +360,67 @@ describe("POST /api/firestore/paginated — limit", () => {
 
     expect(res.status).toBe(200);
     expect(mocks.getLimit()).toBeUndefined();
+  });
+});
+
+describe("POST /api/firestore/paginated — WebCheckout cart search", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.reset();
+    mocks.mockRequireSession.mockResolvedValue({
+      email: "alice@nyu.edu",
+      netId: "alice",
+    });
+    mocks.mockAuthorizeRead.mockResolvedValue({ ok: true, role: "BOOKING" });
+    mocks.setDocs([
+      {
+        id: "with-cart",
+        data: () => ({
+          title: "Studio hold",
+          webcheckoutCartNumber: "CK-2614",
+        }),
+      },
+      {
+        id: "other-cart",
+        data: () => ({
+          title: "Other room",
+          webcheckoutCartNumber: "CK-9999",
+        }),
+      },
+      {
+        id: "no-cart",
+        data: () => ({ title: "No equipment" }),
+      },
+    ]);
+  });
+
+  const search = (searchQuery: string) =>
+    POST(
+      request({
+        collection: "bookings",
+        tenant: "mc",
+        filters: { sortField: "startDate", searchQuery },
+      }),
+    );
+
+  it("matches a cart id regardless of case", async () => {
+    const res = await search("ck-2614");
+    expect(res.status).toBe(200);
+    const { docs } = await res.json();
+    expect(docs.map((doc: { id: string }) => doc.id)).toEqual(["with-cart"]);
+  });
+
+  it("matches a cart id substring", async () => {
+    const res = await search("2614");
+    expect(res.status).toBe(200);
+    const { docs } = await res.json();
+    expect(docs.map((doc: { id: string }) => doc.id)).toEqual(["with-cart"]);
+  });
+
+  it("excludes bookings whose cart id does not match", async () => {
+    const res = await search("CK-0000");
+    expect(res.status).toBe(200);
+    const { docs } = await res.json();
+    expect(docs).toEqual([]);
   });
 });

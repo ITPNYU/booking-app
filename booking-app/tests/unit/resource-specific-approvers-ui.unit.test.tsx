@@ -8,38 +8,29 @@ import {
   generateDefaultSchema,
   SchemaProvider,
 } from "@/components/src/client/routes/components/SchemaProvider";
+import { toApproversResource } from "@/components/src/utils/approversResources";
 import {
-  clientAddResourceApprover,
-  clientAddServiceApprover,
-  clientListResourceApprovers,
-  clientListServiceApprovers,
+  clientListApproversResources,
+  clientUpdateApproversResource,
 } from "@/lib/firebase/firebase";
 
 vi.mock("@/lib/firebase/firebase", () => ({
-  clientAddResourceApprover: vi.fn(),
-  clientAddServiceApprover: vi.fn(),
-  clientListResourceApprovers: vi.fn(),
-  clientListServiceApprovers: vi.fn(),
-  clientRemoveResourceApprover: vi.fn(),
-  clientRemoveServiceApprover: vi.fn(),
+  clientListApproversResources: vi.fn(),
+  clientUpdateApproversResource: vi.fn(),
 }));
 
-const listApproversMock = vi.mocked(clientListResourceApprovers);
-const listServiceApproversMock = vi.mocked(clientListServiceApprovers);
-const addApproverMock = vi.mocked(clientAddResourceApprover);
-const addServiceApproverMock = vi.mocked(clientAddServiceApprover);
+const listApproversMock = vi.mocked(clientListApproversResources);
+const updateApproversMock = vi.mocked(clientUpdateApproversResource);
 
 describe("ResourceSpecific", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     global.fetch = vi.fn(async () => ({ ok: true })) as unknown as typeof fetch;
     listApproversMock.mockResolvedValue([]);
-    listServiceApproversMock.mockResolvedValue([]);
-    addApproverMock.mockResolvedValue();
-    addServiceApproverMock.mockResolvedValue();
+    updateApproversMock.mockResolvedValue();
   });
 
-  it("adds a normalized approver for an opaque resource ID", async () => {
+  it("adds a validated, normalized approver for an opaque resource ID", async () => {
     const user = userEvent.setup();
     const schema = generateDefaultSchema("tenant-one");
     schema.resources = [
@@ -74,12 +65,15 @@ describe("ResourceSpecific", () => {
     );
 
     await waitFor(() =>
-      expect(addApproverMock).toHaveBeenCalledWith(
+      expect(updateApproversMock).toHaveBeenCalledWith(
         "studio/a:floor-2",
-        "person@nyu.edu",
+        { action: "add", kind: "resource", email: "person@nyu.edu" },
         "tenant-one",
       ),
     );
+    expect(global.fetch).toHaveBeenCalledWith("/api/nyu/identity/person", {
+      headers: { "x-tenant": "tenant-one" },
+    });
   });
 
   it("adds a service approver for a resource and service", async () => {
@@ -111,10 +105,14 @@ describe("ResourceSpecific", () => {
     );
 
     await waitFor(() =>
-      expect(addServiceApproverMock).toHaveBeenCalledWith(
+      expect(updateApproversMock).toHaveBeenCalledWith(
         "studio/a:floor-2",
-        "equipment",
-        "service@nyu.edu",
+        {
+          action: "add",
+          kind: "service",
+          service: "equipment",
+          email: "service@nyu.edu",
+        },
         "tenant-one",
       ),
     );
@@ -158,11 +156,11 @@ describe("ResourceSpecific", () => {
     await waitFor(() =>
       expect(alertSpy).toHaveBeenCalledWith("Enter a valid NYU NetID email."),
     );
-    expect(addServiceApproverMock).not.toHaveBeenCalled();
+    expect(updateApproversMock).not.toHaveBeenCalled();
     alertSpy.mockRestore();
   });
 
-  it("sorts resources by resource ID and limits services to each resource schema", async () => {
+  it("sorts rooms by resource ID, hides annex spaces, and offers each room's services", async () => {
     const schema = generateDefaultSchema("tenant-one");
     schema.resources = [
       {
@@ -177,6 +175,13 @@ describe("ResourceSpecific", () => {
         resourceId: "2",
         services: ["equipment"],
       },
+      {
+        ...defaultResource,
+        name: "Room 2 Annex",
+        resourceId: "2A",
+        parentResourceId: "2",
+        services: ["catering"],
+      },
     ];
 
     render(
@@ -190,26 +195,25 @@ describe("ResourceSpecific", () => {
     expect(
       room2.compareDocumentPosition(room10) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(screen.getByLabelText("Service for 2")).toHaveTextContent(
-      "Equipment",
-    );
+    expect(screen.queryByText("2A Room 2 Annex")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Service for 10")).toHaveTextContent("Setup");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByLabelText("Service for 2"));
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual(["Equipment", "Catering"]);
   });
 
-  it("hides persisted service approvers for services not configured on the resource", async () => {
-    listServiceApproversMock.mockResolvedValue([
-      {
-        id: "garage-equipment",
-        resourceId: "garage",
-        service: "equipment",
-        email: "equipment@nyu.edu",
-      },
-      {
-        id: "garage-catering",
-        resourceId: "garage",
-        service: "catering",
-        email: "catering@nyu.edu",
-      },
+  it("shows each room's approvers and hides ones for services it no longer offers", async () => {
+    listApproversMock.mockResolvedValue([
+      toApproversResource("garage", {
+        resourceApprovers: ["final@nyu.edu"],
+        serviceApprovers: {
+          equipment: ["equipment@nyu.edu"],
+          catering: ["catering@nyu.edu"],
+        },
+      }),
     ]);
 
     const schema = generateDefaultSchema("tenant-one");
@@ -228,7 +232,8 @@ describe("ResourceSpecific", () => {
       </SchemaProvider>,
     );
 
-    expect(await screen.findByText("equipment@nyu.edu")).toBeInTheDocument();
+    expect(await screen.findByText("final@nyu.edu")).toBeInTheDocument();
+    expect(screen.getByText("equipment@nyu.edu")).toBeInTheDocument();
     expect(screen.queryByText("catering@nyu.edu")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Service for garage")).toHaveTextContent(
       "Equipment",
