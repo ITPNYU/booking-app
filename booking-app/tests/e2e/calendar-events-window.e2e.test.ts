@@ -80,34 +80,38 @@ async function clickDayInVisibleMonth(page: Page, day: number) {
 }
 
 test.describe("Calendar events fetch window", () => {
-  test("requests only a window around the current month, then bypasses the cache when a booking starts", async ({
+  test("entering the booking flow requests only a window around the current month, bypassing the cache", async ({
     page,
   }) => {
     await registerBookingMocks(page);
     const requests = await recordCalendarEventRequests(page);
 
+    // The tenant root mounts the provider but never renders the calendar, so
+    // nothing is fetched there (see calendar-events-booking-flow-only).
     await page.goto(`${BASE_URL}/mc`, { waitUntil: "domcontentloaded" });
     await page.waitForLoadState("networkidle");
+    const requestBtn = page.getByRole("button", {
+      name: /Request a Reservation/i,
+    });
+    await requestBtn.waitFor({ state: "visible", timeout: 15000 });
+    await page.waitForTimeout(1000);
+    expect(requests).toHaveLength(0);
+
+    // "Request a Reservation" asks for a cache-bypassing reload before it
+    // navigates; that request must surface as the flow's first fetch.
+    await requestBtn.click();
+    await page.waitForURL("**/mc/book", { timeout: 15000 });
 
     await expect.poll(() => requests.length).toBeGreaterThan(0);
     const now = new Date();
+    const first = requests[0];
+    expect(first.searchParams.get("fresh")).toBe("1");
     for (const url of requests) {
       const { days } = windowOf(url);
       expect(days).toBeGreaterThan(0);
       expect(days).toBeLessThanOrEqual(MAX_WINDOW_DAYS);
       expect(covers(url, now)).toBe(true);
-      expect(url.searchParams.get("fresh")).toBeNull();
     }
-
-    const requestBtn = page.getByRole("button", {
-      name: /Request a Reservation/i,
-    });
-    await requestBtn.waitFor({ state: "visible", timeout: 15000 });
-    await requestBtn.click();
-
-    await expect
-      .poll(() => requests.some((u) => u.searchParams.get("fresh") === "1"))
-      .toBe(true);
   });
 
   test("refetches when the viewed month changes, but not when the day changes within it", async ({

@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  BOOKING_FLOW_SEGMENTS,
+  isFlowSegment,
+} from "@/components/src/constants/flowSegments";
 import React, { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { DatabaseProvider } from "@/components/src/client/routes/components/Provider";
@@ -9,22 +13,6 @@ type ClientProviderProps = {
   children: React.ReactNode;
 };
 
-// Include originating pages that call loadExistingBookingData before navigating
-// to /edit or /modification (my-bookings EDIT, pa MODIFICATION), plus other
-// booking-table pages that mount useBookingActions against BookingContext.
-const BOOKING_FLOW_SEGMENTS = [
-  "book",
-  "walk-in",
-  "vip",
-  "edit",
-  "modification",
-  "admin",
-  "my-bookings",
-  "pa",
-  "liaison",
-  "services",
-];
-
 const ClientProvider: React.FC<ClientProviderProps> = ({ children }) => {
   const pathname = usePathname();
   const needsBookingProvider = useMemo(() => {
@@ -33,7 +21,9 @@ const ClientProvider: React.FC<ClientProviderProps> = ({ children }) => {
     // Tenant root `/[tenant]` renders MyBookingsPage for BOOKING users
     // (PERMISSION_PATH omits BOOKING), so Edit preload needs BookingProvider.
     if (segments.length === 1) return true;
-    return segments.some((segment) => BOOKING_FLOW_SEGMENTS.includes(segment));
+    return segments.some((segment) =>
+      isFlowSegment(BOOKING_FLOW_SEGMENTS, segment),
+    );
   }, [pathname]);
 
   return (
