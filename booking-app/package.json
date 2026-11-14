@@ -25,6 +25,8 @@
     "seed:mc-services:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/seedMcResourceServices.ts --dry-run",
     "migrate:approvers-resources": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"jsx\":\"react\"}' scripts/migrateApproversResources.ts",
     "migrate:approvers-resources:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"jsx\":\"react\"}' scripts/migrateApproversResources.ts --dry-run",
+    "update:mc-booking-language": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"jsx\":\"react\"}' scripts/updateMcBookingLanguage.ts",
+    "update:mc-booking-language:dry-run": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"jsx\":\"react\"}' scripts/updateMcBookingLanguage.ts --dry-run",
     "backup:tenant-schema": "npx ts-node -r tsconfig-paths/register --transpile-only --compiler-options '{\"module\":\"commonjs\",\"jsx\":\"react\"}' scripts/backupTenantSchemaToDisk.ts"
   },
   "dependencies": {
