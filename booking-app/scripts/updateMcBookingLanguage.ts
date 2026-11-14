@@ -18,7 +18,11 @@
 
 require("dotenv").config({ path: ".env.local" });
 import * as admin from "firebase-admin";
-import { applyMcBookingLanguage } from "../lib/tenant/mcBookingLanguage";
+import {
+  applyMcBookingLanguage,
+  requestDashboardUrl,
+  type McBookingEnvironment,
+} from "../lib/tenant/mcBookingLanguage";
 const { backupTenantSchemaDocument } = require("./tenantSchemaBackup");
 
 const TENANT = "mc";
@@ -33,7 +37,7 @@ const DATABASES: Record<string, string> = {
 
 interface UpdateOptions {
   dryRun: boolean;
-  database: string;
+  database: McBookingEnvironment;
 }
 
 function parseArgs(): UpdateOptions {
@@ -46,7 +50,7 @@ function parseArgs(): UpdateOptions {
         options.dryRun = true;
         break;
       case "--database":
-        options.database = args[++i] || "development";
+        options.database = (args[++i] || "development") as McBookingEnvironment;
         break;
       case "--help":
         console.log(`
@@ -96,6 +100,9 @@ async function main() {
   console.log(
     `${options.dryRun ? "🔍 [DRY RUN] " : ""}Updating Media Commons booking language in ${options.database} (${databaseName})`,
   );
+  console.log(
+    `Requested email dashboard: ${requestDashboardUrl(options.database)}`,
+  );
 
   const db = initializeDb(databaseName);
   const docRef = db.collection(TENANT_SCHEMA_COLLECTION).doc(TENANT);
@@ -113,10 +120,13 @@ async function main() {
     typeof existing.emailNotifications === "object"
       ? (existing.emailNotifications as Record<string, string>)
       : null;
-  const result = applyMcBookingLanguage({
-    policy: typeof existing.policy === "string" ? existing.policy : "",
-    emailNotifications: emails,
-  });
+  const result = applyMcBookingLanguage(
+    {
+      policy: typeof existing.policy === "string" ? existing.policy : "",
+      emailNotifications: emails,
+    },
+    options.database,
+  );
 
   if (result.errors.length > 0) {
     console.error("❌ Refusing to write. The stored copy does not match:");

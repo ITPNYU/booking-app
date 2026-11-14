@@ -11,11 +11,33 @@
  * the spelling with the "a".
  */
 
+import { getBookingToolDeployUrl } from "@/components/src/server/ui";
+
 const POLICY_LINK =
   "https://sites.google.com/nyu.edu/370jmediacommons/about/our-policy";
 const RESERVATIONS_EMAIL = "mediacommons.reservations@nyu.edu";
-const REQUEST_DASHBOARD_URL =
-  "https://flowing-mantis-389917.uc.r.appspot.com/mc/admin";
+
+export type McBookingEnvironment = "development" | "staging" | "production";
+
+/** Dashboard link for the environment whose schema is being updated. */
+export const requestDashboardUrl = (environment: McBookingEnvironment) => {
+  const origin = getBookingToolDeployUrl(environment).replace(/\/$/, "");
+  return `${origin}/mc/admin`;
+};
+
+const DASHBOARD_ANCHOR =
+  /<a href="https:\/\/[^"]+\/mc\/admin">dashboard<\/a>/;
+
+export const requestedUserEmail = (environment: McBookingEnvironment) => {
+  const dashboardUrl = requestDashboardUrl(environment);
+  return `Your request has been received! Please allow 3-5 days for review.<br /><br />
+You can view your booking request's status on your <a href="${dashboardUrl}">dashboard</a> while we review. Here is what each status means:<br /><br />
+<b>Requested:</b> Your request has been received, and your department needs to review.<br />
+<b>Pre-approved:</b> Your department has completed their review, and now the Media Commons team needs to do a policy and service request review.<br />
+<b>Approved:</b> Review is complete and your reservation is confirmed. You will receive a confirmation email and Google Calendar invite.<br /><br />
+If there are changes to your request or you would like to follow up, contact <a href="mailto:${RESERVATIONS_EMAIL}">${RESERVATIONS_EMAIL}</a>.<br /><br />
+Thank you!`;
+};
 
 export const MC_POLICY_HTML = `
     <p style="font-size: 1rem; line-height: 1.5; margin-top: 16px;">
@@ -37,14 +59,6 @@ export const MC_POLICY_HTML = `
         <b>Cancellation Policy:</b> If you need to cancel, please do so in the booking tool dashboard <b>at least 24 hours</b> before your reservation date. Late or missed cancellations may result in restricted use of the Media Commons.
       </li>
     </ul>`.trim();
-
-export const MC_REQUESTED_USER_EMAIL = `Your request has been received! Please allow 3-5 days for review.<br /><br />
-You can view your booking request's status on your <a href="${REQUEST_DASHBOARD_URL}">dashboard</a> while we review. Here is what each status means:<br /><br />
-<b>Requested:</b> Your request has been received, and your department needs to review.<br />
-<b>Pre-approved:</b> Your department has completed their review, and now the Media Commons team needs to do a policy and service request review.<br />
-<b>Approved:</b> Review is complete and your reservation is confirmed. You will receive a confirmation email and Google Calendar invite.<br /><br />
-If there are changes to your request or you would like to follow up, contact <a href="mailto:${RESERVATIONS_EMAIL}">${RESERVATIONS_EMAIL}</a>.<br /><br />
-Thank you!`;
 
 const APPROVED_CHECK_IN_FROM =
   'For reservations in room 1201, you can go straight to the 12th floor without checking in. You can reply to this email to adjust your reservation time if plans change and you will be arriving later.';
@@ -104,6 +118,7 @@ const replaceMarked = (
  */
 export const applyMcBookingLanguage = (
   current: McBookingLanguageInput,
+  environment: McBookingEnvironment,
 ): McBookingLanguageResult => {
   const changes: string[] = [];
   const errors: string[] = [];
@@ -129,10 +144,20 @@ export const applyMcBookingLanguage = (
   const requested = emails.requestedUser ?? "";
   const requestedHasNew = requested.includes(NEW_REQUESTED_MARKER);
   const requestedHasOld = requested.includes(OLD_REQUESTED_MARKER);
+  const dashboardLink = `<a href="${requestDashboardUrl(environment)}">dashboard</a>`;
   if (requestedHasNew && !requestedHasOld) {
-    // already updated
+    if (!requested.includes(dashboardLink)) {
+      if (!DASHBOARD_ANCHOR.test(requested)) {
+        errors.push(
+          "emailNotifications.requestedUser is missing the dashboard link",
+        );
+      } else {
+        emails.requestedUser = requested.replace(DASHBOARD_ANCHOR, dashboardLink);
+        changes.push("emailNotifications.requestedUser");
+      }
+    }
   } else if (requestedHasOld && !requestedHasNew) {
-    emails.requestedUser = MC_REQUESTED_USER_EMAIL;
+    emails.requestedUser = requestedUserEmail(environment);
     changes.push("emailNotifications.requestedUser");
   } else {
     errors.push(

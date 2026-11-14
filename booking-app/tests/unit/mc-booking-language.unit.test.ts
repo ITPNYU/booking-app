@@ -1,7 +1,8 @@
 import {
   applyMcBookingLanguage,
   MC_POLICY_HTML,
-  MC_REQUESTED_USER_EMAIL,
+  requestDashboardUrl,
+  requestedUserEmail,
 } from "@/lib/tenant/mcBookingLanguage";
 import { describe, expect, it } from "vitest";
 
@@ -30,7 +31,7 @@ const current = {
 
 describe("applyMcBookingLanguage", () => {
   it("updates the policy modal, Requested email, Approved check-in, and No Show opening", () => {
-    const result = applyMcBookingLanguage(current);
+    const result = applyMcBookingLanguage(current, "production");
 
     expect(result.errors).toEqual([]);
     expect(result.changes).toEqual([
@@ -50,7 +51,7 @@ describe("applyMcBookingLanguage", () => {
     expect(result.policy).not.toContain("medicommons.reservations@nyu.edu");
 
     expect(result.emailNotifications.requestedUser).toBe(
-      MC_REQUESTED_USER_EMAIL,
+      requestedUserEmail("production"),
     );
     expect(result.emailNotifications.requestedUser).toContain(
       "Here is what each status means:",
@@ -59,7 +60,13 @@ describe("applyMcBookingLanguage", () => {
       "<b>Pre-approved:</b>",
     );
     expect(result.emailNotifications.requestedUser).toContain(
-      "https://flowing-mantis-389917.uc.r.appspot.com/mc/admin",
+      requestDashboardUrl("production"),
+    );
+    expect(result.emailNotifications.requestedUser).not.toContain(
+      "development-dot-",
+    );
+    expect(result.emailNotifications.requestedUser).not.toContain(
+      "staging-dot-",
     );
 
     expect(result.emailNotifications.approvedUser).toContain(
@@ -82,9 +89,37 @@ describe("applyMcBookingLanguage", () => {
     expect(result.emailNotifications.declined).toBe("Leave this alone.");
   });
 
+  it("uses the staging and development dashboard hosts", () => {
+    const staging = applyMcBookingLanguage(current, "staging");
+    const development = applyMcBookingLanguage(current, "development");
+
+    expect(staging.emailNotifications.requestedUser).toContain(
+      "https://staging-dot-flowing-mantis-389917.uc.r.appspot.com/mc/admin",
+    );
+    expect(development.emailNotifications.requestedUser).toContain(
+      "https://development-dot-flowing-mantis-389917.uc.r.appspot.com/mc/admin",
+    );
+    expect(staging.emailNotifications.requestedUser).not.toContain(
+      `href="${requestDashboardUrl("production")}"`,
+    );
+  });
+
+  it("rewrites a production dashboard link when updating another environment", () => {
+    const production = applyMcBookingLanguage(current, "production");
+    const development = applyMcBookingLanguage(production, "development");
+
+    expect(development.changes).toEqual(["emailNotifications.requestedUser"]);
+    expect(development.emailNotifications.requestedUser).toContain(
+      `href="${requestDashboardUrl("development")}"`,
+    );
+    expect(development.emailNotifications.requestedUser).not.toContain(
+      `href="${requestDashboardUrl("production")}"`,
+    );
+  });
+
   it("does nothing when the schema already has the new copy", () => {
-    const updated = applyMcBookingLanguage(current);
-    const again = applyMcBookingLanguage(updated);
+    const updated = applyMcBookingLanguage(current, "production");
+    const again = applyMcBookingLanguage(updated, "production");
 
     expect(again.errors).toEqual([]);
     expect(again.changes).toEqual([]);
@@ -93,14 +128,17 @@ describe("applyMcBookingLanguage", () => {
   });
 
   it("refuses to write when the stored sentence has drifted", () => {
-    const result = applyMcBookingLanguage({
-      policy: "<p>Something else entirely.</p>",
-      emailNotifications: {
-        requestedUser: "A custom requested message.",
-        approvedUser: "A custom approval message.",
-        noShow: "A custom no show message with ${violationCount}.",
+    const result = applyMcBookingLanguage(
+      {
+        policy: "<p>Something else entirely.</p>",
+        emailNotifications: {
+          requestedUser: "A custom requested message.",
+          approvedUser: "A custom approval message.",
+          noShow: "A custom no show message with ${violationCount}.",
+        },
       },
-    });
+      "production",
+    );
 
     expect(result.changes).toEqual([]);
     expect(result.errors).toEqual([
