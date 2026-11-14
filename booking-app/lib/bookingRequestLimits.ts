@@ -127,9 +127,12 @@ export function getNewYorkWindowForPeriod(
       : null;
 
   if (ranges) {
-    const inRange = (range: [number, number]) => {
-      const [startMonth, endMonth] = range;
+    const inRange = (range: readonly unknown[]) => {
+      const startMonth = range[0];
+      const endMonth = range[1];
       if (
+        typeof startMonth !== "number" ||
+        typeof endMonth !== "number" ||
         !Number.isFinite(startMonth) ||
         !Number.isFinite(endMonth) ||
         startMonth < 1 ||
@@ -144,8 +147,9 @@ export function getNewYorkWindowForPeriod(
     };
 
     const active = ranges.find((r) => inRange(r.range));
-    if (active) {
-      const [startMonth, endMonth] = active.range;
+    const startMonth = active?.range[0];
+    const endMonth = active?.range[1];
+    if (typeof startMonth === "number" && typeof endMonth === "number") {
       const start = nyMidnight(y, startMonth - 1, 1);
       const endExclusive = new Date(Date.UTC(y, endMonth, 1));
       const end = nyMidnight(

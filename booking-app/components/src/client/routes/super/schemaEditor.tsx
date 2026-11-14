@@ -41,7 +41,12 @@ import {
   formatValue,
   type DiffEntry,
 } from "@/lib/utils/schemaDiff";
-import { isTemplateSchemaId, TEMPLATE_SCHEMA_ID } from "@/lib/tenant/resourceDefault";
+import {
+  validateSchemaSlice,
+  validateTenantDocument,
+  type SchemaIssue,
+} from "@/lib/tenant/validateTenantSchema";
+import { isTemplateSchemaId } from "@/lib/tenant/resourceDefault";
 import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
 import { isValidTenant } from "@/components/src/constants/tenants";
 import { DatabaseContext } from "../components/Provider";
@@ -51,6 +56,7 @@ import {
   getSlice,
   isDirtyUnder,
   isSameSelection,
+  pathIsUnder,
   pathPrefix,
   resourceLabelForPath,
   resourceLabels,
@@ -61,18 +67,16 @@ import {
   sortKeysDeep,
   type Selection,
 } from "./schemaEditorNav";
-import SchemaResourceForm, {
-  initializeResourceDefault,
-} from "./schemaResourceForm";
+import SchemaResourceForm from "./schemaResourceForm";
 import { SchemaValueFields } from "./schemaResourceFields";
 import SchemaCreateForm from "./schemaCreateForm";
 
-const BUILTIN_SCHEMA_TARGETS = ["mc", "itp", TEMPLATE_SCHEMA_ID];
+const BUILTIN_SCHEMA_TARGETS = ["mc", "itp"];
 
 function mergeSchemaTargets(ids: string[]): string[] {
-  return [...new Set([...BUILTIN_SCHEMA_TARGETS, ...ids])].sort((a, b) =>
-    a.localeCompare(b),
-  );
+  return [...new Set([...BUILTIN_SCHEMA_TARGETS, ...ids])]
+    .filter((id) => !isTemplateSchemaId(id))
+    .sort((a, b) => a.localeCompare(b));
 }
 
 type SnackState = {
@@ -265,16 +269,41 @@ function toEditorText(value: unknown): string {
   return JSON.stringify(sortKeysDeep(value), null, 2);
 }
 
+function SchemaIssueAlert({ issues }: { issues: SchemaIssue[] }) {
+  if (issues.length === 0) return null;
+  const shown = issues.slice(0, 8);
+  return (
+    <Alert severity="error" sx={{ mb: 1 }}>
+      {shown.map((issue) => (
+        <Typography
+          key={`${issue.path}:${issue.message}`}
+          variant="body2"
+          sx={{ fontFamily: "monospace" }}
+        >
+          {issue.path ? `${issue.path}: ${issue.message}` : issue.message}
+        </Typography>
+      ))}
+      {issues.length > shown.length && (
+        <Typography variant="body2">
+          {issues.length - shown.length} more
+        </Typography>
+      )}
+    </Alert>
+  );
+}
+
 function JsonEditor({
   value,
   onChange,
   onParseErrorChange,
+  schemaErrors = [],
   minHeight = 500,
 }: {
   value: unknown;
   onChange: (value: unknown) => void;
   /** Reports whether the textarea currently holds text that does not parse. */
   onParseErrorChange?: (hasError: boolean) => void;
+  schemaErrors?: SchemaIssue[];
   minHeight?: number;
 }) {
   const [text, setText] = useState(() => toEditorText(value));
@@ -312,6 +341,7 @@ function JsonEditor({
           JSON Parse Error: {parseError}
         </Alert>
       )}
+      {!parseError && <SchemaIssueAlert issues={schemaErrors} />}
       <Box
         component="textarea"
         value={text}
@@ -327,7 +357,10 @@ function JsonEditor({
           fontSize: 13,
           lineHeight: 1.5,
           p: 1.5,
-          border: parseError ? "2px solid #d32f2f" : "1px solid #ccc",
+          border:
+            parseError || schemaErrors.length > 0
+              ? "2px solid #d32f2f"
+              : "1px solid #ccc",
           borderRadius: 1,
           resize: "vertical",
           tabSize: 2,
@@ -539,8 +572,6 @@ export default function SchemaEditor() {
   // not reached `schema`, so leaving the slice would discard it.
   const [hasParseError, setHasParseError] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [templateMissing, setTemplateMissing] = useState(false);
-  const [initializing, setInitializing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [diffDialogOpen, setDiffDialogOpen] = useState(false);
   const [snack, setSnack] = useState<SnackState>({
@@ -553,16 +584,9 @@ export default function SchemaEditor() {
   const fetchSchema = useCallback(async (tenantId: string) => {
     const generation = ++fetchGeneration.current;
     setLoading(true);
-    setTemplateMissing(false);
     try {
       const res = await fetch(`/api/tenantSchema/${tenantId}?raw=1`);
       if (generation !== fetchGeneration.current) return;
-      if (res.status === 404 && isTemplateSchemaId(tenantId)) {
-        setSchema(null);
-        setOriginalSchema("");
-        setTemplateMissing(true);
-        return;
-      }
       if (!res.ok) throw new Error(`Failed to fetch schema: ${res.status}`);
       const data = await res.json();
       setSchema(data);
@@ -574,18 +598,6 @@ export default function SchemaEditor() {
       if (generation === fetchGeneration.current) setLoading(false);
     }
   }, []);
-
-  const handleInitializeTemplate = async () => {
-    setInitializing(true);
-    try {
-      await initializeResourceDefault();
-      await fetchSchema(TEMPLATE_SCHEMA_ID);
-    } catch (err: any) {
-      setSnack({ open: true, message: err.message, severity: "error" });
-    } finally {
-      setInitializing(false);
-    }
-  };
 
   useEffect(() => {
     if (tenant) {
@@ -609,7 +621,7 @@ export default function SchemaEditor() {
           );
         }
       } catch {
-        // Keep mc, itp, and _template when the directory cannot be loaded.
+        // Keep mc and itp when the directory cannot be loaded.
       }
     })();
     return () => {
@@ -637,8 +649,13 @@ export default function SchemaEditor() {
       : { kind: "section", key: "resources" };
   }, [selected, schema]);
 
+  const documentErrors = useMemo(
+    () => (schema ? validateTenantDocument(schema) : []),
+    [schema],
+  );
+
   const handleSaveClick = () => {
-    if (!schema || !original || hasParseError) return;
+    if (!schema || !original || hasParseError || documentErrors.length > 0) return;
     setDiffDialogOpen(true);
   };
 
@@ -739,15 +756,7 @@ export default function SchemaEditor() {
 
   const isDirty = diffs.length > 0;
   const canSave = isDirty && !saving && !!tenant;
-  const storedDefault = (schema as { resourceDefault?: unknown } | null)
-    ?.resourceDefault;
-  const templateNeedsDefault =
-    isTemplateSchemaId(tenant) &&
-    !templateMissing &&
-    !!schema &&
-    (!storedDefault ||
-      typeof storedDefault !== "object" ||
-      Array.isArray(storedDefault));
+  const schemaBlocksSave = hasParseError || documentErrors.length > 0;
 
   const labelFor = useCallback(
     (path: string) =>
@@ -760,6 +769,24 @@ export default function SchemaEditor() {
   const sliceValue = schema
     ? getSlice(schema, effectiveSelected, DEFAULTS)
     : undefined;
+  const sliceErrors = useMemo(() => {
+    if (!schema || hasParseError) return [];
+    return validateSchemaSlice(effectiveSelected, sliceValue);
+  }, [schema, hasParseError, effectiveSelected, sliceValue]);
+  const visibleSchemaErrors = (
+    effectiveSelected.kind === "all" || sliceErrors.length > 0
+      ? sliceErrors
+      : documentErrors.filter((issue) =>
+          pathIsUnder(issue.path, pathPrefix(effectiveSelected)),
+        )
+  ).map((issue) => {
+    if (issue.path || effectiveSelected.kind === "all") return issue;
+    const prefix =
+      effectiveSelected.kind === "section"
+        ? effectiveSelected.key
+        : `resources[${effectiveSelected.index}]`;
+    return { ...issue, path: prefix };
+  });
   const currentResource =
     effectiveSelected.kind === "resource" && schema
       ? resourceLabels(schema)[effectiveSelected.index]
@@ -813,7 +840,7 @@ export default function SchemaEditor() {
           >
             {schemaTargets.map((t) => (
               <MenuItem key={t} value={t}>
-                {t === TEMPLATE_SCHEMA_ID ? "_template (defaults)" : t}
+                {t}
               </MenuItem>
             ))}
           </Select>
@@ -840,7 +867,7 @@ export default function SchemaEditor() {
             <Button
               variant="contained"
               onClick={handleSaveClick}
-              disabled={saving || hasParseError}
+              disabled={saving || schemaBlocksSave}
             >
               Save
             </Button>
@@ -849,11 +876,13 @@ export default function SchemaEditor() {
             </Button>
             <Typography
               variant="body2"
-              color={hasParseError ? "error.main" : "warning.main"}
+              color={schemaBlocksSave ? "error.main" : "warning.main"}
             >
               {hasParseError
                 ? "Fix the JSON syntax error in the editor to save"
-                : `${diffs.length} unsaved change${diffs.length === 1 ? "" : "s"}`}
+                : documentErrors.length > 0
+                  ? `Fix ${documentErrors.length} schema error${documentErrors.length === 1 ? "" : "s"} to save`
+                  : `${diffs.length} unsaved change${diffs.length === 1 ? "" : "s"}`}
             </Typography>
           </>
         )}
@@ -864,24 +893,6 @@ export default function SchemaEditor() {
           <CircularProgress size={20} />
           <Typography variant="body2">Loading schema...</Typography>
         </Box>
-      )}
-
-      {(templateMissing || templateNeedsDefault) && !loading && (
-        <Alert
-          severity="info"
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={handleInitializeTemplate}
-              disabled={initializing}
-            >
-              Initialize resource default
-            </Button>
-          }
-        >
-          No resource default is stored in the database yet.
-        </Alert>
       )}
 
       {schema && !loading && !isTemplateSchemaId(tenant) && (
@@ -996,6 +1007,7 @@ export default function SchemaEditor() {
               value={sliceValue}
               onChange={writeSlice}
               onParseErrorChange={setHasParseError}
+              schemaErrors={visibleSchemaErrors}
               minHeight={effectiveSelected.kind === "all" ? 600 : 400}
             />
           </Box>
@@ -1032,8 +1044,7 @@ export default function SchemaEditor() {
         <DialogContent dividers>
           <Typography variant="body2">
             This deletes the Firestore schema for &quot;{deleteTarget}&quot;. A
-            backup is saved first. Media Commons, ITP, and the resource default
-            cannot be deleted.
+            backup is saved first. Media Commons and ITP cannot be deleted.
           </Typography>
         </DialogContent>
         <DialogActions>

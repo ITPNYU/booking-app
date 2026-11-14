@@ -6,13 +6,35 @@ import {
   type SchemaContextType,
 } from "@/components/src/client/routes/components/schemaTypes";
 
-function resource(over: Partial<Resource>): Resource {
+function resource(
+  over: Omit<Partial<Resource>, "autoApproval" | "training"> & {
+    autoApproval?: Partial<Resource["autoApproval"]>;
+    training?: Partial<Resource["training"]>;
+  },
+): Resource {
+  const { autoApproval, training, ...rest } = over;
   const merged: Resource = {
     ...defaultResource,
-    ...over,
+    ...rest,
     training: {
       ...defaultResource.training,
-      ...over.training,
+      ...training,
+    },
+    autoApproval: {
+      ...defaultResource.autoApproval,
+      ...autoApproval,
+      minHour: {
+        ...defaultResource.autoApproval.minHour,
+        ...autoApproval?.minHour,
+      },
+      maxHour: {
+        ...defaultResource.autoApproval.maxHour,
+        ...autoApproval?.maxHour,
+      },
+      conditions: {
+        ...defaultResource.autoApproval.conditions,
+        ...autoApproval?.conditions,
+      },
     },
   };
   // Don't inherit defaultResource's placeholder (-1) top-level maxHour/minHour.
@@ -160,6 +182,7 @@ function getMcTestSchema(tenant: string): SchemaContextType {
         staging: "booking-app-devs+canceled@itp.nyu.edu",
         production: "booking-app-devs+canceled@itp.nyu.edu",
       },
+      declined: base.ccEmails.declined,
     },
   };
 }
@@ -250,6 +273,7 @@ function getItpTestSchema(): SchemaContextType {
         staging: "booking-app-devs+canceled@itp.nyu.edu",
         production: "booking-app-devs+canceled@itp.nyu.edu",
       },
+      declined: base.ccEmails.declined,
     },
   };
 }
