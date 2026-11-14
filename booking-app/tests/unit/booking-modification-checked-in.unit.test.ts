@@ -464,6 +464,7 @@ describe("Checked In booking modification", () => {
       result: "success",
       calendarEventId: "new-cal-456",
       requestNumber: 100,
+      status: "APPROVED",
       warning: followUp,
     });
   });
