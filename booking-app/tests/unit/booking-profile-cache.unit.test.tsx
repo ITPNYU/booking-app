@@ -64,7 +64,6 @@ const schema = coerceTenantSchema(
 const savedProfile = {
   firstName: "Cached",
   lastName: "Person",
-  nNumber: "N87654321",
   phoneNumber: "212-555-0100",
   school: "Tisch",
   department: "ITP",
@@ -165,21 +164,23 @@ describe("bookingProfileCache", () => {
   it("stores only profile fields, per tenant and user", () => {
     writeBookingProfile(TENANT, EMAIL, {
       ...savedProfile,
+      nNumber: "N87654321",
       title: "My event",
       sponsorEmail: "prof@nyu.edu",
     });
 
     expect(readBookingProfile(TENANT, EMAIL)).toEqual(savedProfile);
+    expect(JSON.stringify(localStorage)).not.toContain("N87654321");
     expect(readBookingProfile(TENANT, "someone@nyu.edu")).toEqual({});
     expect(readBookingProfile("itp", EMAIL)).toEqual({});
   });
 
   it("keeps earlier answers when a later booking leaves them blank", () => {
     writeBookingProfile(TENANT, EMAIL, savedProfile);
-    writeBookingProfile(TENANT, EMAIL, { nNumber: "", phoneNumber: "999" });
+    writeBookingProfile(TENANT, EMAIL, { firstName: "", phoneNumber: "999" });
 
     expect(readBookingProfile(TENANT, EMAIL)).toMatchObject({
-      nNumber: "N87654321",
+      firstName: "Cached",
       phoneNumber: "999",
     });
   });
@@ -194,6 +195,22 @@ describe("bookingProfileCache", () => {
     expect(readBookingProfile(TENANT, EMAIL)).toEqual({});
     expect(readBookingProfile("itp", "other@nyu.edu")).toEqual({});
     expect(localStorage.getItem("unrelated")).toBe("keep");
+  });
+
+  it("drops an N-number already sitting in storage", () => {
+    localStorage.setItem(
+      `bookingProfile:v1:${TENANT}:${EMAIL}`,
+      JSON.stringify({
+        v: 1,
+        savedAt: Date.now(),
+        profile: { firstName: "Cached", nNumber: "N87654321" },
+      }),
+    );
+
+    expect(readBookingProfile(TENANT, EMAIL)).toEqual({ firstName: "Cached" });
+    expect(localStorage.getItem(`bookingProfile:v1:${TENANT}:${EMAIL}`)).not.toContain(
+      "N87654321",
+    );
   });
 
   it("forgets a profile after 90 days", () => {
@@ -212,9 +229,9 @@ describe("DetailsInput profile fallback", () => {
     renderDetails();
 
     await waitFor(() =>
-      expect(screen.getByDisplayValue("N87654321")).toBeInTheDocument(),
+      expect(screen.getByDisplayValue("Cached")).toBeInTheDocument(),
     );
-    expect(screen.getByDisplayValue("Cached")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("N87654321")).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("212-555-0100")).toBeInTheDocument();
     expect(screen.getByDisplayValue("abc123")).toBeInTheDocument();
   });

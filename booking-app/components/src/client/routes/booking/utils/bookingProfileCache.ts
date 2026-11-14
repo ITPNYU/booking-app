@@ -15,7 +15,6 @@ const MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 export const BOOKING_PROFILE_FIELDS = [
   "firstName",
   "lastName",
-  "nNumber",
   "phoneNumber",
   "school",
   "otherSchool",
@@ -78,7 +77,17 @@ export function readBookingProfile(
       storage.removeItem(key);
       return {};
     }
-    return pickProfile(stored.profile ?? {});
+    const storedProfile = stored.profile ?? {};
+    const profile = pickProfile(storedProfile);
+    // Older entries stored an N-number. Drop it the next time one is read.
+    if ("nNumber" in storedProfile) {
+      try {
+        storage.setItem(key, JSON.stringify({ ...stored, profile }));
+      } catch {
+        // Leaving the old entry is no worse than before this read.
+      }
+    }
+    return profile;
   } catch {
     return {};
   }
