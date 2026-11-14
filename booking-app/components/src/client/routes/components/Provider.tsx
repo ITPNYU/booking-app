@@ -78,6 +78,8 @@ export interface DatabaseContextType {
   userEmail: string | undefined;
   netId: string | undefined;
   userApiData: UserApiData | undefined;
+  /** Whether the identity lookup behind userApiData has settled, and how. */
+  userApiStatus: "loading" | "loaded" | "error";
   loadMoreEnabled?: boolean;
   reloadAdminUsers: () => Promise<void>;
   reloadApproverUsers: () => Promise<void>;
@@ -134,6 +136,7 @@ export const DatabaseContext = createContext<DatabaseContextType>({
   userEmail: undefined,
   netId: undefined,
   userApiData: undefined,
+  userApiStatus: "loading",
   loadMoreEnabled: true,
   reloadAdminUsers: async () => {},
   reloadApproverUsers: async () => {},
@@ -196,6 +199,9 @@ export const DatabaseProvider = ({
   const [userApiData, setUserApiData] = useState<UserApiData | undefined>(
     undefined,
   );
+  const [userApiStatus, setUserApiStatus] = useState<
+    "loading" | "loaded" | "error"
+  >("loading");
   const [lastItem, setLastItem] = useState<any>(null);
   const [filters, setFilters] = useState<Filters>({
     dateRange: "",
@@ -228,9 +234,13 @@ export const DatabaseProvider = ({
         if (response.ok) {
           const data = await response.json();
           setUserApiData(data);
+          setUserApiStatus("loaded");
+        } else {
+          setUserApiStatus("error");
         }
       } catch (err) {
         console.error("Failed to fetch user data:", err);
+        setUserApiStatus("error");
       }
     };
     fetchUserApiData();
@@ -807,6 +817,7 @@ export const DatabaseProvider = ({
         bookingsLoading,
         permissionsLoading,
         userApiData,
+        userApiStatus,
         loadMoreEnabled,
         reloadAdminUsers: fetchAdminUsers,
         reloadApproverUsers: fetchApproverUsers,

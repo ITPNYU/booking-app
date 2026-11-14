@@ -5,6 +5,7 @@ import { styled } from "@mui/material/styles";
 import { useRouter, useParams } from "next/navigation";
 import { useContext, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
+import { DEFAULT_TENANT } from "../../../../constants/tenants";
 import { Department, FormContextLevel, Inputs, Role } from "../../../../types";
 import { useAuth } from "../../components/AuthProvider";
 import { DatabaseContext } from "../../components/Provider";
@@ -15,6 +16,7 @@ import {
 } from "../components/BookingFormInputs";
 import Dropdown from "../components/Dropdown";
 import { useTenantSchema } from "../../components/SchemaProvider";
+import { readBookingProfile } from "../utils/bookingProfileCache";
 
 const Center = styled(Box)`
   width: 100%;
@@ -77,7 +79,7 @@ export default function UserRolePage({
 }: Props) {
   const { formData, role, department, setDepartment, setRole, setFormData } =
     useContext(BookingContext);
-  const { userApiData } = useContext(DatabaseContext);
+  const { userApiData, userApiStatus, userEmail } = useContext(DatabaseContext);
   const router = useRouter();
   const { user } = useAuth();
   const { tenant } = useParams<{ tenant: string }>();
@@ -88,6 +90,7 @@ export default function UserRolePage({
     trigger,
     watch,
     setValue,
+    getValues,
     formState: { errors },
   } = useForm<Inputs>({
     defaultValues: {
@@ -98,6 +101,7 @@ export default function UserRolePage({
 
   const watchedFields = watch();
   const prevWatchedFieldsRef = useRef<Inputs | undefined>(undefined);
+  const affiliationPrefilled = useRef(false);
   const showOther = department === Department.OTHER;
 
   const isVIP = formContext === FormContextLevel.VIP;
@@ -204,25 +208,87 @@ export default function UserRolePage({
       return;
     }
 
-    if (userApiData && !isVIP && !isWalkIn) {
-      const mappedRole = mapAffiliationToRole(
-        tenantSchema.mappings.role,
-        userApiData.affiliation_sub_type,
-      );
-      const mappedDepartment = mapDepartmentCode(
-        tenantSchema.mappings.program,
-        userApiData.reporting_dept_code,
-      );
+    if (isVIP || isWalkIn) return;
 
-      if (mappedRole && !role) {
-        setRole(mappedRole);
+    const mappedRole = userApiData
+      ? mapAffiliationToRole(
+          tenantSchema.mappings.role,
+          userApiData.affiliation_sub_type,
+        )
+      : undefined;
+    const profile = readBookingProfile(tenant || DEFAULT_TENANT, userEmail);
+    const cachedRole = tenantSchema.roles.includes(profile.role as Role)
+      ? (profile.role as Role)
+      : undefined;
+    const cachedDepartment =
+      profile.department === Department.OTHER ||
+      profile.department in (tenantSchema.mappings.program ?? {})
+        ? (profile.department as Department)
+        : undefined;
+
+    // An unmapped department code comes back as Other. That is a guess, not
+    // an answer, so a department the user picked last time beats it.
+    const apiDepartment = userApiData
+      ? mapDepartmentCode(
+          tenantSchema.mappings.program,
+          userApiData.reporting_dept_code,
+        )
+      : undefined;
+    const mappedDepartment =
+      apiDepartment === Department.OTHER && cachedDepartment
+        ? undefined
+        : apiDepartment;
+
+    if (mappedRole && !role) {
+      setRole(mappedRole);
+    }
+
+    if (mappedDepartment && !department) {
+      setDepartment(mappedDepartment);
+    }
+
+    // Once the identity API has settled, the affiliation from the last
+    // booking fills whatever it could not map. Answers already on the page
+    // are left alone.
+    if (userApiStatus !== "loaded" && userApiStatus !== "error") return;
+    if (affiliationPrefilled.current) return;
+    affiliationPrefilled.current = true;
+    if (getValues("school")) return;
+
+    if (!role && !mappedRole && cachedRole) setRole(cachedRole);
+
+    const nextDepartment = department ?? mappedDepartment ?? cachedDepartment;
+
+    const cachedSchool = profile.school;
+    const schoolFitsDepartment =
+      !!cachedSchool &&
+      (isOtherSchool(cachedSchool)
+        ? !nextDepartment || nextDepartment === Department.OTHER
+        : nextDepartment === Department.OTHER ||
+          mappingValuesToArray(schemaSchoolMapping[cachedSchool]).includes(
+            nextDepartment,
+          ));
+    if (!schoolFitsDepartment) {
+      if (nextDepartment && !department && !mappedDepartment) {
+        setDepartment(nextDepartment);
       }
+      return;
+    }
 
-      if (mappedDepartment && !department) {
-        setDepartment(mappedDepartment);
+    setValue("school", cachedSchool);
+    if (isOtherSchool(cachedSchool)) {
+      setValue("otherSchool", profile.otherSchool ?? "");
+      setValue("otherDepartment", profile.otherDepartment ?? "");
+      setDepartment(Department.OTHER);
+    } else {
+      if (nextDepartment === Department.OTHER) {
+        setValue("otherDepartment", profile.otherDepartment ?? "");
+      }
+      if (nextDepartment && !department && !mappedDepartment) {
+        setDepartment(nextDepartment);
       }
     }
-  }, [userApiData, user, isVIP, isWalkIn]);
+  }, [userApiData, userApiStatus, user, isVIP, isWalkIn]);
 
   useEffect(() => {
     const haveWatchedFieldsChanged =

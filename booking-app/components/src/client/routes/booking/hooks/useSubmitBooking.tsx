@@ -16,6 +16,7 @@ import { isValidNetIdFormat } from "../../../../utils/validationHelpers";
 import { DatabaseContext } from "../../components/Provider";
 import { useTenantSchema } from "../../components/SchemaProvider";
 import { BookingContext } from "../bookingProvider";
+import { writeBookingProfile } from "../utils/bookingProfileCache";
 
 export default function useSubmitBooking(formContext: FormContextLevel) {
   const router = useRouter();
@@ -336,6 +337,14 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
             return "error" as const;
           }
 
+          if (formContext === FormContextLevel.FULL_FORM) {
+            writeBookingProfile(tenant, userEmail, {
+              ...data,
+              department,
+              role,
+            });
+          }
+
           // clear stored booking data after submit confirmation
           setBookingCalendarInfo(undefined);
           setSelectedRooms([]);
@@ -382,6 +391,8 @@ export default function useSubmitBooking(formContext: FormContextLevel) {
       showMaintenanceMode,
       department,
       role,
+      formContext,
+      tenant,
     ],
   );
 
