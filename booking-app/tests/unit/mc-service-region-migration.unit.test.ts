@@ -64,6 +64,39 @@ describe("fillMissingMcServiceRegions", () => {
     );
   });
 
+  it("fills an empty Services Request so requested services can be approved", () => {
+    const servicesRequested = { staff: true, catering: true };
+    const filled = fillMissingMcServiceRegions(
+      { "Services Request": {} },
+      servicesRequested,
+      {},
+    ) as any;
+    expect(filled["Services Request"]).toEqual({
+      "Staff Request": "Staff Requested",
+      "Catering Request": "Catering Requested",
+      "Setup Request": "Setup Approved",
+      "Cleaning Request": "Cleaning Approved",
+      "Security Request": "Security Approved",
+      "Equipment Request": "Equipment Approved",
+      "Furnishings Request": "Furnishings Approved",
+    });
+
+    const actor = createActor(mcBookingMachine, {
+      snapshot: persistedSnapshotWith(filled, {
+        servicesRequested,
+        servicesApproved: {},
+      }),
+    });
+    actor.start();
+    expect(actor.getSnapshot().can({ type: "approveStaff" })).toBe(true);
+    expect(actor.getSnapshot().can({ type: "approveCatering" })).toBe(true);
+    expect(actor.getSnapshot().can({ type: "approveSetup" })).toBe(false);
+    actor.send({ type: "approveStaff" });
+    actor.send({ type: "approveCatering" });
+    expect(actor.getSnapshot().value).toBe("Approved");
+    actor.stop();
+  });
+
   it("adds a pending Furnishings Request when furnishings are requested", () => {
     const filled = fillMissingMcServiceRegions(
       LEGACY_SERVICES_REQUEST,

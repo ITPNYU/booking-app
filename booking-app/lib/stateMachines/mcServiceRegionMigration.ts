@@ -1,15 +1,18 @@
 import type { MediaCommonsServiceFlags } from "@/components/src/types";
 
 /**
- * Service regions added to the MC machine after bookings were already
- * persisted. A stored snapshot from before the region existed has no entry
- * for it, and XState restores such a region in its "Evaluate …" state without
- * running the eventless transition — so `snapshot.can({ type: "approveX" })`
- * stays false until some other event nudges the machine. Filling the region
- * in from the booking's current service flags puts the restored actor in the
- * same state a fresh evaluation would have produced.
+ * A stored snapshot that has no entry for a service region is restored in
+ * that region's "Evaluate …" state, and XState does not run the eventless
+ * transition — so `snapshot.can({ type: "approveX" })` stays false. That
+ * happens for regions added after a booking was persisted (Furnishings) and
+ * for the bookingsDirect last-resort snapshot, which used to store
+ * `"Services Request": {}`. Filling a missing region from the booking's
+ * current service flags puts the restored actor in the same state a fresh
+ * evaluation would have produced. Regions already present are left alone.
+ *
+ * State names match the literals in mcBookingMachine.ts.
  */
-const LATE_ADDED_SERVICE_REGIONS: ReadonlyArray<{
+const MC_SERVICE_REGIONS: ReadonlyArray<{
   key: keyof MediaCommonsServiceFlags;
   requestRegion: string;
   requestedState: string;
@@ -18,25 +21,33 @@ const LATE_ADDED_SERVICE_REGIONS: ReadonlyArray<{
   closeoutRegion: string;
   closeoutPendingState: string;
   closedoutState: string;
-}> = [
-  {
-    key: "furnishings",
-    requestRegion: "Furnishings Request",
-    requestedState: "Furnishings Requested",
-    requestApprovedState: "Furnishings Approved",
-    requestDeclinedState: "Furnishings Declined",
-    closeoutRegion: "Furnishings Closeout",
-    closeoutPendingState: "Furnishings Closeout Pending",
-    closedoutState: "Furnishings Closedout",
-  },
-];
+}> = (
+  [
+    ["staff", "Staff"],
+    ["catering", "Catering"],
+    ["setup", "Setup"],
+    ["cleaning", "Cleaning"],
+    ["security", "Security"],
+    ["equipment", "Equipment"],
+    ["furnishings", "Furnishings"],
+  ] as const
+).map(([key, name]) => ({
+  key,
+  requestRegion: `${name} Request`,
+  requestedState: `${name} Requested`,
+  requestApprovedState: `${name} Approved`,
+  requestDeclinedState: `${name} Declined`,
+  closeoutRegion: `${name} Closeout`,
+  closeoutPendingState: `${name} Closeout Pending`,
+  closedoutState: `${name} Closedout`,
+}));
 
 type StateValue = string | Record<string, unknown>;
 
 /**
- * Returns a copy of `value` where every late-added service region missing
- * from "Services Request" / "Service Closeout" is set to the state the
- * region's own guards would pick. Non-parallel values are returned as is.
+ * Returns a copy of `value` where every service region missing from
+ * "Services Request" / "Service Closeout" is set to the state the region's
+ * own guards would pick. Non-parallel values are returned as is.
  */
 export function fillMissingMcServiceRegions(
   value: StateValue | undefined,
@@ -52,7 +63,7 @@ export function fillMissingMcServiceRegions(
   if (request && typeof request === "object") {
     const regions = { ...(request as Record<string, unknown>) };
     let changed = false;
-    for (const region of LATE_ADDED_SERVICE_REGIONS) {
+    for (const region of MC_SERVICE_REGIONS) {
       if (region.requestRegion in regions) continue;
       // Mirrors "Evaluate <Service> Request": a requested service that
       // already holds a decision lands in its final state (ADR-0001).
@@ -75,7 +86,7 @@ export function fillMissingMcServiceRegions(
   if (closeout && typeof closeout === "object") {
     const regions = { ...(closeout as Record<string, unknown>) };
     let changed = false;
-    for (const region of LATE_ADDED_SERVICE_REGIONS) {
+    for (const region of MC_SERVICE_REGIONS) {
       if (region.closeoutRegion in regions) continue;
       regions[region.closeoutRegion] =
         servicesApproved?.[region.key] === true

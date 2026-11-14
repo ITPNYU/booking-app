@@ -11,6 +11,7 @@ import {
   BookingOrigin,
   BookingStatusLabel,
   FormContextLevel,
+  type MediaCommonsServiceFlags,
 } from "@/components/src/types";
 import {
   getMediaCommonsServices,
@@ -50,6 +51,7 @@ import {
   isProductionScheduleMissingWhenRequired,
 } from "@/components/src/client/routes/booking/utils/productionSchedule";
 import { omitStaffOnlyBookingFieldWrites } from "@/lib/api/staffOnlyBookingFields";
+import { fillMissingMcServiceRegions } from "@/lib/stateMachines/mcServiceRegionMigration";
 
 // Helper function to extract tenant from request
 const extractTenantFromRequest = (request: NextRequest): string | undefined => {
@@ -148,15 +150,28 @@ async function buildMediaCommonsServicesRequestSnapshot(input: {
  * The Services queue only lists a booking whose snapshot value is in
  * "Services Request", so a missing snapshot would hide a booking that
  * approvers were already emailed about.
+ *
+ * Each region is written in the state a fresh evaluation would reach.
+ * An empty `"Services Request": {}` restores every region in "Evaluate …"
+ * without running that transition, so approve/decline stay disabled.
+ * Rebuilding from booking status is not a substitute: that path stores
+ * "Pre-approved", which is not on the Services queue.
  */
 function placeholderMediaCommonsServicesRequestSnapshot(
-  servicesRequested: Record<string, boolean> | null,
+  servicesRequested: MediaCommonsServiceFlags | null,
 ) {
+  const unresolved = {
+    "Services Request": {} as Record<string, unknown>,
+  };
+  const value = servicesRequested
+    ? (fillMissingMcServiceRegions(unresolved, servicesRequested, {}) ??
+      unresolved)
+    : unresolved;
   return {
     machineId: "MC Booking Request",
     lastTransition: new Date().toISOString(),
     snapshot: {
-      value: { "Services Request": {} as Record<string, unknown> },
+      value,
       context: servicesRequested ? { servicesRequested } : {},
     },
   };
@@ -747,7 +762,7 @@ export async function POST(request: NextRequest) {
             );
           }
           if (!xstateData) {
-            let servicesRequested: Record<string, boolean> | null = null;
+            let servicesRequested: MediaCommonsServiceFlags | null = null;
             try {
               servicesRequested = getMediaCommonsServices(
                 data,

@@ -239,7 +239,15 @@ describe("POST /api/bookingsDirect XState fallback", () => {
 
     const marker = mocks.serverUpdateDataByCalendarEventId.mock.calls[0][2];
     expect(marker.xstateData.snapshot.value).toEqual({
-      "Services Request": {},
+      "Services Request": {
+        "Staff Request": "Staff Requested",
+        "Catering Request": "Catering Approved",
+        "Setup Request": "Setup Approved",
+        "Cleaning Request": "Cleaning Approved",
+        "Security Request": "Security Approved",
+        "Equipment Request": "Equipment Approved",
+        "Furnishings Request": "Furnishings Approved",
+      },
     });
     expect(marker.xstateData.snapshot.context.servicesRequested.staff).toBe(
       true,
