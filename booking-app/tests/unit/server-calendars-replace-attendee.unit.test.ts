@@ -82,6 +82,19 @@ describe("replaceCalendarAttendee", () => {
     expect(patchMock).not.toHaveBeenCalled();
   });
 
+  it("keeps the secondary contact's invitation", async () => {
+    getMock.mockResolvedValue(
+      eventWith([{ email: "second789@nyu.edu" }, { email: "old123@nyu.edu" }]),
+    );
+
+    await run();
+
+    expect(patchMock.mock.calls[0][0].requestBody.attendees).toEqual([
+      { email: "second789@nyu.edu" },
+      { email: "new456@nyu.edu" },
+    ]);
+  });
+
   it("keeps the old guest when they are also the secondary contact", async () => {
     getMock.mockResolvedValue(eventWith([{ email: "old123@nyu.edu" }]));
 

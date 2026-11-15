@@ -115,6 +115,32 @@ describe("buildRequesterUpdates", () => {
     });
   });
 
+  it("leaves the secondary contact on the booking", () => {
+    const secondary = {
+      secondaryFirstName: "Sam",
+      secondaryLastName: "Kim",
+      secondaryEmail: "second789@nyu.edu",
+    };
+    const updates = buildRequesterUpdates(
+      {
+        email: "old123@nyu.edu",
+        ...secondary,
+        xstateData: {
+          snapshot: {
+            context: {
+              email: "old123@nyu.edu",
+              formData: { netId: "old123", ...secondary },
+            },
+          },
+        },
+      },
+      input,
+    );
+    expect(
+      Object.keys(updates).filter(key => key.includes("secondary")),
+    ).toEqual([]);
+  });
+
   it("moves the walk-in NetID on walk-ins", () => {
     const updates = buildRequesterUpdates({ walkInNetId: "old123" }, input);
     expect(updates.walkInNetId).toBe("new456");
