@@ -94,14 +94,38 @@ describe("applyMcBookingLanguage", () => {
     const development = applyMcBookingLanguage(current, "development");
 
     expect(staging.emailNotifications.requestedUser).toContain(
-      "https://staging-dot-flowing-mantis-389917.uc.r.appspot.com/mc/admin",
+      "https://staging-dot-flowing-mantis-389917.uc.r.appspot.com/mc/my-bookings",
     );
     expect(development.emailNotifications.requestedUser).toContain(
-      "https://development-dot-flowing-mantis-389917.uc.r.appspot.com/mc/admin",
+      "https://development-dot-flowing-mantis-389917.uc.r.appspot.com/mc/my-bookings",
     );
+    expect(staging.emailNotifications.requestedUser).not.toContain("/mc/admin");
     expect(staging.emailNotifications.requestedUser).not.toContain(
       `href="${requestDashboardUrl("production")}"`,
     );
+  });
+
+  it("rewrites an admin dashboard link to My Bookings", () => {
+    const updated = applyMcBookingLanguage(current, "production");
+    const withAdminLink = {
+      ...updated,
+      emailNotifications: {
+        ...updated.emailNotifications,
+        requestedUser: updated.emailNotifications.requestedUser.replace(
+          "/mc/my-bookings",
+          "/mc/admin",
+        ),
+      },
+    };
+
+    const result = applyMcBookingLanguage(withAdminLink, "production");
+
+    expect(result.errors).toEqual([]);
+    expect(result.changes).toEqual(["emailNotifications.requestedUser"]);
+    expect(result.emailNotifications.requestedUser).toContain(
+      `href="${requestDashboardUrl("production")}"`,
+    );
+    expect(result.emailNotifications.requestedUser).not.toContain("/mc/admin");
   });
 
   it("rewrites a production dashboard link when updating another environment", () => {

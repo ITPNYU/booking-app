@@ -19,14 +19,18 @@ const RESERVATIONS_EMAIL = "mediacommons.reservations@nyu.edu";
 
 export type McBookingEnvironment = "development" | "staging" | "production";
 
-/** Dashboard link for the environment whose schema is being updated. */
+/**
+ * Requestor's My Bookings page for the environment whose schema is being
+ * updated. The Requested email goes to the person who booked, and `/mc/admin`
+ * tells a regular user they do not have permission.
+ */
 export const requestDashboardUrl = (environment: McBookingEnvironment) => {
   const origin = getBookingToolDeployUrl(environment).replace(/\/$/, "");
-  return `${origin}/mc/admin`;
+  return `${origin}/mc/my-bookings`;
 };
 
 const DASHBOARD_ANCHOR =
-  /<a href="https:\/\/[^"]+\/mc\/admin">dashboard<\/a>/;
+  /<a href="https:\/\/[^"]+\/mc\/(?:admin|my-bookings)">dashboard<\/a>/;
 
 export const requestedUserEmail = (environment: McBookingEnvironment) => {
   const dashboardUrl = requestDashboardUrl(environment);
