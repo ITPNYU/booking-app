@@ -49,9 +49,11 @@ export default function useSortBookingHistory(
         );
         const resolvedNotes = resolvePreApprovedHistoryNotes(sortedLogs);
         const sortedRows = sortedLogs.map((log, index) => {
+          // MODIFIED rows show their own note when they have one, e.g. a
+          // requester change; otherwise who made the modification.
           const note =
             log.status === BookingStatusLabel.MODIFIED
-              ? `Modified by ${log.changedBy}`
+              ? log.note || `Modified by ${log.changedBy}`
               : resolvedNotes[index];
           return (
             <TableRow key={log.id}>

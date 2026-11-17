@@ -5,6 +5,10 @@
 // scripts) without pulling the client-only `SchemaProvider` into the server
 // bundle. `SchemaProvider.tsx` re-exports everything here for client consumers.
 
+import {
+  DEFAULT_REASSIGNED_PREVIOUS_USER_MESSAGE,
+  DEFAULT_REASSIGNED_USER_MESSAGE,
+} from "@/components/src/constants/reassignEmails";
 import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { isMediaCommonsTenant } from "@/components/src/constants/tenants";
 
@@ -323,6 +327,11 @@ export type ProductionScheduleConfig = {
 
 export type FormConfig = {
   showBookingType: boolean;
+  /**
+   * Ask on the Details step whether the booking is a collaboration between
+   * two or more departments, and if so which ones (issue #1383).
+   */
+  showDepartmentCollaboration: boolean;
   showNNumber: boolean;
   showSponsor: boolean;
   services: FormServicesConfig;
@@ -461,6 +470,16 @@ export type EmailNotifications = {
   noShow: string;
   closed: string;
   approvedUser: string;
+  /**
+   * Opening of the email to a booking's new requester after an admin
+   * reassigns it. The usual message for the booking's status follows it.
+   */
+  reassignedUser: string;
+  /**
+   * Email to a booking's previous requester after an admin reassigns it.
+   * `${newRequester}` is replaced with the new requester's name and email.
+   */
+  reassignedPreviousUser: string;
 };
 
 export type SchemaContextType = {
@@ -686,6 +705,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
   roles: [],
   form: {
     showBookingType: true,
+    showDepartmentCollaboration: false,
     showNNumber: true,
     showSponsor: true,
     services: {
@@ -771,6 +791,8 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
     noShow: "",
     closed: "",
     approvedUser: "",
+    reassignedUser: DEFAULT_REASSIGNED_USER_MESSAGE,
+    reassignedPreviousUser: DEFAULT_REASSIGNED_PREVIOUS_USER_MESSAGE,
   },
 };
 
@@ -785,6 +807,8 @@ export function generateDefaultSchema(tenantId: string): SchemaContextType {
     form: {
       ...defaultScheme.form,
       services: { ...defaultScheme.form.services },
+      // MC asked to record cross-department collaborations (#1383).
+      showDepartmentCollaboration: isMediaCommonsTenant(tenantId),
       // MC requires production schedules for long reservations (#1126).
       productionSchedule: {
         ...defaultProductionSchedule,
