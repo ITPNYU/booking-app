@@ -62,12 +62,15 @@ const schema = coerceTenantSchema(
 );
 
 const savedProfile = {
-  firstName: "Cached",
-  lastName: "Person",
-  phoneNumber: "212-555-0100",
   school: "Tisch",
   department: "ITP",
   role: "Faculty",
+};
+
+const contactFields = {
+  firstName: "Cached",
+  lastName: "Person",
+  phoneNumber: "212-555-0100",
 };
 
 function renderDetails({
@@ -161,27 +164,31 @@ afterEach(() => {
 });
 
 describe("bookingProfileCache", () => {
-  it("stores only profile fields, per tenant and user", () => {
+  it("stores only affiliation, per tenant and user", () => {
     writeBookingProfile(TENANT, EMAIL, {
       ...savedProfile,
+      ...contactFields,
       nNumber: "N87654321",
       title: "My event",
       sponsorEmail: "prof@nyu.edu",
     });
 
     expect(readBookingProfile(TENANT, EMAIL)).toEqual(savedProfile);
-    expect(JSON.stringify(localStorage)).not.toContain("N87654321");
+    const stored = JSON.stringify(localStorage);
+    expect(stored).not.toContain("N87654321");
+    expect(stored).not.toContain("Cached");
+    expect(stored).not.toContain("212-555-0100");
     expect(readBookingProfile(TENANT, "someone@nyu.edu")).toEqual({});
     expect(readBookingProfile("itp", EMAIL)).toEqual({});
   });
 
   it("keeps earlier answers when a later booking leaves them blank", () => {
     writeBookingProfile(TENANT, EMAIL, savedProfile);
-    writeBookingProfile(TENANT, EMAIL, { firstName: "", phoneNumber: "999" });
+    writeBookingProfile(TENANT, EMAIL, { school: "", role: "Student" });
 
     expect(readBookingProfile(TENANT, EMAIL)).toMatchObject({
-      firstName: "Cached",
-      phoneNumber: "999",
+      school: "Tisch",
+      role: "Student",
     });
   });
 
@@ -197,20 +204,30 @@ describe("bookingProfileCache", () => {
     expect(localStorage.getItem("unrelated")).toBe("keep");
   });
 
-  it("drops an N-number already sitting in storage", () => {
+  it("drops personal fields already sitting in storage", () => {
     localStorage.setItem(
       `bookingProfile:v1:${TENANT}:${EMAIL}`,
       JSON.stringify({
         v: 1,
         savedAt: Date.now(),
-        profile: { firstName: "Cached", nNumber: "N87654321" },
+        profile: {
+          ...contactFields,
+          nNumber: "N87654321",
+          school: "Tisch",
+          role: "Faculty",
+        },
       }),
     );
 
-    expect(readBookingProfile(TENANT, EMAIL)).toEqual({ firstName: "Cached" });
-    expect(localStorage.getItem(`bookingProfile:v1:${TENANT}:${EMAIL}`)).not.toContain(
-      "N87654321",
-    );
+    expect(readBookingProfile(TENANT, EMAIL)).toEqual({
+      school: "Tisch",
+      role: "Faculty",
+    });
+    const raw = localStorage.getItem(`bookingProfile:v1:${TENANT}:${EMAIL}`)!;
+    expect(raw).not.toContain("Cached");
+    expect(raw).not.toContain("212-555-0100");
+    expect(raw).not.toContain("N87654321");
+    expect(raw).toContain("Tisch");
   });
 
   it("forgets a profile after 90 days", () => {
@@ -224,20 +241,19 @@ describe("bookingProfileCache", () => {
 });
 
 describe("DetailsInput profile fallback", () => {
-  it("fills contact fields from the last booking when the API gave nothing", async () => {
-    writeBookingProfile(TENANT, EMAIL, savedProfile);
+  it("fills the Net ID and leaves name and phone empty", async () => {
+    writeBookingProfile(TENANT, EMAIL, { ...savedProfile, ...contactFields });
     renderDetails();
 
     await waitFor(() =>
-      expect(screen.getByDisplayValue("Cached")).toBeInTheDocument(),
+      expect(screen.getByDisplayValue("abc123")).toBeInTheDocument(),
     );
-    expect(screen.queryByDisplayValue("N87654321")).not.toBeInTheDocument();
-    expect(screen.getByDisplayValue("212-555-0100")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("abc123")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Cached")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("212-555-0100")).not.toBeInTheDocument();
   });
 
-  it("prefers identity API values over the cache", async () => {
-    writeBookingProfile(TENANT, EMAIL, savedProfile);
+  it("fills names from the identity API", async () => {
+    writeBookingProfile(TENANT, EMAIL, { ...savedProfile, ...contactFields });
     renderDetails({
       userApiData: {
         preferred_first_name: "Api",
@@ -248,30 +264,28 @@ describe("DetailsInput profile fallback", () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByDisplayValue("212-555-0100")).toBeInTheDocument(),
+      expect(screen.getByDisplayValue("Api")).toBeInTheDocument(),
     );
-    expect(screen.getByDisplayValue("Api")).toBeInTheDocument();
     expect(screen.getByDisplayValue("N11111111")).toBeInTheDocument();
     expect(screen.queryByDisplayValue("Cached")).not.toBeInTheDocument();
-  });
-
-  it("does not refill fields already answered in this request", async () => {
-    writeBookingProfile(TENANT, EMAIL, savedProfile);
-    renderDetails({ formData: { phoneNumber: "" } });
-
-    await waitFor(() =>
-      expect(screen.getByDisplayValue("Cached")).toBeInTheDocument(),
-    );
     expect(screen.queryByDisplayValue("212-555-0100")).not.toBeInTheDocument();
   });
 
+  it("does not refill a Net ID already answered in this request", async () => {
+    renderDetails({ formData: { netId: "" } });
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByDisplayValue("abc123")).not.toBeInTheDocument();
+  });
+
   it("never fills a VIP request", async () => {
-    writeBookingProfile(TENANT, EMAIL, savedProfile);
+    writeBookingProfile(TENANT, EMAIL, { ...savedProfile, ...contactFields });
     renderDetails({ formContext: FormContextLevel.VIP });
 
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByDisplayValue("Cached")).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue("212-555-0100")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("abc123")).not.toBeInTheDocument();
   });
 });
 

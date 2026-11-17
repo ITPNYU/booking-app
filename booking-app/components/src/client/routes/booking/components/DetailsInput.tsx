@@ -10,7 +10,6 @@ import {
 } from "react";
 
 import { useParams, useRouter } from "next/navigation";
-import { DEFAULT_TENANT } from "../../../../constants/tenants";
 import {
   BookingFormDropdown,
   BookingFormMultiSelect,
@@ -19,7 +18,6 @@ import {
 import {
   AttendeeAffiliation,
   FormContextLevel,
-  Inputs,
   Role,
   UserApiData,
 } from "../../../../types";
@@ -39,7 +37,6 @@ import { mapAffiliationToRole } from "../formPages/UserRolePage";
 import { useHasServicesStep } from "../hooks/useFormSteps";
 import useRequestFormState from "../hooks/useRequestFormState";
 import useSubmitRequest from "../hooks/useSubmitRequest";
-import { readBookingProfile } from "../utils/bookingProfileCache";
 import { buildBookingUrl } from "../utils/bookingUrlParser";
 import { formContextToFlowType } from "../utils/formSteps";
 import { isProductionScheduleRequired } from "../utils/productionSchedule";
@@ -261,29 +258,17 @@ export default function DetailsInput({
     }
   }, [userApiData, reset, isFullForm]);
 
-  // The requester's last booking fills the contact fields the identity API
-  // left empty, on the first visit to this step only: once the step has been
-  // seen, the answer set already holds these fields, cleared ones included.
+  // The signed-in Net ID fills an empty field on the first visit to this
+  // step only. Name and phone are not restored from a previous booking.
+  // Once the step has been seen, the answer set already holds the field,
+  // cleared ones included.
   const formDataOnMount = useRef(formData);
   useEffect(() => {
-    if (!isFullForm || !userEmail) return;
-    const profile = readBookingProfile(
-      (tenant as string) || DEFAULT_TENANT,
-      userEmail,
-    );
-    const fallbacks: Partial<Record<keyof Inputs, string | undefined>> = {
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      netId: ownNetId,
-      phoneNumber: profile.phoneNumber,
-    };
-    for (const [field, value] of Object.entries(fallbacks)) {
-      const key = field as keyof Inputs;
-      if (!value || formDataOnMount.current?.[key] !== undefined) continue;
-      if (getValues(key)) continue;
-      setValue(key, value, { shouldValidate: false });
-    }
-  }, [isFullForm, userEmail, ownNetId, tenant, getValues, setValue]);
+    if (!isFullForm || !ownNetId) return;
+    if (formDataOnMount.current?.netId !== undefined) return;
+    if (getValues("netId")) return;
+    setValue("netId", ownNetId, { shouldValidate: false });
+  }, [isFullForm, ownNetId, getValues, setValue]);
 
   // Next is gated by the same rule Submit uses: modifications need a valid
   // form; other requests are blocked by bans, safety training and blackouts.

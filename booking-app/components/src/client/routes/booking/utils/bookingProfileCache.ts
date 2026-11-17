@@ -1,21 +1,19 @@
 /**
- * The requester's own details from their last successful booking, kept in
- * localStorage per tenant and user. They fill the request form only where
+ * The requester's affiliation from their last successful booking, kept in
+ * localStorage per tenant and user. It fills the request form only where
  * the identity API leaves a gap: it is often unavailable, and it never
- * returns a phone number or school.
+ * returns a school.
  *
- * Only the requester's own details belong here. VIP and walk-in requests
- * describe someone else and must neither read nor write the profile.
- * Signing out removes every saved profile in this browser.
+ * Only school, department, and role belong here. Name, phone, and N-number
+ * are not stored. VIP and walk-in requests describe someone else and must
+ * neither read nor write the profile. Signing out removes every saved
+ * profile in this browser.
  */
 
 const VERSION = 1;
 const MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 
 export const BOOKING_PROFILE_FIELDS = [
-  "firstName",
-  "lastName",
-  "phoneNumber",
   "school",
   "otherSchool",
   "department",
@@ -79,8 +77,9 @@ export function readBookingProfile(
     }
     const storedProfile = stored.profile ?? {};
     const profile = pickProfile(storedProfile);
-    // Older entries stored an N-number. Drop it the next time one is read.
-    if ("nNumber" in storedProfile) {
+    // Older entries stored name, phone, and N-number. Drop anything that is
+    // not affiliation the next time one is read.
+    if (Object.keys(storedProfile).length !== Object.keys(profile).length) {
       try {
         storage.setItem(key, JSON.stringify({ ...stored, profile }));
       } catch {
