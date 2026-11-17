@@ -77,3 +77,19 @@ describe("useExistingBooking service decisions", () => {
     expect(setServiceDecisions).toHaveBeenCalledWith({});
   });
 });
+
+describe("useExistingBooking department collaboration (#1383)", () => {
+  it("loads the saved answer, so editing or modifying keeps it", () => {
+    const { setFormData } = loadWith(
+      booking({
+        departmentCollaboration: "Yes",
+        collaboratingDepartments: ["ITP", "Other"],
+      }),
+    );
+
+    expect(setFormData.mock.calls[0][0]).toMatchObject({
+      departmentCollaboration: "Yes",
+      collaboratingDepartments: ["ITP", "Other"],
+    });
+  });
+});

@@ -34,6 +34,8 @@ const emptyEmailNotifications = (): EmailNotifications => ({
   noShow: "",
   closed: "",
   approvedUser: "",
+  reassignedUser: "",
+  reassignedPreviousUser: "",
 });
 
 /**
