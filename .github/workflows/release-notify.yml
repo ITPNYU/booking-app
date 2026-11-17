@@ -24,7 +24,7 @@ name: Release Notify
 #   vars.RELEASE_NOTIFY_EMAIL_TO       Recipients, comma separated. Defaults to
 #                                      mediacommons.supervisors@nyu.edu.
 #   vars.RELEASE_NOTIFY_EMAIL_CC       Cc recipients, comma separated. Defaults
-#                                      to booking-app@itp.nyu.edu.
+#                                      to booking-app-devs@itp.nyu.edu.
 #   secrets.GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN
 #                                      The Google account the app already sends
 #                                      booking emails from (Gmail API). Read
@@ -133,7 +133,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
           EMAIL_TO: ${{ github.event.inputs.email_to || vars.RELEASE_NOTIFY_EMAIL_TO || 'mediacommons.supervisors@nyu.edu' }}
-          EMAIL_CC: ${{ vars.RELEASE_NOTIFY_EMAIL_CC || 'booking-app@itp.nyu.edu' }}
+          EMAIL_CC: ${{ vars.RELEASE_NOTIFY_EMAIL_CC || 'booking-app-devs@itp.nyu.edu' }}
           TITLE: ${{ steps.issues.outputs.title }}
           EMOJI: ${{ steps.issues.outputs.emoji }}
           RELEASE_PR: ${{ steps.issues.outputs.release_pr }}
