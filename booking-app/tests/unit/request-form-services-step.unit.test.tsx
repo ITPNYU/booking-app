@@ -209,6 +209,53 @@ describe("Details step", () => {
     await user.clear(screen.getByLabelText(/Reservation Title/));
     expect(setIsDetailsValid).toHaveBeenLastCalledWith(false);
   });
+
+  it("lets a modification record attendance above room capacity", async () => {
+    const user = userEvent.setup();
+    (usePathname as any).mockReturnValue("/mc/modification/form/evt1");
+    render(
+      wrap(
+        <DetailsInput
+          formContext={FormContextLevel.MODIFICATION}
+          calendarEventId="evt1"
+        />,
+        bookingContext({
+          selectedRooms: [{ ...securityRoom, capacity: "20" }],
+        }),
+      ),
+    );
+
+    await user.type(screen.getByLabelText(/Reservation Title/), "Demo");
+    await user.type(screen.getByLabelText(/Reservation Description/), "A demo");
+    await user.type(screen.getByLabelText(/Expected Attendance/), "50");
+    await user.tab();
+
+    expect(
+      screen.queryByText(/exceeds maximum capacity/i),
+    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Next" })).toBeEnabled(),
+    );
+  });
+
+  it("rejects attendance above room capacity on a new request", async () => {
+    const user = userEvent.setup();
+    render(
+      wrap(
+        <DetailsInput formContext={FormContextLevel.FULL_FORM} />,
+        bookingContext({ selectedRooms: [bareRoom] }),
+      ),
+    );
+
+    await user.type(screen.getByLabelText(/Expected Attendance/), "50");
+    await user.tab();
+
+    expect(
+      await screen.findByText(
+        "Expected attendance exceeds maximum capacity of 20",
+      ),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("Services step", () => {

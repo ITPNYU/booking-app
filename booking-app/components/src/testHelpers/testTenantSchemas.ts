@@ -39,6 +39,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
   roles: ["Student", "Faculty", "Staff"],
   form: {
     showBookingType: true,
+    showDepartmentCollaboration: false,
     showNNumber: true,
     showSponsor: true,
     services: {
@@ -221,6 +222,9 @@ const baseMediaCommonsSchema: SchemaContextType = {
     noShow: "You have been marked as no-show.",
     closed: "Your booking has been closed.",
     approvedUser: "Your booking has been approved.",
+    reassignedUser: "This reservation has been assigned to you.",
+    reassignedPreviousUser:
+      "This reservation has been reassigned to ${newRequester}.",
   },
 };
 

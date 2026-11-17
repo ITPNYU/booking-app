@@ -1,0 +1,91 @@
+name: Dev Test Nag
+
+# Every weekday morning, list the PRs merged to main that are not yet released
+# to prod and still have no `dev-tested` label, and remind their authors in
+# Google Chat. Authors clear a PR by commenting `/tested` on it (see
+# dev-test-request.yml). PRs already released to prod, PRs labeled
+# `no-dev-test`, and PRs opened by bots are skipped.
+#
+# Uses the same secrets.GCHAT_WEBHOOK_URL and vars.GCHAT_USER_MAP as
+# dev-test-request.yml.
+
+permissions:
+  contents: read
+  pull-requests: read
+
+on:
+  schedule:
+    # Weekdays at 14:00 UTC (10:00 AM ET during standard time, 9:00 AM ET during daylight time).
+    - cron: "0 14 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "How many days back to look for merged PRs and prod releases"
+        type: string
+        default: "60"
+
+jobs:
+  nag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: List merged PRs that are not on prod and not yet tested on dev
+        id: prs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DAYS: ${{ github.event.inputs.days || '60' }}
+        run: |
+          .github/scripts/list_unreleased_prs.sh dev-tested no-dev-test > prs.json
+          echo "count=$(jq length prs.json)" >> "$GITHUB_OUTPUT"
+          cat prs.json
+
+      - name: Post the reminder to Google Chat
+        if: steps.prs.outputs.count != '0'
+        env:
+          GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
+          GCHAT_USER_MAP: ${{ vars.GCHAT_USER_MAP }}
+        run: |
+          if [ -z "${GCHAT_WEBHOOK_URL}" ]; then
+            echo "Error: GCHAT_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+          USER_MAP='{}'
+          if [ -n "${GCHAT_USER_MAP}" ]; then
+            USER_MAP=$(jq -c '.' <<<"${GCHAT_USER_MAP}") || { echo "Error: GCHAT_USER_MAP is not valid JSON."; exit 1; }
+          fi
+
+          # One block per author: mention, then their PRs oldest first.
+          BODY=$(jq -r --argjson map "$USER_MAP" '
+            [ group_by(.author)[] |
+              (.[0].author as $login |
+                (if $map[$login] then "<users/\($map[$login])>" else "@\($login)" end)) + "\n" +
+              (map("• #\(.number) \(.title) (merged \(.mergedAt[:10]))\n  \(.url)") | join("\n"))
+            ] | join("\n\n")
+          ' prs.json)
+
+          TEXT=$(printf '%s\n' \
+            "These PRs are on dev but have not been confirmed as tested. Please test them on dev and comment \`/tested\` on the PR." \
+            "" \
+            "${BODY}")
+          PAYLOAD=$(jq -n --arg text "$TEXT" '{text: $text}')
+
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            --data "${PAYLOAD}" \
+            "${GCHAT_WEBHOOK_URL}" \
+            --connect-timeout 10 --max-time 30 || echo "000")
+
+          if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
+            echo "Reminder sent (HTTP ${HTTP_STATUS})"
+          else
+            echo "Failed to send reminder (HTTP ${HTTP_STATUS})"
+            cat /tmp/response.txt
+            exit 1
+          fi

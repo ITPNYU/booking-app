@@ -1,0 +1,265 @@
+name: Release Notify
+
+# After a release deploys successfully, email the issues it resolves to the
+# Media Commons supervisors:
+#   staging  -> "Now on staging" with each linked issue's title and link
+#   prod     -> "Released to production" with each linked issue's title and link
+# Only issues linked to the released PRs (Development section / closing
+# keywords) are listed; PRs without a linked issue are not mentioned. Nothing is
+# sent when the release has no linked issues.
+#
+# The same message can also be posted to the client-facing Google Chat space.
+# That post is off unless the repository variable RELEASE_NOTIFY_GCHAT is "true".
+#
+# Idempotency: the release PR is labeled `announced-staging` / `announced-prod`
+# right before its email is sent, and a labeled release is skipped, so
+# re-running or repeating a deploy never announces the same release twice. The
+# label is removed again when the email fails.
+#
+# Testing: run this workflow by hand with `email_to` set. The email goes to
+# that address only, the label is neither checked nor set, and nothing is
+# posted to Google Chat.
+#
+# Configuration:
+#   vars.RELEASE_NOTIFY_EMAIL_TO       Recipients, comma separated. Defaults to
+#                                      mediacommons.supervisors@nyu.edu.
+#   secrets.GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN
+#                                      The Google account the app already sends
+#                                      booking emails from (Gmail API). Read
+#                                      from the production environment for
+#                                      both staging and prod releases.
+#   vars.RELEASE_NOTIFY_GCHAT          "true" to also post to Google Chat.
+#   secrets.GCHAT_RELEASE_WEBHOOK_URL  Incoming webhook of the client-facing space
+#                                      (separate from the team space webhook).
+
+permissions:
+  contents: read
+  pull-requests: write
+  # Creating the `announced-*` label the first time needs issues: write.
+  issues: write
+
+on:
+  workflow_run:
+    workflows:
+      - "Deploy STAGING to App Engine"
+      - "Deploy PRODUCTION to App Engine"
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Release branch"
+        type: choice
+        options: [staging, prod]
+        required: true
+      head_sha:
+        description: "Merge commit of a release PR into that branch (defaults to the branch tip)"
+        required: false
+      dry_run:
+        description: "Print the message in the job log instead of sending it"
+        type: boolean
+        default: true
+      email_to:
+        description: "Test: send only to this address, without marking the release as announced"
+        required: false
+
+env:
+  BRANCH: ${{ github.event.workflow_run.head_branch || github.event.inputs.branch }}
+  DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+  TEST_EMAIL_TO: ${{ github.event.inputs.email_to }}
+
+jobs:
+  notify:
+    name: Announce the released issues
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       (github.event.workflow_run.head_branch == 'staging' ||
+        github.event.workflow_run.head_branch == 'prod'))
+    runs-on: ubuntu-latest
+    # The current GOOGLE_REFRESH_TOKEN is the production environment's secret;
+    # the repository-level one is stale.
+    environment: production
+
+    steps:
+      - name: Check out the scripts
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Find the issues in this release
+        id: issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.inputs.head_sha }}
+        run: |
+          case "$BRANCH" in
+            staging) echo "title=Now on staging" >> "$GITHUB_OUTPUT"; echo "emoji=🧪" >> "$GITHUB_OUTPUT" ;;
+            prod)    echo "title=Released to production" >> "$GITHUB_OUTPUT"; echo "emoji=🚀" >> "$GITHUB_OUTPUT" ;;
+            *) echo "Unknown release branch: ${BRANCH}"; exit 1 ;;
+          esac
+          if [ -z "${HEAD_SHA}" ]; then
+            HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/branches/${BRANCH}" --jq '.commit.sha')
+          fi
+          # The release PR carries the "announced" marker; skip when it is already set.
+          gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/pulls" \
+            | jq --arg base "$BRANCH" '[.[] | select(.base.ref == $base and .merged_at != null)] | sort_by(.merged_at) | last // empty' > release.json
+          RELEASE_PR=$(jq -r '.number // empty' release.json)
+          if [ -z "$RELEASE_PR" ]; then
+            echo "No merged release PR into ${BRANCH} found for ${HEAD_SHA}; nothing to announce."
+            echo "count=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ -n "${TEST_EMAIL_TO}" ]; then
+            echo "Test send: the announced-${BRANCH} label is not checked."
+          elif jq -e --arg l "announced-${BRANCH}" '[.labels[].name] | index($l)' release.json > /dev/null; then
+            echo "Release PR #${RELEASE_PR} is already labeled announced-${BRANCH}; nothing to announce."
+            echo "count=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "release_pr=${RELEASE_PR}" >> "$GITHUB_OUTPUT"
+          NUMBERS=$(.github/scripts/list_release_prs.sh "${HEAD_SHA}" "${BRANCH}" | tr '\n' ' ')
+          echo "PRs: ${NUMBERS:-none}"
+          .github/scripts/list_release_issues.sh "${NUMBERS}" > issues.json
+          echo "count=$(jq length issues.json)" >> "$GITHUB_OUTPUT"
+          jq -r '.[] | "#\(.number) \(.title)"' issues.json
+
+      - name: Send the email
+        if: steps.issues.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          EMAIL_TO: ${{ github.event.inputs.email_to || vars.RELEASE_NOTIFY_EMAIL_TO || 'mediacommons.supervisors@nyu.edu' }}
+          TITLE: ${{ steps.issues.outputs.title }}
+          EMOJI: ${{ steps.issues.outputs.emoji }}
+          RELEASE_PR: ${{ steps.issues.outputs.release_pr }}
+        run: |
+          # EMAIL_TO goes into the To: header, so it must be plain addresses
+          # separated by commas: no line breaks or anything else that could add
+          # a header.
+          ADDRESS='[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+'
+          if ! [[ "${EMAIL_TO}" =~ ^${ADDRESS}(,\ *${ADDRESS})*$ ]]; then
+            echo "Error: the recipients must be email addresses separated by commas."
+            exit 1
+          fi
+
+          # Same content as the Chat message: a heading, then one linked "#number title" per issue.
+          {
+            printf '<p><b>%s %s</b></p>\n<ul>\n' "${EMOJI}" "${TITLE}"
+            # Some mail clients do not render &apos;, so use the numeric form.
+            jq -r '.[] | "<li><a href=\"\(.url | @html)\">#\(.number) \(.title | @html)</a></li>" | gsub("&apos;"; "&#39;")' issues.json
+            printf '</ul>\n'
+          } > body.html
+
+          if [ "${DRY_RUN}" = "1" ]; then
+            echo "--- DRY RUN: email not sent ---"
+            echo "To: ${EMAIL_TO}"
+            echo "Subject: [Booking App] ${TITLE}"
+            cat body.html
+            exit 0
+          fi
+          if [ -z "${GOOGLE_CLIENT_ID}" ] || [ -z "${GOOGLE_CLIENT_SECRET}" ] || [ -z "${GOOGLE_REFRESH_TOKEN}" ]; then
+            echo "Error: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_REFRESH_TOKEN secrets must be set."
+            exit 1
+          fi
+
+          # Claim the release before sending, so a failure after the send can
+          # never leave it sendable again. The claim is released if the send fails.
+          release_claim() {
+            [ -n "${TEST_EMAIL_TO}" ] && return 0
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/issues/${RELEASE_PR}/labels/announced-${BRANCH}" > /dev/null \
+              || echo "::warning::Could not remove announced-${BRANCH} from #${RELEASE_PR}; remove it by hand before re-running."
+          }
+          if [ -z "${TEST_EMAIL_TO}" ]; then
+            gh label create "announced-${BRANCH}" --repo "$GITHUB_REPOSITORY" --color 5319E7 --description "Release was announced" --force
+            gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${RELEASE_PR}/labels" -f "labels[]=announced-${BRANCH}" > /dev/null
+          fi
+
+          # Same Google account and Gmail API the app sends booking emails with.
+          curl -s -o /tmp/token.json -X POST https://oauth2.googleapis.com/token \
+            --data-urlencode "client_id=${GOOGLE_CLIENT_ID}" \
+            --data-urlencode "client_secret=${GOOGLE_CLIENT_SECRET}" \
+            --data-urlencode "refresh_token=${GOOGLE_REFRESH_TOKEN}" \
+            --data-urlencode "grant_type=refresh_token" \
+            --connect-timeout 10 --max-time 30 || true
+          ACCESS_TOKEN=$(jq -r '.access_token // empty' /tmp/token.json 2>/dev/null || true)
+          if [ -z "${ACCESS_TOKEN}" ]; then
+            echo "Failed to get a Google access token."
+            jq -r '"\(.error // "no response"): \(.error_description // "")"' /tmp/token.json 2>/dev/null || true
+            release_claim
+            exit 1
+          fi
+          echo "::add-mask::${ACCESS_TOKEN}"
+
+          # The body is base64 so long titles and non-ASCII text survive transport.
+          {
+            printf "From: 'Media Commons Booking App' <>\r\n"
+            printf 'To: %s\r\n' "${EMAIL_TO}"
+            printf 'Subject: [Booking App] %s\r\n' "${TITLE}"
+            printf 'MIME-Version: 1.0\r\n'
+            printf 'Content-Type: text/html; charset=utf-8\r\n'
+            printf 'Content-Transfer-Encoding: base64\r\n'
+            printf '\r\n'
+            base64 -w 76 body.html
+          } > message.eml
+          jq -n --arg raw "$(base64 -w 0 message.eml | tr '+/' '-_' | tr -d '=')" '{raw: $raw}' > payload.json
+
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            --data @payload.json \
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send" \
+            --connect-timeout 10 --max-time 30 || echo "000")
+
+          if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
+            echo "Release email sent to ${EMAIL_TO} (HTTP ${HTTP_STATUS})"
+          else
+            echo "Failed to send the release email (HTTP ${HTTP_STATUS})"
+            cat /tmp/response.txt
+            # Nothing was sent: release the claim so a re-run can send.
+            release_claim
+            exit 1
+          fi
+
+      - name: Post to Google Chat
+        # Runs after the email, so the release is already claimed. A failure here
+        # leaves the label in place: the email went out and must not be repeated.
+        if: >-
+          steps.issues.outputs.count != '0' &&
+          vars.RELEASE_NOTIFY_GCHAT == 'true' &&
+          github.event.inputs.email_to == ''
+        env:
+          GCHAT_RELEASE_WEBHOOK_URL: ${{ secrets.GCHAT_RELEASE_WEBHOOK_URL }}
+          TITLE: ${{ steps.issues.outputs.title }}
+          EMOJI: ${{ steps.issues.outputs.emoji }}
+        run: |
+          # <URL|text> renders as a link in Google Chat; "<", ">" and "|" inside the
+          # title would end the link early, so they are swapped for full-width forms.
+          LIST=$(jq -r '.[] | "• <\(.url)|#\(.number) \(.title | gsub("<"; "＜") | gsub(">"; "＞") | gsub("\\|"; "｜"))>"' issues.json)
+          TEXT=$(printf '%s\n' "${EMOJI} *${TITLE}*" "${LIST}")
+          PAYLOAD=$(jq -n --arg text "$TEXT" '{text: $text}')
+
+          if [ "${DRY_RUN}" = "1" ]; then
+            echo "--- DRY RUN: message not sent ---"
+            printf '%s\n' "${TEXT}"
+            exit 0
+          fi
+          if [ -z "${GCHAT_RELEASE_WEBHOOK_URL}" ]; then
+            echo "Error: GCHAT_RELEASE_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            --data "${PAYLOAD}" \
+            "${GCHAT_RELEASE_WEBHOOK_URL}" \
+            --connect-timeout 10 --max-time 30 || echo "000")
+
+          if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
+            echo "Release notification sent (HTTP ${HTTP_STATUS})"
+          else
+            echo "Failed to post to Google Chat (HTTP ${HTTP_STATUS}); the email was already sent."
+            cat /tmp/response.txt
+            exit 1
+          fi

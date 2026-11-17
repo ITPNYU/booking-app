@@ -10,7 +10,10 @@ import {
 } from "@mui/material";
 import { styled } from "@mui/system";
 import React from "react";
-import { formatOrigin } from "@/components/src/utils/formatters";
+import {
+  formatDepartmentCollaboration,
+  formatOrigin,
+} from "@/components/src/utils/formatters";
 import { mergeRoomIdsWithAnnex } from "@/components/src/utils/resourceServicesUtils";
 import {
   getBookingServicesByRoom,
@@ -82,6 +85,9 @@ export type BookingDetailsSummaryBooking = BookingServicesSource & {
   title?: string | null;
   description?: string | null;
   bookingType?: string | null;
+  departmentCollaboration?: string;
+  collaboratingDepartments?: string[];
+  otherCollaboratingDepartments?: string;
   expectedAttendance?: string | null;
   attendeeAffiliation?: string | null;
   productionSchedule?: string | null;
@@ -258,6 +264,15 @@ export default function BookingDetailsSummary({
               <TableRow>
                 <LabelCell>Booking Type</LabelCell>
                 <TableCell>{booking.bookingType ?? BLANK}</TableCell>
+              </TableRow>
+            )}
+            {(schema.form.showDepartmentCollaboration ||
+              booking.departmentCollaboration) && (
+              <TableRow>
+                <LabelCell>Department Collaboration</LabelCell>
+                <TableCell>
+                  {formatDepartmentCollaboration(booking) ?? BLANK}
+                </TableCell>
               </TableRow>
             )}
             <TableRow>

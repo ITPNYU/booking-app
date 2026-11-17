@@ -1,0 +1,109 @@
+name: Production OOM Alert
+
+# Posts to Google Chat only when production ran out of memory more often than
+# the threshold in the last 24 hours. A quiet day posts nothing.
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # Daily at 14:00 UTC (10:00 AM ET during standard time, 9:00 AM ET during daylight time).
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+    inputs:
+      threshold:
+        description: "Alert when the 24h count is at least this many"
+        type: string
+        default: "3"
+      dry_run:
+        description: "Print the count and the message without posting"
+        type: boolean
+        default: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Count OOM kills in the last 24 hours
+        id: count
+        env:
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          set -eo pipefail
+          # App Engine logs this line each time it kills an instance for
+          # exceeding its memory limit. `default` is the production service.
+          FILTER='resource.type="gae_app" AND resource.labels.module_id="default" AND textPayload:"Exceeded hard memory limit"'
+          # A failed read (missing permission, API error) must fail the job
+          # instead of looking like a quiet day.
+          gcloud logging read "${FILTER}" \
+            --project="${PROJECT_ID}" \
+            --freshness=1d \
+            --limit=1000 \
+            --format="value(insertId)" > /tmp/oom.txt
+          COUNT=$(grep -c . /tmp/oom.txt || true)
+          echo "OOM kills in the last 24h: ${COUNT}"
+          echo "count=${COUNT}" >> "$GITHUB_OUTPUT"
+
+      - name: Post alert to Google Chat
+        env:
+          GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
+          PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          COUNT: ${{ steps.count.outputs.count }}
+          THRESHOLD: ${{ inputs.threshold || '3' }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          set -eo pipefail
+          if ! [[ "${THRESHOLD}" =~ ^[0-9]+$ ]]; then
+            echo "Error: threshold must be a whole number, got '${THRESHOLD}'."
+            exit 1
+          fi
+          if [ "${COUNT}" -lt "${THRESHOLD}" ]; then
+            echo "Below the threshold (${COUNT} < ${THRESHOLD}); nothing to post."
+            exit 0
+          fi
+
+          LOGS_URL="https://console.cloud.google.com/logs/query;query=resource.type%3D%22gae_app%22%20textPayload%3A%22Exceeded%20hard%20memory%20limit%22;duration=P1D?project=${PROJECT_ID}"
+          MESSAGE=$(printf '%s\n' \
+            "Production ran out of memory ${COUNT} times in the last 24 hours (alert threshold: ${THRESHOLD})." \
+            "Each one kills an instance and fails the requests it was serving. Check what was deployed recently and which routes were running at the time." \
+            "Logs: ${LOGS_URL}")
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "Dry run; would post:"
+            echo "${MESSAGE}"
+            exit 0
+          fi
+
+          if [ -z "${GCHAT_WEBHOOK_URL}" ]; then
+            echo "Error: GCHAT_WEBHOOK_URL secret is not set."
+            exit 1
+          fi
+
+          PAYLOAD=$(jq -n --arg text "${MESSAGE}" '{text: $text}')
+
+          HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            -H "Content-Type: application/json; charset=UTF-8" \
+            --data "${PAYLOAD}" \
+            "${GCHAT_WEBHOOK_URL}" \
+            --connect-timeout 10 --max-time 30 || echo "000")
+
+          if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
+            echo "Alert sent (HTTP ${HTTP_STATUS})"
+          else
+            echo "Failed to send alert (HTTP ${HTTP_STATUS})"
+            cat /tmp/response.txt
+            exit 1
+          fi
