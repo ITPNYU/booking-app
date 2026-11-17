@@ -4,6 +4,9 @@ name: Release Project Cards
 # linked to the released PRs on the Booking App project board:
 #   staging  -> Status "Test - Staging"
 #   prod     -> Status "Done" and close the issue
+# A prod release only finishes the issues of PRs that are also on staging. PRs
+# that went to prod without passing through staging are reported and their
+# issues are left open, in whatever status they had.
 # Closed issues and issues that are not on the project are left alone. A
 # release is the merge of a release PR (main -> staging, main -> prod); the PRs
 # it bundles are read from its commits.
@@ -84,8 +87,13 @@ jobs:
             HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/branches/${BRANCH}" --jq '.commit.sha')
           fi
           NUMBERS=$(.github/scripts/list_release_prs.sh "${HEAD_SHA}" "${BRANCH}" | tr '\n' ' ')
-          echo "numbers=${NUMBERS}" >> "$GITHUB_OUTPUT"
           echo "PRs: ${NUMBERS:-none}"
+          if [ "${BRANCH}" = "prod" ] && [ -n "${NUMBERS}" ]; then
+            # shellcheck disable=SC2086
+            NUMBERS=$(.github/scripts/filter_prs_on_branch.sh staging ${NUMBERS} | tr '\n' ' ')
+            echo "PRs that are also on staging: ${NUMBERS:-none}"
+          fi
+          echo "numbers=${NUMBERS}" >> "$GITHUB_OUTPUT"
 
       - name: Update the linked issues' cards
         if: steps.prs.outputs.numbers != ''
