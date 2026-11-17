@@ -481,6 +481,25 @@ describe("mcBookingMachine", () => {
     expect(mockLogServerBookingChange).toHaveBeenCalled();
   });
 
+  it("adds the note given with the no-show to its history entry", async () => {
+    const actor = createTestActor({ isWalkIn: true, email: "user@nyu.edu" });
+
+    actor.send({ type: "noShow", reason: "Waited 30 minutes" });
+
+    await waitForCondition(actor, (snapshot) => snapshot.matches("Closed"));
+    await waitForMockCall(
+      mockLogServerBookingChange,
+      (arg) => arg.status === "NO-SHOW"
+    );
+
+    expect(mockLogServerBookingChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "NO-SHOW",
+        note: "Booking marked as no show: Waited 30 minutes",
+      })
+    );
+  });
+
   it("marks no show with services, transitions through Service Closeout, and closes", async () => {
     // Create an approved booking with services
     const actor = createTestActor({

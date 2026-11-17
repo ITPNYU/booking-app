@@ -102,6 +102,8 @@ export enum BookingStatusLabel {
   CLOSED = "CLOSED",
   EQUIPMENT = "EQUIPMENT",
   NO_SHOW = "NO-SHOW",
+  /** A history note added by staff; not a booking status (#1409). */
+  NOTE = "NOTE",
   PENDING = "PENDING",
   PRE_APPROVED = "PRE-APPROVED",
   DECLINED = "DECLINED",
@@ -182,6 +184,12 @@ export type Inputs = {
   /** Free-text production schedule; required when duration exceeds schema threshold. */
   productionSchedule?: string;
   bookingType: string;
+  /** "Yes" or "No": is this a collaboration between two or more departments (#1383). */
+  departmentCollaboration?: string;
+  /** The departments collaborating, when departmentCollaboration is "Yes". */
+  collaboratingDepartments?: string[];
+  /** The department name(s) typed in when "Other" is a collaborating department. */
+  otherCollaboratingDepartments?: string;
   attendeeAffiliation: string;
   roomSetup: string;
   setupDetails: string;

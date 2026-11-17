@@ -4,9 +4,11 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 describe("useAllowedStatuses Hook - Equipment Context", () => {
-  // For SERVICES page we expect the full set of displayable statuses (exclude WALK_IN)
+  // For SERVICES page we expect the full set of displayable statuses (exclude WALK_IN and NOTE)
   const expectedServiceStatuses = Object.values(BookingStatusLabel).filter(
-    (status) => status !== BookingStatusLabel.WALK_IN
+    (status) =>
+      status !== BookingStatusLabel.WALK_IN &&
+      status !== BookingStatusLabel.NOTE
   );
 
   describe("PageContextLevel.SERVICES", () => {
@@ -76,7 +78,9 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
       // USER context should return all displayable statuses (excluding WALK_IN)
       const expectedUserStatuses = Object.values(BookingStatusLabel).filter(
-        (status) => status !== BookingStatusLabel.WALK_IN
+        (status) =>
+      status !== BookingStatusLabel.WALK_IN &&
+      status !== BookingStatusLabel.NOTE
       );
 
       expect(userResult.current).toEqual(expectedUserStatuses);
@@ -95,7 +99,9 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
       // Admin should have all displayable statuses
       const expectedAdminStatuses = Object.values(BookingStatusLabel).filter(
-        (status) => status !== BookingStatusLabel.WALK_IN
+        (status) =>
+      status !== BookingStatusLabel.WALK_IN &&
+      status !== BookingStatusLabel.NOTE
       );
       expect(adminResult.current).toEqual(expectedAdminStatuses);
     });
@@ -112,7 +118,9 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
 
       // Liaison should have all displayable statuses
       const expectedLiaisonStatuses = Object.values(BookingStatusLabel).filter(
-        (status) => status !== BookingStatusLabel.WALK_IN
+        (status) =>
+      status !== BookingStatusLabel.WALK_IN &&
+      status !== BookingStatusLabel.NOTE
       );
       expect(liaisonResult.current).toEqual(expectedLiaisonStatuses);
     });
@@ -179,5 +187,18 @@ describe("useAllowedStatuses Hook - Equipment Context", () => {
       expect(allowedStatuses).toContain(BookingStatusLabel.EQUIPMENT);
       expect(BookingStatusLabel.EQUIPMENT).toBe("EQUIPMENT");
     });
+  });
+
+  it("never offers NOTE, which marks a history note rather than a booking status", () => {
+    for (const pageContext of [
+      PageContextLevel.USER,
+      PageContextLevel.PA,
+      PageContextLevel.LIAISON,
+      PageContextLevel.SERVICES,
+      PageContextLevel.ADMIN,
+    ]) {
+      const { result } = renderHook(() => useAllowedStatuses(pageContext));
+      expect(result.current).not.toContain(BookingStatusLabel.NOTE);
+    }
   });
 });

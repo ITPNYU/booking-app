@@ -28,7 +28,11 @@ const historyTimeLabel = (value: unknown, suffix = "") => {
   return `${formatHistoryDateTime(instant)}${suffix}`;
 };
 
-export default function useSortBookingHistory(booking: BookingRow) {
+/** `refreshKey`: change it to reload the history, e.g. after adding a note. */
+export default function useSortBookingHistory(
+  booking: BookingRow,
+  refreshKey = 0,
+) {
   const [rows, setRows] = useState<ReactElement[]>([]);
 
   useEffect(() => {
@@ -45,9 +49,11 @@ export default function useSortBookingHistory(booking: BookingRow) {
         );
         const resolvedNotes = resolvePreApprovedHistoryNotes(sortedLogs);
         const sortedRows = sortedLogs.map((log, index) => {
+          // MODIFIED rows show their own note when they have one, e.g. a
+          // requester change; otherwise who made the modification.
           const note =
             log.status === BookingStatusLabel.MODIFIED
-              ? `Modified by ${log.changedBy}`
+              ? log.note || `Modified by ${log.changedBy}`
               : resolvedNotes[index];
           return (
             <TableRow key={log.id}>
@@ -143,7 +149,7 @@ export default function useSortBookingHistory(booking: BookingRow) {
       }
     };
     fetchLogs();
-  }, [booking]);
+  }, [booking, refreshKey]);
 
   return rows;
 }

@@ -67,6 +67,8 @@ function getMcTestSchema(tenant: string): SchemaContextType {
     roles: ["Student", "Faculty", "Staff"],
     form: {
       ...base.form,
+      // Off so the shared booking-flow helpers don't need to answer it.
+      showDepartmentCollaboration: false,
       showNNumber: true,
       showSponsor: true,
       productionSchedule: {

@@ -274,7 +274,8 @@ async function getLatestLogStatusByRequestNumber(
     const req = Number(log?.requestNumber);
     if (!Number.isFinite(req)) continue;
     const statusUpper = normalizeStatusUpper(log?.status);
-    if (!statusUpper) continue;
+    // History notes aren't status changes.
+    if (!statusUpper || statusUpper === "NOTE") continue;
     const ms = getChangedAtMillis(log);
     const prev = latestByReq.get(req);
     if (!prev || ms >= prev.ms) {
