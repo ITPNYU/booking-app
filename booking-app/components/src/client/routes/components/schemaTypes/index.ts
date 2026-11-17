@@ -7,6 +7,11 @@
 export { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 
 export {
+  approvalEffectSchema,
+  approvalEventSchema,
+  approvalFlowSchema,
+  approvalGuardSchema,
+  approvalStateSchema,
   bookingDetailRoleSchema,
   formAlertSeveritySchema,
   requestLimitBucketKeySchema,
@@ -20,6 +25,8 @@ export {
 } from "./schemas";
 
 export type {
+  ApprovalFlow,
+  ApprovalState,
   Attestation,
   BookingDetailRole,
   ContextLabels,
@@ -62,6 +69,7 @@ export {
   BOOKING_DETAIL_ROLES,
   DEFAULT_MEMO_ROLES,
   DEFAULT_WEBCHECKOUT_ROLES,
+  approvalFlowEditorStarter,
   defaultAttestation,
   defaultFormAlerts,
   defaultProductionSchedule,

@@ -678,6 +678,348 @@ const autoCancelSchema = z.union([
     .loose(),
 ]);
 
+export const APPROVAL_EVENTS = [
+  "approve",
+  "decline",
+  "cancel",
+  "edit",
+  "checkIn",
+  "checkOut",
+  "noShow",
+  "Modify",
+  "autoCloseScript",
+  "approveStaff",
+  "declineStaff",
+  "closeoutStaff",
+  "approveCatering",
+  "declineCatering",
+  "closeoutCatering",
+  "approveSetup",
+  "declineSetup",
+  "closeoutSetup",
+  "approveCleaning",
+  "declineCleaning",
+  "closeoutCleaning",
+  "approveSecurity",
+  "declineSecurity",
+  "closeoutSecurity",
+  "approveEquipment",
+  "declineEquipment",
+  "closeoutEquipment",
+  "approveFurnishings",
+  "declineFurnishings",
+  "closeoutFurnishings",
+] as const;
+
+export const APPROVAL_GUARDS = [
+  "shouldAutoApprove",
+  "servicesRequested",
+  "servicesApproved",
+  "servicesDeclined",
+  "isVip",
+  "isVip AND servicesRequested",
+  "staffRequested",
+  "staffApproved",
+  "staffAlreadyApproved",
+  "staffAlreadyDeclined",
+  "staffAutoCloseout",
+  "caterRequested",
+  "cateringApproved",
+  "cateringAlreadyApproved",
+  "cateringAlreadyDeclined",
+  "cateringAutoCloseout",
+  "setupRequested",
+  "setupApproved",
+  "setupAlreadyApproved",
+  "setupAlreadyDeclined",
+  "setupAutoCloseout",
+  "cleanRequested",
+  "cleanApproved",
+  "cleaningAlreadyApproved",
+  "cleaningAlreadyDeclined",
+  "cleaningAutoCloseout",
+  "securityRequested",
+  "securityApproved",
+  "securityAlreadyApproved",
+  "securityAlreadyDeclined",
+  "securityAutoCloseout",
+  "equipRequested",
+  "equipApproved",
+  "equipmentAlreadyApproved",
+  "equipmentAlreadyDeclined",
+  "equipmentAutoCloseout",
+  "furnishingsRequested",
+  "furnishingsApproved",
+  "furnishingsAlreadyApproved",
+  "furnishingsAlreadyDeclined",
+  "furnishingsAutoCloseout",
+] as const;
+
+export const APPROVAL_EFFECTS = [
+  "sendHTMLEmail",
+  "createCalendarEvent",
+  "updateCalendarEvent",
+  "queueCancelProcessing",
+  "deleteCalendarEvent",
+  "logStateEntry",
+  "logCanceledAfterAutomaticTransition",
+  "logBookingHistory",
+  "setDeclineReason",
+  "setAutomationReason",
+  "queueAutoCloseout",
+  "resetServiceDecisionsOnEdit",
+  "inviteUserToCalendarEvent",
+  "handleCloseProcessing",
+  "handleCheckoutProcessing",
+  "approveStaffService",
+  "declineStaffService",
+  "approveCateringService",
+  "declineCateringService",
+  "approveSetupService",
+  "declineSetupService",
+  "approveCleaningService",
+  "declineCleaningService",
+  "approveSecurityService",
+  "declineSecurityService",
+  "approveEquipmentService",
+  "declineEquipmentService",
+  "approveFurnishingsService",
+  "declineFurnishingsService",
+] as const;
+
+export const approvalEventSchema = z.enum(APPROVAL_EVENTS);
+export const approvalGuardSchema = z.enum(APPROVAL_GUARDS);
+export const approvalEffectSchema = z.enum(APPROVAL_EFFECTS);
+
+const approvalActionSchema = z.union([
+  approvalEffectSchema,
+  z
+    .object({
+      type: approvalEffectSchema,
+      params: z.record(z.string(), z.string()).optional(),
+    })
+    .loose(),
+]);
+
+const approvalActionListSchema = z.union([
+  approvalActionSchema,
+  z.array(approvalActionSchema),
+]);
+
+const approvalGuardRefSchema = z.union([
+  approvalGuardSchema,
+  z
+    .object({
+      type: approvalGuardSchema,
+      params: z.record(z.string(), z.string()).optional(),
+    })
+    .loose(),
+]);
+
+const approvalTransitionSchema = z
+  .object({
+    target: z.string().min(1),
+    guard: approvalGuardRefSchema.optional(),
+    actions: approvalActionListSchema.optional(),
+  })
+  .loose();
+
+const approvalTargetSchema = z.union([
+  z.string().min(1),
+  approvalTransitionSchema,
+]);
+
+const approvalTransitionListSchema = z.union([
+  approvalTargetSchema,
+  z.array(approvalTargetSchema),
+]);
+
+const approvalOnDoneSchema = z.union([
+  z.string().min(1),
+  z
+    .object({
+      target: z.string().min(1),
+      actions: approvalActionListSchema.optional(),
+    })
+    .loose(),
+]);
+
+export const approvalStateSchema = z
+  .object({
+    initial: z.string().min(1).optional(),
+    get states() {
+      return z.record(z.string(), approvalStateSchema).optional();
+    },
+    type: z.enum(["parallel", "final"]).optional(),
+    on: z
+      .partialRecord(approvalEventSchema, approvalTransitionListSchema)
+      .optional(),
+    onDone: approvalOnDoneSchema.optional(),
+    always: approvalTransitionListSchema.optional(),
+    entry: approvalActionListSchema.optional(),
+    exit: approvalActionListSchema.optional(),
+    after: z.record(z.string(), approvalTargetSchema).optional(),
+  })
+  .loose();
+
+type ApprovalTransitionNode = { target?: string } | string;
+
+type ApprovalStateNode = {
+  initial?: string;
+  states?: Record<string, ApprovalStateNode>;
+  type?: "parallel" | "final";
+  on?: Record<
+    string,
+    ApprovalTransitionNode | ApprovalTransitionNode[] | undefined
+  >;
+  onDone?: ApprovalTransitionNode;
+  always?: ApprovalTransitionNode | ApprovalTransitionNode[];
+  after?: Record<string, ApprovalTransitionNode>;
+};
+
+type ApprovalIssueCtx = {
+  addIssue: (issue: {
+    code: "custom";
+    message: string;
+    path: (string | number)[];
+  }) => void;
+};
+
+function targetOf(
+  transition: ApprovalTransitionNode | undefined,
+): string | undefined {
+  if (typeof transition === "string") return transition;
+  return transition?.target;
+}
+
+function refineApprovalStates(
+  states: Record<string, ApprovalStateNode>,
+  ctx: ApprovalIssueCtx,
+  path: (string | number)[],
+) {
+  const names = new Set(Object.keys(states));
+  for (const [name, state] of Object.entries(states)) {
+    const statePath = [...path, name];
+    if (state.initial !== undefined) {
+      const children = state.states ?? {};
+      if (!(state.initial in children)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `initial "${state.initial}" is not a state`,
+          path: [...statePath, "initial"],
+        });
+      }
+    }
+    const checkTarget = (
+      target: string | undefined,
+      targetPath: (string | number)[],
+    ) => {
+      if (!target || names.has(target)) return;
+      ctx.addIssue({
+        code: "custom",
+        message: `target "${target}" is not a state`,
+        path: targetPath,
+      });
+    };
+    const checkTransition = (
+      transition: ApprovalTransitionNode | undefined,
+      targetPath: (string | number)[],
+    ) => {
+      checkTarget(
+        targetOf(transition),
+        typeof transition === "string" ? targetPath : [...targetPath, "target"],
+      );
+    };
+    for (const [event, transition] of Object.entries(state.on ?? {})) {
+      const list = Array.isArray(transition) ? transition : [transition];
+      list.forEach((item, index) => {
+        const base = Array.isArray(transition)
+          ? [...statePath, "on", event, index]
+          : [...statePath, "on", event];
+        checkTransition(item, base);
+      });
+    }
+    if (state.onDone !== undefined) {
+      checkTransition(state.onDone, [...statePath, "onDone"]);
+    }
+    const alwaysList = Array.isArray(state.always)
+      ? state.always
+      : state.always
+        ? [state.always]
+        : [];
+    alwaysList.forEach((transition, index) => {
+      const base = Array.isArray(state.always)
+        ? [...statePath, "always", index]
+        : [...statePath, "always"];
+      checkTransition(transition, base);
+    });
+    for (const [delay, transition] of Object.entries(state.after ?? {})) {
+      if (!/^\d+$/.test(delay)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `delay "${delay}" must be a number of milliseconds`,
+          path: [...statePath, "after", delay],
+        });
+      }
+      checkTransition(transition, [...statePath, "after", delay]);
+    }
+    if (state.states) {
+      refineApprovalStates(state.states, ctx, [...statePath, "states"]);
+    }
+  }
+}
+
+function rejectInvoke(
+  value: unknown,
+  ctx: ApprovalIssueCtx,
+  path: (string | number)[],
+) {
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => rejectInvoke(item, ctx, [...path, index]));
+    return;
+  }
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (key === "invoke") {
+      ctx.addIssue({
+        code: "custom",
+        message: "invoke is not supported",
+        path: [...path, "invoke"],
+      });
+      continue;
+    }
+    rejectInvoke(child, ctx, [...path, key]);
+  }
+}
+
+export const approvalFlowSchema = z
+  .object({
+    /** Machine id stored on booking snapshots. */
+    id: z.string().min(1),
+    initial: z.string().min(1),
+    states: z.record(z.string(), approvalStateSchema),
+  })
+  .loose()
+  .superRefine((flow, ctx) => {
+    if ("version" in flow) {
+      ctx.addIssue({
+        code: "custom",
+        message: "version is not part of the machine config",
+        path: ["version"],
+      });
+    }
+    const states = flow.states as Record<string, ApprovalStateNode>;
+    if (!(flow.initial in states)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `initial "${flow.initial}" is not a state`,
+        path: ["initial"],
+      });
+    }
+    refineApprovalStates(states, ctx, ["states"]);
+    rejectInvoke(flow, ctx, []);
+  });
+
 export const tenantSchema = z
   .object({
     /** Tenant slug / document id (e.g. mc, itp) */
@@ -710,5 +1052,11 @@ export const tenantSchema = z
     calendarConfig: calendarConfigSchema.prefault({}),
     ccEmails: ccEmailsSchema.prefault({}),
     emailNotifications: emailNotificationsSchema.prefault({}),
+    /**
+     * Optional booking graph. Parsing a document does not invent one.
+     * Media Commons and ITP receive their checked-in graph in coerce when
+     * this field is absent.
+     */
+    approvalFlow: approvalFlowSchema.optional(),
   })
   .loose();

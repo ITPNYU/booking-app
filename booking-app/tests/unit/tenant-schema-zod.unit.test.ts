@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  approvalFlowEditorStarter,
   defaultResource,
   generateDefaultSchema,
   tenantResourceSchema,
@@ -69,5 +70,177 @@ describe("tenant schema zod validation", () => {
   it("keeps unknown keys from failing validation", () => {
     const parsed = tenantSchema.safeParse({ ...valid, legacyFlag: true });
     expect("error" in parsed).toBe(false);
+  });
+
+  it("parses a document that omits approvalFlow", () => {
+    const parsed = tenantSchema.safeParse(valid);
+    expect("error" in parsed).toBe(false);
+    expect(valid).not.toHaveProperty("approvalFlow");
+    expect(generateDefaultSchema("mc")).not.toHaveProperty("approvalFlow");
+    expect("error" in tenantSchema.safeParse({
+      ...valid,
+      approvalFlow: approvalFlowEditorStarter,
+    })).toBe(false);
+  });
+
+  it("rejects an unknown approval event with a field path", () => {
+    const issues = issuesOf({
+      ...valid,
+      approvalFlow: {
+        id: "Approval Flow",
+        initial: "Requested",
+        states: {
+          Requested: { on: { explode: { target: "Approved" } } },
+          Approved: {},
+        },
+      },
+    });
+    expect(issues.some((issue) => issue.path.includes("on"))).toBe(true);
+  });
+
+  it("rejects an unknown guard and effect with a field path", () => {
+    const issues = issuesOf({
+      ...valid,
+      approvalFlow: {
+        id: "Approval Flow",
+        initial: "Requested",
+        states: {
+          Requested: {
+            on: { approve: { target: "Approved", guard: "always" } },
+            entry: ["sendSms"],
+          },
+          Approved: {},
+        },
+      },
+    });
+    expect(issues.some((issue) => issue.path.endsWith("on.approve"))).toBe(true);
+    expect(issues.some((issue) => issue.path.includes("entry"))).toBe(true);
+  });
+
+  it("rejects a dangling target and a missing initial", () => {
+    const dangling = issuesOf({
+      ...valid,
+      approvalFlow: {
+        id: "Approval Flow",
+        initial: "Requested",
+        states: {
+          Requested: { on: { approve: { target: "Missing" } } },
+        },
+      },
+    });
+    expect(
+      dangling.some(
+        (issue) =>
+          issue.path.endsWith("target") && /Missing/.test(issue.message),
+      ),
+    ).toBe(true);
+
+    const missingInitial = issuesOf({
+      ...valid,
+      approvalFlow: {
+        id: "Approval Flow",
+        initial: "Nope",
+        states: { Requested: {} },
+      },
+    });
+    expect(
+      missingInitial.some(
+        (issue) => issue.path === "approvalFlow.initial" && /Nope/.test(issue.message),
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts a Stately machine config", () => {
+    const parsed = tenantSchema.safeParse({
+      ...valid,
+      approvalFlow: {
+        id: "MC Booking Request",
+        initial: "Requested",
+        description: "ignored",
+        context: { ignored: true },
+        states: {
+          Requested: {
+            on: {
+              cancel: "Canceled",
+              approve: {
+                target: "Approved",
+                guard: { type: "shouldAutoApprove" },
+                actions: "sendHTMLEmail",
+              },
+            },
+            after: {
+              "86400000": {
+                target: "Canceled",
+                actions: [
+                  { type: "setAutomationReason", params: { reason: "decline" } },
+                ],
+              },
+            },
+          },
+          Approved: { type: "final" },
+          Canceled: { always: { target: "Approved" } },
+          "Services Request": {
+            type: "parallel",
+            onDone: { target: "Approved" },
+            states: { Staff: { type: "final" } },
+          },
+        },
+      },
+    });
+    expect("error" in parsed).toBe(false);
+  });
+
+  it("rejects a named delay, a compound guard, invoke, and the old version field", () => {
+    const namedDelay = issuesOf({
+      ...valid,
+      approvalFlow: {
+        id: "Approval Flow",
+        initial: "Requested",
+        states: {
+          Requested: { after: { oneDay: { target: "Approved" } } },
+          Approved: {},
+        },
+      },
+    });
+    expect(namedDelay.some((issue) => /oneDay/.test(issue.message))).toBe(true);
+
+    const compound = issuesOf({
+      ...valid,
+      approvalFlow: {
+        id: "Approval Flow",
+        initial: "Requested",
+        states: {
+          Requested: {
+            on: { approve: { target: "Approved", guard: { type: "and" } } },
+          },
+          Approved: {},
+        },
+      },
+    });
+    expect(compound.some((issue) => issue.path.includes("approve"))).toBe(true);
+
+    const invoked = issuesOf({
+      ...valid,
+      approvalFlow: {
+        id: "Approval Flow",
+        initial: "Requested",
+        states: {
+          Requested: { invoke: { src: "fetch" }, on: { approve: "Approved" } },
+          Approved: {},
+        },
+      },
+    });
+    expect(invoked.some((issue) => issue.path.endsWith("invoke"))).toBe(true);
+
+    const versioned = issuesOf({
+      ...valid,
+      approvalFlow: {
+        version: 1,
+        id: "Approval Flow",
+        initial: "Requested",
+        states: { Requested: {} },
+      },
+    });
+    expect(versioned.some((issue) => issue.path.endsWith("version"))).toBe(true);
   });
 });
