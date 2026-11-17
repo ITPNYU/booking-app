@@ -441,6 +441,53 @@ describe("components/src/server/admin", () => {
     expect(result.furnishingsLines).toEqual([]);
   });
 
+  it("passes a subject word to sendEmail only when one is given", async () => {
+    seedCollection("tenant-z-bookings", [
+      {
+        id: "booking-1",
+        data: {
+          calendarEventId: "cal-1",
+          requestNumber: 77,
+          title: "Animation Workshop",
+          email: "requester@nyu.edu",
+          startDate: makeTimestamp("2024-03-01T05:00:00.000Z"),
+          endDate: makeTimestamp("2024-03-01T07:00:00.000Z"),
+          requestedAt: makeTimestamp("2024-02-25T10:00:00.000Z"),
+        },
+      },
+    ]);
+    mockFetch.mockResolvedValue({ ok: true });
+
+    const { serverSendBookingDetailEmail } =
+      await import("@/components/src/server/admin");
+
+    await serverSendBookingDetailEmail({
+      calendarEventId: "cal-1",
+      targetEmail: "new@nyu.edu",
+      headerMessage: "This reservation has been assigned to you.",
+      status: BookingStatusLabel.APPROVED,
+      tenant: "tenant-z",
+      subjectStatusOverride: "REASSIGNED",
+    });
+    await serverSendBookingDetailEmail({
+      calendarEventId: "cal-1",
+      targetEmail: "requester@nyu.edu",
+      headerMessage: "Approved.",
+      status: BookingStatusLabel.APPROVED,
+      tenant: "tenant-z",
+    });
+
+    const bodies = mockFetch.mock.calls.map(([, options]) =>
+      JSON.parse((options as { body: string }).body),
+    );
+    expect(bodies[0]).toMatchObject({
+      targetEmail: "new@nyu.edu",
+      status: BookingStatusLabel.APPROVED,
+      subjectStatusOverride: "REASSIGNED",
+    });
+    expect(bodies[1]).not.toHaveProperty("subjectStatusOverride");
+  });
+
   it("flattens the furnishings request for the email template", async () => {
     seedCollection("tenant-z-bookings", [
       {

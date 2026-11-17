@@ -179,6 +179,29 @@ jobs:
             Do NOT report Low severity, nitpicks, style, formatting, naming, or
             subjective preferences. If a finding is not clearly High or Medium, omit it.
 
+            Performance regressions are in scope: Medium by default, High when
+            the cost grows with the amount of data and can exhaust the
+            instance. This app runs on a small App Engine instance and its
+            past outages came from the patterns below, so check every data
+            fetch the diff adds or changes for:
+            - A Firestore read with no bound: `.get()` on a whole collection,
+              or a query with no `.limit()` or date range, on a collection
+              that grows with bookings or users. The fix is a bound,
+              `.select()` of the fields used, or `.stream()`.
+            - A fetch added to a provider, layout, or other component mounted
+              on every page (Provider.tsx, bookingProvider.tsx, NavBar) when
+              only some pages use the data.
+            - An effect that refetches more often than its data changes
+              (object or array dependencies, a missing guard), or the same
+              data fetched by more than one mounted component.
+            - An API route that holds the whole result in memory: large
+              arrays, `Promise.all` over an unbounded list, or a read per
+              item in a loop, instead of paginating or streaming.
+            - A Google Calendar or other external API call made per item in a
+              loop, or one that skips an existing cache.
+            Report these only when the diff introduces or widens the cost, and
+            name the page or route that pays for it.
+
             Post everything as ONE single pull request review (GitHub Copilot style),
             NOT as separate standalone comments. Steps:
             1. Read the diff: gh pr diff ${{ steps.pr.outputs.number }}

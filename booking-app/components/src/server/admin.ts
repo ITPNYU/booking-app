@@ -709,6 +709,8 @@ interface SendBookingEmailOptions {
   approverType?: ApproverType;
   replyTo?: string;
   tenant?: string;
+  /** Word shown in the subject instead of `status`, e.g. "REASSIGNED". */
+  subjectStatusOverride?: string;
 }
 
 interface SendConfirmationEmailOptions {
@@ -728,6 +730,7 @@ export const serverSendBookingDetailEmail = async ({
   approverType,
   replyTo,
   tenant,
+  subjectStatusOverride,
 }: SendBookingEmailOptions) => {
   const contents = await serverBookingContents(calendarEventId, tenant);
   contents.headerMessage = headerMessage;
@@ -747,6 +750,7 @@ export const serverSendBookingDetailEmail = async ({
     replyTo,
     tenant,
     schemaName: emailConfig.schemaName,
+    ...(subjectStatusOverride ? { subjectStatusOverride } : {}),
   };
   return fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/sendEmail`, {
     method: "POST",
