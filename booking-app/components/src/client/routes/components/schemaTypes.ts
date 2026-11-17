@@ -327,6 +327,11 @@ export type ProductionScheduleConfig = {
 
 export type FormConfig = {
   showBookingType: boolean;
+  /**
+   * Ask on the Details step whether the booking is a collaboration between
+   * two or more departments, and if so which ones (issue #1383).
+   */
+  showDepartmentCollaboration: boolean;
   showNNumber: boolean;
   showSponsor: boolean;
   services: FormServicesConfig;
@@ -700,6 +705,7 @@ export const defaultScheme: Omit<SchemaContextType, "tenantId"> = {
   roles: [],
   form: {
     showBookingType: true,
+    showDepartmentCollaboration: false,
     showNNumber: true,
     showSponsor: true,
     services: {
@@ -801,6 +807,8 @@ export function generateDefaultSchema(tenantId: string): SchemaContextType {
     form: {
       ...defaultScheme.form,
       services: { ...defaultScheme.form.services },
+      // MC asked to record cross-department collaborations (#1383).
+      showDepartmentCollaboration: isMediaCommonsTenant(tenantId),
       // MC requires production schedules for long reservations (#1126).
       productionSchedule: {
         ...defaultProductionSchedule,

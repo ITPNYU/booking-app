@@ -39,6 +39,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
   roles: ["Student", "Faculty", "Staff"],
   form: {
     showBookingType: true,
+    showDepartmentCollaboration: false,
     showNNumber: true,
     showSponsor: true,
     services: {

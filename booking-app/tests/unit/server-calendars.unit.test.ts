@@ -233,6 +233,39 @@ describe("server/calendars", () => {
     expect(description).toContain("<strong>Origin:</strong> User");
   });
 
+  it("bookingContentsToDescription lists the department collaboration answer", async () => {
+    const { bookingContentsToDescription } = await import(
+      "@/components/src/server/calendars"
+    );
+    const base = {
+      requestNumber: "42",
+      roomId: "101",
+      startDate: "2024-05-01",
+      bookingType: "Workshop",
+    } as any;
+
+    const yes = await bookingContentsToDescription(
+      {
+        ...base,
+        departmentCollaboration: "Yes",
+        collaboratingDepartments: ["IDM", "Other"],
+        otherCollaboratingDepartments: "Tisch Drama",
+      },
+      "mc",
+    );
+    const no = await bookingContentsToDescription(
+      { ...base, departmentCollaboration: "No" },
+      "mc",
+    );
+    const neverAsked = await bookingContentsToDescription(base, "mc");
+
+    expect(yes).toContain(
+      "<strong>Department Collaboration:</strong> Yes: IDM, Other (Tisch Drama)",
+    );
+    expect(no).toContain("<strong>Department Collaboration:</strong> No");
+    expect(neverAsked).not.toContain("Department Collaboration");
+  });
+
   it("updateCalendarEvent patches title prefix and description", async () => {
     const calendar = {
       events: {
