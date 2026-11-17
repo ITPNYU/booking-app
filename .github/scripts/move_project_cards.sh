@@ -13,6 +13,9 @@
 #   TARGET_STATUS    Name of the Status option to set, e.g. "Test - Dev".
 #   CLOSE_ISSUES     Set to 1 to also close the issues (as completed) after
 #                    moving them, e.g. for a production release.
+#   KEEP_STATUSES    Comma-separated Status names that are left where they
+#                    are, e.g. "Test - Staging" so a dev deploy does not pull
+#                    a card back from staging.
 #   DRY_RUN          Set to 1 to print the moves without applying them.
 #
 # Issues are found through the PR's Development links (closingIssuesReferences).
@@ -33,6 +36,7 @@ fi
 : "${TARGET_STATUS:?TARGET_STATUS is required}"
 DRY_RUN="${DRY_RUN:-0}"
 CLOSE_ISSUES="${CLOSE_ISSUES:-0}"
+KEEP_STATUSES="${KEEP_STATUSES:-}"
 
 REPO_OWNER="${GITHUB_REPOSITORY%%/*}"
 REPO_NAME="${GITHUB_REPOSITORY##*/}"
@@ -118,6 +122,10 @@ for PR in "$@"; do
     if [ "$CURRENT" = "$TARGET_STATUS" ]; then
       echo "PR #${PR}: issue #${NUMBER} is already in '${TARGET_STATUS}'."
       close_issue "$PR" "$NUMBER"
+      continue
+    fi
+    if [[ ",${KEEP_STATUSES}," == *",${CURRENT},"* ]]; then
+      echo "PR #${PR}: issue #${NUMBER} is in '${CURRENT}'; left there."
       continue
     fi
     if [ "$DRY_RUN" = "1" ]; then

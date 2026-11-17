@@ -106,6 +106,23 @@ describe("POST /api/noshow-processing", () => {
     expect(mocks.serverUpdateDataByCalendarEventId).not.toHaveBeenCalled();
   });
 
+  it("records the note given with the no-show in the history entry", async () => {
+    const response = await POST(
+      createRequest({
+        calendarEventId: "calendar-7007",
+        note: "  Waited 30 minutes at the front desk  ",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.logServerBookingChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: BookingStatusLabel.NO_SHOW,
+        note: "Waited 30 minutes at the front desk",
+      }),
+    );
+  });
+
   it("uses the session actor and the booking owner despite forged body identities", async () => {
     const response = await POST(
       createRequest({

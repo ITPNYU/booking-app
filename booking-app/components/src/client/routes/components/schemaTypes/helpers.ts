@@ -103,6 +103,8 @@ export function generateDefaultSchema(tenantId: string): SchemaContextType {
     form: {
       ...schema.form,
       services: { ...schema.form.services },
+      // MC asked to record cross-department collaborations (#1383).
+      showDepartmentCollaboration: isMediaCommonsTenant(tenantId),
       // MC requires production schedules for long reservations (#1126).
       productionSchedule: {
         ...defaultProductionSchedule,

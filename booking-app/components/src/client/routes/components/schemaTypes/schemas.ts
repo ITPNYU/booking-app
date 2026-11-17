@@ -5,6 +5,10 @@
 // that save a document write the submitted value, not the parsed clone, so
 // unknown keys are kept.
 
+import {
+  DEFAULT_REASSIGNED_PREVIOUS_USER_MESSAGE,
+  DEFAULT_REASSIGNED_USER_MESSAGE,
+} from "@/components/src/constants/reassignEmails";
 import { defaultSafetyTrainingInfoUrl } from "@/components/src/constants/safetyTraining";
 import { z } from "zod";
 
@@ -515,6 +519,11 @@ export const productionScheduleSchema = z
 export const formConfigSchema = z
   .object({
     showBookingType: z.boolean().default(true),
+    /**
+     * Ask on the Details step whether the booking is a collaboration between
+     * two or more departments, and if so which ones (issue #1383).
+     */
+    showDepartmentCollaboration: z.boolean().default(false),
     showNNumber: z.boolean().default(true),
     showSponsor: z.boolean().default(true),
     services: formServicesSchema.prefault({}),
@@ -606,6 +615,18 @@ export const emailNotificationsSchema = z
     noShow: z.string().default(""),
     closed: z.string().default(""),
     approvedUser: z.string().default(""),
+    /**
+     * Opening of the email to a booking's new requester after an admin
+     * reassigns it. The usual message for the booking's status follows it.
+     */
+    reassignedUser: z.string().default(DEFAULT_REASSIGNED_USER_MESSAGE),
+    /**
+     * Email to a booking's previous requester after an admin reassigns it.
+     * `${newRequester}` is replaced with the new requester's name and email.
+     */
+    reassignedPreviousUser: z
+      .string()
+      .default(DEFAULT_REASSIGNED_PREVIOUS_USER_MESSAGE),
   })
   .loose();
 

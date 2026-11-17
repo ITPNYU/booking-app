@@ -13,7 +13,10 @@ import {
   Typography,
 } from "@mui/material";
 
-import { formatOrigin } from "@/components/src/utils/formatters";
+import {
+  formatDepartmentCollaboration,
+  formatOrigin,
+} from "@/components/src/utils/formatters";
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { Cancel, Check, Edit, Event } from "@mui/icons-material";
 import Grid from "@mui/material/Unstable_Grid2/Grid2";
@@ -38,6 +41,7 @@ import { useTenantSchema } from "../SchemaProvider";
 import { formatTimeAmPm, formatDateTable } from "../../../utils/date";
 import { RoomDetails } from "../../booking/components/BookingSelection";
 import useSortBookingHistory from "../../hooks/useSortBookingHistory";
+import AddHistoryNote from "./AddHistoryNote";
 import { DatabaseContext } from "../Provider";
 import { default as CustomTable } from "../Table";
 import StackedTableCell from "./StackedTableCell";
@@ -133,7 +137,11 @@ export default function MoreInfoModal({
 }: Props) {
   const params = useParams();
   const tenant = (params?.tenant as string) || DEFAULT_TENANT;
-  const historyRows = useSortBookingHistory(booking);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+  const historyRows = useSortBookingHistory(booking, historyRefreshKey);
+  // Staff views can add history notes; the requester's own page can't.
+  const canAddHistoryNote =
+    pageContext !== undefined && pageContext > PageContextLevel.USER;
   const { pagePermission, userEmail } = useContext(DatabaseContext);
   const schema = useTenantSchema();
   const servicesDisplay = getBookingServicesByRoom(booking, schema.resources);
@@ -689,6 +697,13 @@ export default function MoreInfoModal({
             <Section>
               <SectionTitle>History</SectionTitle>
               <StatusTable columns={historyCols}>{historyRows}</StatusTable>
+              {canAddHistoryNote && (
+                <AddHistoryNote
+                  calendarEventId={booking.calendarEventId}
+                  tenant={tenant}
+                  onAdded={() => setHistoryRefreshKey((key) => key + 1)}
+                />
+              )}
             </Section>
 
             <Section>
@@ -820,6 +835,15 @@ export default function MoreInfoModal({
                     <TableRow>
                       <LabelCell>Booking Type</LabelCell>
                       <TableCell>{booking.bookingType ?? BLANK}</TableCell>
+                    </TableRow>
+                  )}
+                  {(schema.form.showDepartmentCollaboration ||
+                    booking.departmentCollaboration) && (
+                    <TableRow>
+                      <LabelCell>Department Collaboration</LabelCell>
+                      <TableCell>
+                        {formatDepartmentCollaboration(booking) ?? BLANK}
+                      </TableCell>
                     </TableRow>
                   )}
                   <TableRow>
