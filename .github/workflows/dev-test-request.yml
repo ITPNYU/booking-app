@@ -76,7 +76,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
           GCHAT_USER_MAP: ${{ vars.GCHAT_USER_MAP }}
-          DEV_URL: https://dev-booking-app.nyu.edu
         run: |
           if [ -z "${GCHAT_WEBHOOK_URL}" ]; then
             echo "Error: GCHAT_WEBHOOK_URL secret is not set."
@@ -105,15 +104,7 @@ jobs:
             # <URL|text> renders as a link in Google Chat.
             TEXT="${WHO} <${URL}|PR #${NUMBER}> is now on dev. Please test it there and comment \`/tested\` on the PR when it works."
 
-            PAYLOAD=$(jq -n --arg text "$TEXT" --arg dev "$DEV_URL" '{
-              text: $text,
-              cardsV2: [{
-                cardId: "dev-test-request",
-                card: { sections: [{ widgets: [{ buttonList: { buttons: [
-                  { text: "Open dev", onClick: { openLink: { url: $dev } } }
-                ] } }] }] }
-              }]
-            }')
+            PAYLOAD=$(jq -n --arg text "$TEXT" '{ text: $text }')
 
             HTTP_STATUS=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
               -H "Content-Type: application/json; charset=UTF-8" \
