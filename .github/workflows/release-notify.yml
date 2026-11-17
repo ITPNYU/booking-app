@@ -17,12 +17,14 @@ name: Release Notify
 # label is removed again when the email fails.
 #
 # Testing: run this workflow by hand with `email_to` set. The email goes to
-# that address only, the label is neither checked nor set, and nothing is
+# that address only (no Cc), the label is neither checked nor set, and nothing is
 # posted to Google Chat.
 #
 # Configuration:
 #   vars.RELEASE_NOTIFY_EMAIL_TO       Recipients, comma separated. Defaults to
 #                                      mediacommons.supervisors@nyu.edu.
+#   vars.RELEASE_NOTIFY_EMAIL_CC       Cc recipients, comma separated. Defaults
+#                                      to booking-app@itp.nyu.edu.
 #   secrets.GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REFRESH_TOKEN
 #                                      The Google account the app already sends
 #                                      booking emails from (Gmail API). Read
@@ -131,16 +133,26 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
           EMAIL_TO: ${{ github.event.inputs.email_to || vars.RELEASE_NOTIFY_EMAIL_TO || 'mediacommons.supervisors@nyu.edu' }}
+          EMAIL_CC: ${{ vars.RELEASE_NOTIFY_EMAIL_CC || 'booking-app@itp.nyu.edu' }}
           TITLE: ${{ steps.issues.outputs.title }}
           EMOJI: ${{ steps.issues.outputs.emoji }}
           RELEASE_PR: ${{ steps.issues.outputs.release_pr }}
         run: |
-          # EMAIL_TO goes into the To: header, so it must be plain addresses
-          # separated by commas: no line breaks or anything else that could add
-          # a header.
+          # A test run goes to the test address only.
+          if [ -n "${TEST_EMAIL_TO}" ]; then
+            EMAIL_CC=""
+          fi
+
+          # EMAIL_TO and EMAIL_CC go into the To: and Cc: headers, so they must
+          # be plain addresses separated by commas: no line breaks or anything
+          # else that could add a header.
           ADDRESS='[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+'
           if ! [[ "${EMAIL_TO}" =~ ^${ADDRESS}(,\ *${ADDRESS})*$ ]]; then
             echo "Error: the recipients must be email addresses separated by commas."
+            exit 1
+          fi
+          if [ -n "${EMAIL_CC}" ] && ! [[ "${EMAIL_CC}" =~ ^${ADDRESS}(,\ *${ADDRESS})*$ ]]; then
+            echo "Error: the Cc recipients must be email addresses separated by commas."
             exit 1
           fi
 
@@ -155,6 +167,7 @@ jobs:
           if [ "${DRY_RUN}" = "1" ]; then
             echo "--- DRY RUN: email not sent ---"
             echo "To: ${EMAIL_TO}"
+            echo "Cc: ${EMAIL_CC:-(none)}"
             echo "Subject: [Booking App] ${TITLE}"
             cat body.html
             exit 0
@@ -196,6 +209,9 @@ jobs:
           {
             printf "From: 'Media Commons Booking App' <>\r\n"
             printf 'To: %s\r\n' "${EMAIL_TO}"
+            if [ -n "${EMAIL_CC}" ]; then
+              printf 'Cc: %s\r\n' "${EMAIL_CC}"
+            fi
             printf 'Subject: [Booking App] %s\r\n' "${TITLE}"
             printf 'MIME-Version: 1.0\r\n'
             printf 'Content-Type: text/html; charset=utf-8\r\n'
@@ -213,7 +229,7 @@ jobs:
             --connect-timeout 10 --max-time 30 || echo "000")
 
           if [ "$HTTP_STATUS" -ge 200 ] 2>/dev/null && [ "$HTTP_STATUS" -lt 300 ] 2>/dev/null; then
-            echo "Release email sent to ${EMAIL_TO} (HTTP ${HTTP_STATUS})"
+            echo "Release email sent to ${EMAIL_TO}, cc ${EMAIL_CC:-(none)} (HTTP ${HTTP_STATUS})"
           else
             echo "Failed to send the release email (HTTP ${HTTP_STATUS})"
             cat /tmp/response.txt
