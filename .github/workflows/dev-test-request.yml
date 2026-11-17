@@ -158,6 +158,8 @@ jobs:
           PROJECT_OWNER: ${{ github.repository_owner }}
           PROJECT_NUMBER: 2
           TARGET_STATUS: Test - Dev
+          # A card that already reached staging stays there.
+          KEEP_STATUSES: Test - Staging
           NUMBERS: ${{ steps.prs.outputs.numbers }}
         run: |
           if [ -z "${GH_TOKEN}" ]; then
