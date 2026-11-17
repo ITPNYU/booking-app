@@ -431,6 +431,44 @@ export class ApprovedWithWarningError extends Error {
   }
 }
 
+export type ReassignRequesterRequest = {
+  calendarEventId: string;
+  netId: string;
+  firstName: string;
+  lastName: string;
+  nNumber: string;
+  phoneNumber: string;
+  notifyNewRequester: boolean;
+  notifyPreviousRequester: boolean;
+};
+
+/**
+ * Hands a booking to a different requester (admins only). Resolves with the
+ * server's warning when the booking was reassigned but a follow-up step
+ * (history, calendar, email) failed; rejects when nothing was changed.
+ */
+export const reassignRequester = async (
+  request: ReassignRequesterRequest,
+  tenant?: string,
+): Promise<{ email: string; warning?: string }> => {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/bookings/reassign`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-tenant": tenant || DEFAULT_TENANT,
+      },
+      body: JSON.stringify(request),
+    },
+  );
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result.error || "Failed to reassign the booking");
+  }
+  return { email: result.email, warning: result.warning };
+};
+
 export const clientEquipmentApprove = async (_id: string, _email: string) => {
   // Equipment approval is handled via dedicated API routes when enabled.
 };

@@ -109,6 +109,112 @@ export const inviteUserToCalendarEvent = async (
   }
 };
 
+/**
+ * Swaps one guest for another on a booking's event in each room calendar, so
+ * Google sends the new guest an invitation and the old guest a cancellation.
+ *
+ * Only calendars whose event already lists `previousEmail` are changed. The
+ * requester is invited when a booking is approved, so a pending booking has
+ * no requester guest yet; it invites whoever holds the booking at approval.
+ * `keepPreviousAttendee` leaves the old guest on the event, e.g. when they are
+ * also the secondary contact.
+ *
+ * Resolves to whether any calendar listed the previous guest. Rejects when no
+ * room calendar could be read, or when a patch failed.
+ */
+export const replaceCalendarAttendee = async ({
+  calendarEventId,
+  roomId,
+  previousEmail,
+  newEmail,
+  keepPreviousAttendee = false,
+  tenant,
+}: {
+  calendarEventId: string;
+  roomId: string;
+  previousEmail: string;
+  newEmail: string;
+  keepPreviousAttendee?: boolean;
+  tenant?: string;
+}): Promise<boolean> => {
+  const roomCalendarIds = await serverGetRoomCalendarIds(roomId, tenant);
+  if (roomCalendarIds.length === 0) {
+    throw new Error(
+      `No calendar found for room ${roomId}; event ${calendarEventId} was not updated.`,
+    );
+  }
+  const calendar = await getCalendarClient();
+  const previous = previousEmail.trim().toLowerCase();
+  const next = newEmail.trim().toLowerCase();
+  const sameEmail = (attendee: { email?: string | null }, email: string) =>
+    (attendee.email ?? "").trim().toLowerCase() === email;
+
+  let readAny = false;
+  let replaced = false;
+  const readErrors: unknown[] = [];
+  const patchErrors: unknown[] = [];
+
+  for (const roomCalendarId of roomCalendarIds) {
+    let event;
+    try {
+      event = await traceExternalCall("GoogleCalendar", "events.get", () =>
+        calendar.events.get({
+          calendarId: roomCalendarId,
+          eventId: calendarEventId,
+        }),
+      );
+      readAny = true;
+    } catch (error) {
+      // A guest room's calendar may not hold the event.
+      readErrors.push(error);
+      console.error(
+        "Error reading event %s in calendar %s:",
+        calendarEventId,
+        roomCalendarId,
+        error,
+      );
+      continue;
+    }
+
+    const attendees = event.data.attendees || [];
+    if (!attendees.some((attendee) => sameEmail(attendee, previous))) {
+      continue;
+    }
+    const updatedAttendees = keepPreviousAttendee
+      ? [...attendees]
+      : attendees.filter((attendee) => !sameEmail(attendee, previous));
+    if (!updatedAttendees.some((attendee) => sameEmail(attendee, next))) {
+      updatedAttendees.push({ email: next });
+    }
+    try {
+      await patchCalendarEvent(event, roomCalendarId, calendarEventId, {
+        attendees: updatedAttendees,
+      });
+      replaced = true;
+    } catch (error) {
+      patchErrors.push(error);
+      console.error(
+        "Error replacing guest %s with %s on event %s in calendar %s:",
+        previous,
+        next,
+        calendarEventId,
+        roomCalendarId,
+        error,
+      );
+    }
+  }
+
+  if (!readAny || patchErrors.length > 0) {
+    const [firstError] = [...patchErrors, ...readErrors];
+    throw new Error(
+      `Failed to update the guests of calendar event ${calendarEventId}: ${
+        firstError instanceof Error ? firstError.message : String(firstError)
+      }`,
+    );
+  }
+  return replaced;
+};
+
 export const bookingContentsToDescription = async (
   bookingContents: BookingFormDetails,
   tenant?: string,
