@@ -204,7 +204,6 @@ function closeoutRegion(config: ServiceConfig) {
 
 /** Media Commons booking graph, checked in so a document can omit it. */
 export const mcApprovalFlow = approvalFlowSchema.parse({
-  version: 1,
   id: "MC Booking Request",
   initial: "Requested",
   states: {
@@ -250,13 +249,12 @@ export const mcApprovalFlow = approvalFlowSchema.parse({
           actions: "resetServiceDecisionsOnEdit",
         },
       },
-      after: [
-        {
-          delayMs: 86400000,
+      after: {
+        "86400000": {
           target: "Canceled",
           actions: [{ type: "setAutomationReason", params: { reason: "decline" } }],
         },
-      ],
+      },
       entry: [
         ...log("Entered 'Declined' state"),
         { type: "sendHTMLEmail" },

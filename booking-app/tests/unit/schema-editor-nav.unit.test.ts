@@ -104,10 +104,10 @@ describe("getSlice / setSlice", () => {
     const saved = setSlice(
       schema,
       { kind: "section", key: "approvalFlow" },
-      { ...approvalFlowEditorStarter, version: 2 },
+      { ...approvalFlowEditorStarter, id: "Other Flow" },
       { original: schema, fallback },
     );
-    expect(saved.approvalFlow).toMatchObject({ version: 2 });
+    expect(saved.approvalFlow).toMatchObject({ id: "Other Flow" });
   });
 
   it("leaves approvalFlow absent when the checked-in Media Commons graph is unchanged", () => {

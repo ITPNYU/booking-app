@@ -1,10 +1,7 @@
 import { approvalFlowSchema } from "@/components/src/client/routes/components/schemaTypes";
 
-const DAY_MS = 86_400_000;
-
-/** ITP booking graph. Console-only entry logs from the TypeScript machine are omitted. */
+/** ITP booking graph, copied from the createMachine argument. */
 export const itpApprovalFlow = approvalFlowSchema.parse({
-  version: 1,
   id: "ITP Booking Request",
   initial: "Requested",
   states: {
@@ -16,13 +13,13 @@ export const itpApprovalFlow = approvalFlowSchema.parse({
         approve: { target: "Approved" },
       },
       always: [
-        { target: "Approved", guard: "shouldAutoApprove" },
+        { target: "Approved", guard: { type: "shouldAutoApprove" } },
         { target: "Requested" },
       ],
       entry: [{ type: "createCalendarEvent" }, { type: "sendHTMLEmail" }],
     },
     Canceled: {
-      always: [{ target: "Closed" }],
+      always: { target: "Closed" },
       entry: [
         { type: "queueCancelProcessing" },
         { type: "logCanceledAfterAutomaticTransition" },
@@ -30,13 +27,14 @@ export const itpApprovalFlow = approvalFlowSchema.parse({
     },
     Declined: {
       on: { edit: { target: "Requested" } },
-      after: [
-        {
-          delayMs: DAY_MS,
+      after: {
+        "86400000": {
           target: "Canceled",
-          actions: [{ type: "setAutomationReason", params: { reason: "decline" } }],
+          actions: [
+            { type: "setAutomationReason", params: { reason: "decline" } },
+          ],
         },
-      ],
+      },
       entry: [{ type: "sendHTMLEmail" }, { type: "updateCalendarEvent" }],
     },
     Approved: {
@@ -57,18 +55,16 @@ export const itpApprovalFlow = approvalFlowSchema.parse({
       entry: [{ type: "sendHTMLEmail" }, { type: "updateCalendarEvent" }],
     },
     "No Show": {
-      always: [
-        {
-          target: "Canceled",
-          actions: [
-            { type: "setAutomationReason", params: { reason: "no-show" } },
-          ],
-        },
-      ],
+      always: {
+        target: "Canceled",
+        actions: [
+          { type: "setAutomationReason", params: { reason: "no-show" } },
+        ],
+      },
       entry: [{ type: "updateCalendarEvent" }],
     },
     "Checked Out": {
-      always: [{ target: "Closed" }],
+      always: { target: "Closed" },
       entry: [{ type: "sendHTMLEmail" }, { type: "updateCalendarEvent" }],
     },
   },

@@ -98,9 +98,13 @@ vi.mock("firebase-admin/firestore", () => ({
   },
 }));
 
-vi.mock("xstate", () => ({
-  createActor: (...args: any[]) => mockCreateActor(...args),
-}));
+vi.mock("xstate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("xstate")>();
+  return {
+    ...actual,
+    createActor: (...args: any[]) => mockCreateActor(...args),
+  };
+});
 
 vi.mock("@/lib/stateMachines/mcBookingMachine", () => ({
   mcBookingMachine: { id: "MC Booking Request" },

@@ -52,14 +52,18 @@ vi.mock("@/lib/stateMachines/itpBookingMachine", () => ({
 vi.mock("@/lib/stateMachines/mcBookingMachine", () => ({
   mcBookingMachine: { id: "mc", initial: "Requested" },
 }));
-vi.mock("xstate", () => ({
-  createActor: () => ({
-    start: () => {},
-    stop: () => {},
-    getSnapshot: () => ({ value: "Requested", context: {}, can: () => false }),
-    getPersistedSnapshot: () => ({ value: "Requested", context: {} }),
-  }),
-}));
+vi.mock("xstate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("xstate")>();
+  return {
+    ...actual,
+    createActor: () => ({
+      start: () => {},
+      stop: () => {},
+      getSnapshot: () => ({ value: "Requested", context: {}, can: () => false }),
+      getPersistedSnapshot: () => ({ value: "Requested", context: {} }),
+    }),
+  };
+});
 vi.mock("./shared", () => ({
   extractTenantFromRequest: () => "mc",
   getAffiliationDisplayValues: () => ({
