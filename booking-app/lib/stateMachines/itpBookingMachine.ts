@@ -26,6 +26,24 @@ interface BookingContext {
   pendingSideEffects?: string[];
 }
 
+function buildItpInitialContext({
+  input,
+}: {
+  input?: BookingContext;
+}): BookingContext {
+  return {
+    tenant: input?.tenant,
+    selectedRooms: input?.selectedRooms,
+    formData: input?.formData,
+    bookingCalendarInfo: input?.bookingCalendarInfo,
+    isWalkIn: input?.isWalkIn || false,
+    isVip: input?.isVip || false,
+    role: input?.role,
+    calendarEventId: input?.calendarEventId,
+    email: input?.email,
+  };
+}
+
 export const itpBookingMachine = setup({
   types: {
     context: {} as BookingContext,
@@ -78,33 +96,21 @@ export const itpBookingMachine = setup({
         "cancelProcessing",
       ],
     }),
+    setAutomationReason: assign({
+      automationReason: (_, params: { reason: AutomaticCancellationReason }) =>
+        params.reason,
+    }),
     logCanceledAfterAutomaticTransition: async ({ context }): Promise<void> => {
       await logAutomaticCancellationTransition(context);
     },
   },
 }).createMachine({
-  context: ({ input }: { input?: BookingContext }) => ({
-    tenant: input?.tenant,
-    selectedRooms: input?.selectedRooms,
-    formData: input?.formData,
-    bookingCalendarInfo: input?.bookingCalendarInfo,
-    isWalkIn: input?.isWalkIn || false,
-    isVip: input?.isVip || false,
-    role: input?.role,
-    calendarEventId: input?.calendarEventId,
-    email: input?.email,
-  }),
+  context: buildItpInitialContext,
   id: "ITP Booking Request",
   initial: "Requested",
   states: {
     Requested: {
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Requested' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
           type: "createCalendarEvent",
         },
@@ -140,12 +146,6 @@ export const itpBookingMachine = setup({
     },
     Canceled: {
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Canceled' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
           type: "queueCancelProcessing",
         },
@@ -159,12 +159,6 @@ export const itpBookingMachine = setup({
     },
     Declined: {
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Declined' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
           type: "sendHTMLEmail",
         },
@@ -180,19 +174,14 @@ export const itpBookingMachine = setup({
       after: {
         "86400000": {
           target: "Canceled",
-          actions: [assign({ automationReason: "decline" })],
+          actions: [
+            { type: "setAutomationReason", params: { reason: "decline" } },
+          ],
         },
       },
     },
     Approved: {
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Approved' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-          console.log("🎉 XSTATE: AUTO-APPROVAL SUCCESSFUL!");
-        },
         {
           type: "sendHTMLEmail",
         },
@@ -218,12 +207,6 @@ export const itpBookingMachine = setup({
     Closed: {
       type: "final",
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Closed' state (final)", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
           type: "sendHTMLEmail",
         },
@@ -234,12 +217,6 @@ export const itpBookingMachine = setup({
     },
     "Checked In": {
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Checked In' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
           type: "sendHTMLEmail",
         },
@@ -255,29 +232,19 @@ export const itpBookingMachine = setup({
     },
     "No Show": {
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'No Show' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
           type: "updateCalendarEvent",
         },
       ],
       always: {
         target: "Canceled",
-        actions: [assign({ automationReason: "no-show" })],
+        actions: [
+          { type: "setAutomationReason", params: { reason: "no-show" } },
+        ],
       },
     },
     "Checked Out": {
       entry: [
-        ({ context }) => {
-          console.log("🏁 XSTATE STATE: Entered 'Checked Out' state", {
-            tenant: context.tenant,
-            timestamp: new Date().toISOString(),
-          });
-        },
         {
           type: "sendHTMLEmail",
         },

@@ -87,7 +87,7 @@ describe("tenant schema zod validation", () => {
     const issues = issuesOf({
       ...valid,
       approvalFlow: {
-        version: 1,
+        id: "Approval Flow",
         initial: "Requested",
         states: {
           Requested: { on: { explode: { target: "Approved" } } },
@@ -102,7 +102,7 @@ describe("tenant schema zod validation", () => {
     const issues = issuesOf({
       ...valid,
       approvalFlow: {
-        version: 1,
+        id: "Approval Flow",
         initial: "Requested",
         states: {
           Requested: {
@@ -121,7 +121,7 @@ describe("tenant schema zod validation", () => {
     const dangling = issuesOf({
       ...valid,
       approvalFlow: {
-        version: 1,
+        id: "Approval Flow",
         initial: "Requested",
         states: {
           Requested: { on: { approve: { target: "Missing" } } },
@@ -138,7 +138,7 @@ describe("tenant schema zod validation", () => {
     const missingInitial = issuesOf({
       ...valid,
       approvalFlow: {
-        version: 1,
+        id: "Approval Flow",
         initial: "Nope",
         states: { Requested: {} },
       },
@@ -148,5 +148,99 @@ describe("tenant schema zod validation", () => {
         (issue) => issue.path === "approvalFlow.initial" && /Nope/.test(issue.message),
       ),
     ).toBe(true);
+  });
+
+  it("accepts a Stately machine config", () => {
+    const parsed = tenantSchema.safeParse({
+      ...valid,
+      approvalFlow: {
+        id: "MC Booking Request",
+        initial: "Requested",
+        description: "ignored",
+        context: { ignored: true },
+        states: {
+          Requested: {
+            on: {
+              cancel: "Canceled",
+              approve: {
+                target: "Approved",
+                guard: { type: "shouldAutoApprove" },
+                actions: "sendHTMLEmail",
+              },
+            },
+            after: {
+              "86400000": {
+                target: "Canceled",
+                actions: [
+                  { type: "setAutomationReason", params: { reason: "decline" } },
+                ],
+              },
+            },
+          },
+          Approved: { type: "final" },
+          Canceled: { always: { target: "Approved" } },
+          "Services Request": {
+            type: "parallel",
+            onDone: { target: "Approved" },
+            states: { Staff: { type: "final" } },
+          },
+        },
+      },
+    });
+    expect("error" in parsed).toBe(false);
+  });
+
+  it("rejects a named delay, a compound guard, invoke, and the old version field", () => {
+    const namedDelay = issuesOf({
+      ...valid,
+      approvalFlow: {
+        id: "Approval Flow",
+        initial: "Requested",
+        states: {
+          Requested: { after: { oneDay: { target: "Approved" } } },
+          Approved: {},
+        },
+      },
+    });
+    expect(namedDelay.some((issue) => /oneDay/.test(issue.message))).toBe(true);
+
+    const compound = issuesOf({
+      ...valid,
+      approvalFlow: {
+        id: "Approval Flow",
+        initial: "Requested",
+        states: {
+          Requested: {
+            on: { approve: { target: "Approved", guard: { type: "and" } } },
+          },
+          Approved: {},
+        },
+      },
+    });
+    expect(compound.some((issue) => issue.path.includes("approve"))).toBe(true);
+
+    const invoked = issuesOf({
+      ...valid,
+      approvalFlow: {
+        id: "Approval Flow",
+        initial: "Requested",
+        states: {
+          Requested: { invoke: { src: "fetch" }, on: { approve: "Approved" } },
+          Approved: {},
+        },
+      },
+    });
+    expect(invoked.some((issue) => issue.path.endsWith("invoke"))).toBe(true);
+
+    const versioned = issuesOf({
+      ...valid,
+      approvalFlow: {
+        version: 1,
+        id: "Approval Flow",
+        initial: "Requested",
+        states: { Requested: {} },
+      },
+    });
+    expect(versioned.some((issue) => issue.path.endsWith("version"))).toBe(true);
   });
 });

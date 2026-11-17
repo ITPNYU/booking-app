@@ -81,6 +81,7 @@ export const defaultFormAlerts = formConfigSchema.parse({}).alerts;
  * This is not a Zod default.
  */
 export const approvalFlowEditorStarter: ApprovalFlow = {
+  id: "Approval Flow",
   initial: "Requested",
   states: {
     Approved: {},
@@ -90,7 +91,6 @@ export const approvalFlowEditorStarter: ApprovalFlow = {
       },
     },
   },
-  version: 1,
 };
 
 export const defaultScheme: Omit<SchemaContextType, "tenantId"> = tenantSchema

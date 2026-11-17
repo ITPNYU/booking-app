@@ -5,12 +5,12 @@ import { compileApprovalFlow } from "@/lib/stateMachines/approvalFlowMachine";
 import { getMachineForTenant } from "@/lib/stateMachines/xstatePersistence";
 
 const flow = approvalFlowSchema.parse({
-  version: 1,
+  id: "Approval Flow",
   initial: "Requested",
   states: {
     Requested: {
       on: { approve: { target: "Approved" } },
-      always: [{ target: "Approved", guard: "shouldAutoApprove" }],
+      always: [{ target: "Approved", guard: { type: "shouldAutoApprove" } }],
     },
     Approved: { type: "final" },
   },

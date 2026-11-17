@@ -760,6 +760,7 @@ export const APPROVAL_EFFECTS = [
   "createCalendarEvent",
   "updateCalendarEvent",
   "queueCancelProcessing",
+  "deleteCalendarEvent",
   "logStateEntry",
   "logCanceledAfterAutomaticTransition",
   "logBookingHistory",
@@ -800,36 +801,48 @@ const approvalActionSchema = z.union([
     .loose(),
 ]);
 
+const approvalActionListSchema = z.union([
+  approvalActionSchema,
+  z.array(approvalActionSchema),
+]);
+
+const approvalGuardRefSchema = z.union([
+  approvalGuardSchema,
+  z
+    .object({
+      type: approvalGuardSchema,
+      params: z.record(z.string(), z.string()).optional(),
+    })
+    .loose(),
+]);
+
 const approvalTransitionSchema = z
   .object({
     target: z.string().min(1),
-    guard: approvalGuardSchema.optional(),
-    actions: z
-      .union([approvalActionSchema, z.array(approvalActionSchema)])
-      .optional(),
+    guard: approvalGuardRefSchema.optional(),
+    actions: approvalActionListSchema.optional(),
   })
   .loose();
 
-const approvalTransitionListSchema = z.union([
+const approvalTargetSchema = z.union([
+  z.string().min(1),
   approvalTransitionSchema,
-  z.array(approvalTransitionSchema),
 ]);
 
-const approvalAfterSchema = z
-  .object({
-    delayMs: z.number().int().nonnegative(),
-    target: z.string().min(1),
-    actions: z
-      .union([approvalActionSchema, z.array(approvalActionSchema)])
-      .optional(),
-  })
-  .loose();
+const approvalTransitionListSchema = z.union([
+  approvalTargetSchema,
+  z.array(approvalTargetSchema),
+]);
 
-const approvalOnDoneSchema = z
-  .object({
-    target: z.string().min(1),
-  })
-  .loose();
+const approvalOnDoneSchema = z.union([
+  z.string().min(1),
+  z
+    .object({
+      target: z.string().min(1),
+      actions: approvalActionListSchema.optional(),
+    })
+    .loose(),
+]);
 
 export const approvalStateSchema = z
   .object({
@@ -842,13 +855,14 @@ export const approvalStateSchema = z
       .partialRecord(approvalEventSchema, approvalTransitionListSchema)
       .optional(),
     onDone: approvalOnDoneSchema.optional(),
-    always: z.array(approvalTransitionSchema).optional(),
-    entry: z.array(approvalActionSchema).optional(),
-    after: z.array(approvalAfterSchema).optional(),
+    always: approvalTransitionListSchema.optional(),
+    entry: approvalActionListSchema.optional(),
+    exit: approvalActionListSchema.optional(),
+    after: z.record(z.string(), approvalTargetSchema).optional(),
   })
   .loose();
 
-type ApprovalTransitionNode = { target?: string };
+type ApprovalTransitionNode = { target?: string } | string;
 
 type ApprovalStateNode = {
   initial?: string;
@@ -859,8 +873,8 @@ type ApprovalStateNode = {
     ApprovalTransitionNode | ApprovalTransitionNode[] | undefined
   >;
   onDone?: ApprovalTransitionNode;
-  always?: ApprovalTransitionNode[];
-  after?: ApprovalTransitionNode[];
+  always?: ApprovalTransitionNode | ApprovalTransitionNode[];
+  after?: Record<string, ApprovalTransitionNode>;
 };
 
 type ApprovalIssueCtx = {
@@ -870,6 +884,13 @@ type ApprovalIssueCtx = {
     path: (string | number)[];
   }) => void;
 };
+
+function targetOf(
+  transition: ApprovalTransitionNode | undefined,
+): string | undefined {
+  if (typeof transition === "string") return transition;
+  return transition?.target;
+}
 
 function refineApprovalStates(
   states: Record<string, ApprovalStateNode>,
@@ -900,38 +921,93 @@ function refineApprovalStates(
         path: targetPath,
       });
     };
+    const checkTransition = (
+      transition: ApprovalTransitionNode | undefined,
+      targetPath: (string | number)[],
+    ) => {
+      checkTarget(
+        targetOf(transition),
+        typeof transition === "string" ? targetPath : [...targetPath, "target"],
+      );
+    };
     for (const [event, transition] of Object.entries(state.on ?? {})) {
       const list = Array.isArray(transition) ? transition : [transition];
       list.forEach((item, index) => {
-        const targetPath = Array.isArray(transition)
-          ? [...statePath, "on", event, index, "target"]
-          : [...statePath, "on", event, "target"];
-        checkTarget(item?.target, targetPath);
+        const base = Array.isArray(transition)
+          ? [...statePath, "on", event, index]
+          : [...statePath, "on", event];
+        checkTransition(item, base);
       });
     }
-    checkTarget(state.onDone?.target, [...statePath, "onDone", "target"]);
-    state.always?.forEach((transition, index) => {
-      checkTarget(transition?.target, [...statePath, "always", index, "target"]);
+    if (state.onDone !== undefined) {
+      checkTransition(state.onDone, [...statePath, "onDone"]);
+    }
+    const alwaysList = Array.isArray(state.always)
+      ? state.always
+      : state.always
+        ? [state.always]
+        : [];
+    alwaysList.forEach((transition, index) => {
+      const base = Array.isArray(state.always)
+        ? [...statePath, "always", index]
+        : [...statePath, "always"];
+      checkTransition(transition, base);
     });
-    state.after?.forEach((transition, index) => {
-      checkTarget(transition?.target, [...statePath, "after", index, "target"]);
-    });
+    for (const [delay, transition] of Object.entries(state.after ?? {})) {
+      if (!/^\d+$/.test(delay)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `delay "${delay}" must be a number of milliseconds`,
+          path: [...statePath, "after", delay],
+        });
+      }
+      checkTransition(transition, [...statePath, "after", delay]);
+    }
     if (state.states) {
       refineApprovalStates(state.states, ctx, [...statePath, "states"]);
     }
   }
 }
 
+function rejectInvoke(
+  value: unknown,
+  ctx: ApprovalIssueCtx,
+  path: (string | number)[],
+) {
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => rejectInvoke(item, ctx, [...path, index]));
+    return;
+  }
+  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+    if (key === "invoke") {
+      ctx.addIssue({
+        code: "custom",
+        message: "invoke is not supported",
+        path: [...path, "invoke"],
+      });
+      continue;
+    }
+    rejectInvoke(child, ctx, [...path, key]);
+  }
+}
+
 export const approvalFlowSchema = z
   .object({
-    version: z.number().int().positive(),
-    /** Machine id stored on booking snapshots. Omit for a generic flow. */
-    id: z.string().min(1).optional(),
+    /** Machine id stored on booking snapshots. */
+    id: z.string().min(1),
     initial: z.string().min(1),
     states: z.record(z.string(), approvalStateSchema),
   })
   .loose()
   .superRefine((flow, ctx) => {
+    if ("version" in flow) {
+      ctx.addIssue({
+        code: "custom",
+        message: "version is not part of the machine config",
+        path: ["version"],
+      });
+    }
     const states = flow.states as Record<string, ApprovalStateNode>;
     if (!(flow.initial in states)) {
       ctx.addIssue({
@@ -941,6 +1017,7 @@ export const approvalFlowSchema = z
       });
     }
     refineApprovalStates(states, ctx, ["states"]);
+    rejectInvoke(flow, ctx, []);
   });
 
 export const tenantSchema = z
