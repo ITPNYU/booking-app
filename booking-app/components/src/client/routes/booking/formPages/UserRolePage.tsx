@@ -208,7 +208,10 @@ export default function UserRolePage({
       return;
     }
 
-    if (isVIP || isWalkIn) return;
+    // Affiliation comes from the signed-in requester. Editing or modifying
+    // someone else's booking, and VIP or walk-in requests, must not pick up
+    // this user's identity or last booking.
+    if (formContext !== FormContextLevel.FULL_FORM) return;
 
     const mappedRole = userApiData
       ? mapAffiliationToRole(
@@ -288,7 +291,7 @@ export default function UserRolePage({
         setDepartment(nextDepartment);
       }
     }
-  }, [userApiData, userApiStatus, user, isVIP, isWalkIn]);
+  }, [userApiData, userApiStatus, user, formContext]);
 
   useEffect(() => {
     const haveWatchedFieldsChanged =

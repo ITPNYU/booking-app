@@ -119,9 +119,11 @@ function renderDetails({
 function renderRolePage({
   userApiStatus,
   userApiData,
+  formContext,
 }: {
   userApiStatus: "loading" | "loaded" | "error";
   userApiData?: any;
+  formContext?: FormContextLevel;
 }) {
   const setRole = vi.fn();
   const setDepartment = vi.fn();
@@ -144,7 +146,7 @@ function renderRolePage({
               } as any
             }
           >
-            <UserRolePage />
+            <UserRolePage formContext={formContext} />
           </BookingContext.Provider>
         </SchemaProvider>
       </DatabaseContext.Provider>
@@ -346,6 +348,28 @@ describe("UserRolePage profile fallback", () => {
 
     await waitFor(() => expect(setDepartment).toHaveBeenCalledWith("Other"));
   });
+
+  it.each([FormContextLevel.EDIT, FormContextLevel.MODIFICATION])(
+    "does not apply the signed-in user's affiliation for %s",
+    async (formContext) => {
+      writeBookingProfile(TENANT, EMAIL, savedProfile);
+      const { setRole, setDepartment, setFormData } = renderRolePage({
+        userApiStatus: "loaded",
+        userApiData: {
+          affiliation_sub_type: "student",
+          reporting_dept_code: "FTV",
+        },
+        formContext,
+      });
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(setRole).not.toHaveBeenCalled();
+      expect(setDepartment).not.toHaveBeenCalled();
+      expect(setFormData).not.toHaveBeenCalledWith(
+        expect.objectContaining({ school: "Tisch" }),
+      );
+    },
+  );
 
   it("lets the identity API's role and department win", async () => {
     writeBookingProfile(TENANT, EMAIL, savedProfile);
