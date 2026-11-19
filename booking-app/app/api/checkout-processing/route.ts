@@ -8,6 +8,7 @@ import { updateCalendarEvent } from "@/components/src/server/calendars";
 import { getTenantEmailConfig } from "@/components/src/server/emails";
 import { BookingStatusLabel } from "@/components/src/types";
 import { normalizeActionNote } from "@/components/src/utils/bookingHistoryNotes";
+import { getEarlyCheckoutEndTime } from "@/components/src/utils/earlyCheckoutEnd";
 import {
   logServerBookingChange,
   serverGetDataByCalendarEventId,
@@ -48,11 +49,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Update Firestore with checkout timestamp and checkedOutBy
+    const checkedOutAt = Timestamp.now();
     await serverUpdateDataByCalendarEventId(
       TableNames.BOOKING,
       calendarEventId,
       {
-        checkedOutAt: Timestamp.now(),
+        checkedOutAt,
         checkedOutBy: email,
       },
       tenant,
@@ -106,18 +108,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Update calendar event with CHECKED_OUT status
+    // Update calendar event with CHECKED_OUT status. On an early checkout,
+    // also end the event at the checkout time rounded up to the next quarter
+    // hour so the rest of the slot can be requested or used for a walk-in.
+    // The Firestore booking keeps its original endDate.
     try {
       const bookingContents = await serverBookingContents(
         calendarEventId,
         tenant,
       );
 
+      const earlyCheckoutEnd = getEarlyCheckoutEndTime({
+        checkedOutAt: checkedOutAt.toDate(),
+        startDate: bookingDoc.startDate,
+        endDate: bookingDoc.endDate,
+      });
+      const calendarValues = {
+        statusPrefix: BookingStatusLabel.CHECKED_OUT,
+        ...(earlyCheckoutEnd && {
+          end: { dateTime: earlyCheckoutEnd.toISOString() },
+        }),
+      };
+
       await updateCalendarEvent(
         calendarEventId,
-        {
-          statusPrefix: BookingStatusLabel.CHECKED_OUT,
-        },
+        calendarValues,
         bookingContents,
         tenant,
       );
@@ -128,9 +143,7 @@ export async function POST(req: NextRequest) {
           calendarEventId,
           tenant,
         },
-        {
-          statusPrefix: BookingStatusLabel.CHECKED_OUT,
-        },
+        calendarValues,
       );
     } catch (calendarError) {
       BookingLogger.calendarError(
