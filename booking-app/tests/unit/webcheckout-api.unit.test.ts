@@ -196,6 +196,69 @@ describe("WebCheckout API Route", () => {
       expect(data.error).toBe("Cart not found");
     });
 
+    it("should return 404 when the search result list is empty", async () => {
+      mockFetch.mockResolvedValueOnce(mockAuthResponse).mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            status: "ok",
+            payload: { result: [], count: 0 },
+          }),
+      });
+
+      const response = await GET(
+        createMockRequest("CART123"),
+        createMockParams("CART123"),
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(404);
+      expect(data.error).toBe("Cart not found");
+    });
+
+    it("passes WebCheckout's status and payload back when it rejects the search", async () => {
+      const rejection = {
+        status: "error",
+        payload: { error: "Unknown property: returnTime" },
+      };
+      mockFetch.mockResolvedValueOnce(mockAuthResponse).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(rejection),
+      });
+
+      const response = await GET(
+        createMockRequest("CART123"),
+        createMockParams("CART123"),
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(502);
+      expect(data.error).toBe("Unknown property: returnTime");
+      expect(data.step).toBe("allocation/search");
+      expect(data.webCheckoutStatus).toBe("error");
+      expect(data.webCheckoutPayload).toEqual(rejection.payload);
+    });
+
+    it("names the WebCheckout status when the rejection has no message", async () => {
+      mockFetch.mockResolvedValueOnce(mockAuthResponse).mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ status: "forbidden" }),
+      });
+
+      const response = await GET(
+        createMockRequest("CART123"),
+        createMockParams("CART123"),
+      );
+      const data = await response.json();
+
+      expect(response.status).toBe(502);
+      expect(data.error).toBe(
+        'WebCheckout allocation/search returned status "forbidden"',
+      );
+      expect(data.webCheckoutStatus).toBe("forbidden");
+      expect(data.webCheckoutPayload).toBeNull();
+    });
+
     it("should return 500 if allocation data is missing OID", async () => {
       mockFetch.mockResolvedValueOnce(mockAuthResponse).mockResolvedValueOnce({
         ok: true,

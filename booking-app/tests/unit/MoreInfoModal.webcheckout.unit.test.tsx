@@ -646,6 +646,24 @@ describe("MoreInfoModal - WebCheckout", () => {
       expect(screen.getByLabelText("Edit cart number")).toBeInTheDocument();
     });
 
+    it("shows the API's error message when the cart can't be loaded", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        json: () =>
+          Promise.resolve({ error: "Unknown property: returnTime" }),
+      });
+
+      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
+      const context = createMockDatabaseContext(PagePermission.PA);
+
+      renderModal(booking, context);
+
+      expect(
+        await screen.findByTestId("webcheckout-load-error"),
+      ).toHaveTextContent("Unknown property: returnTime");
+    });
+
     it("handles empty equipment groups gracefully", async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,

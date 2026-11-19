@@ -148,6 +148,9 @@ export default function MoreInfoModal({
   const [webCheckoutUrl, setWebCheckoutUrl] = useState<string | null>(null);
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [webCheckoutData, setWebCheckoutData] = useState<any>(null);
+  const [webCheckoutLoadError, setWebCheckoutLoadError] = useState<
+    string | null
+  >(null);
 
   // Both the page context and the caller's role must be inside the tenant's
   // detailsModal.webCheckoutEditRoles to get the cart edit icon, the same way
@@ -272,21 +275,31 @@ export default function MoreInfoModal({
 
   const fetchWebCheckoutUrl = async (cartNum: string) => {
     setIsLoadingUrl(true);
+    setWebCheckoutLoadError(null);
     try {
       const response = await fetch(`/api/webcheckout/cart/${cartNum}`);
       if (response.ok) {
         const data = await response.json();
         setWebCheckoutUrl(data.webCheckoutUrl);
         setWebCheckoutData(data);
+        setWebCheckoutLoadError(null);
       } else {
-        console.error("Failed to fetch WebCheckout URL");
+        const body = await response.json().catch(() => null);
+        console.error(
+          `Failed to load WebCheckout cart ${cartNum} (HTTP ${response.status}):`,
+          body,
+        );
         setWebCheckoutUrl(null);
         setWebCheckoutData(null);
+        setWebCheckoutLoadError(
+          body?.error || `Request failed with status ${response.status}`,
+        );
       }
     } catch (error) {
-      console.error("Error fetching WebCheckout URL:", error);
+      console.error(`Error loading WebCheckout cart ${cartNum}:`, error);
       setWebCheckoutUrl(null);
       setWebCheckoutData(null);
+      setWebCheckoutLoadError("Network error");
     } finally {
       setIsLoadingUrl(false);
     }
@@ -399,6 +412,30 @@ export default function MoreInfoModal({
                             Loading equipment information...
                           </Typography>
                         )}
+
+                        {!isLoadingUrl && webCheckoutLoadError && (
+                          <Typography
+                            variant="body2"
+                            color="error"
+                            data-testid="webcheckout-load-error"
+                          >
+                            Couldn&apos;t load cart contents:{" "}
+                            {webCheckoutLoadError}
+                          </Typography>
+                        )}
+
+                        {!isLoadingUrl &&
+                          webCheckoutData &&
+                          Array.isArray(webCheckoutData.equipmentGroups) &&
+                          webCheckoutData.equipmentGroups.length === 0 && (
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              data-testid="webcheckout-empty"
+                            >
+                              No items found in this cart.
+                            </Typography>
+                          )}
 
                         {/* Equipment List Section */}
                         {webCheckoutData &&

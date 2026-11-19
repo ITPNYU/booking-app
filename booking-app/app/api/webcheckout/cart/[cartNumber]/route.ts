@@ -87,6 +87,30 @@ type ContentsSubitem = {
   due?: unknown;
 };
 
+/**
+ * WebCheckout answers with HTTP 200 and `status` set to something other than
+ * "ok" when it rejects a call. Pass its status and payload back (and log
+ * them) so the caller can see why, instead of a generic message.
+ */
+function webCheckoutRejection(step: string, data: any) {
+  const payload = data?.payload;
+  const message =
+    (typeof payload === "string" && payload) ||
+    payload?.message ||
+    payload?.error ||
+    `WebCheckout ${step} returned status "${data?.status}"`;
+  console.error(`WebCheckout ${step} rejected:`, JSON.stringify(data));
+  return NextResponse.json(
+    {
+      error: message,
+      step,
+      webCheckoutStatus: data?.status ?? null,
+      webCheckoutPayload: payload ?? null,
+    },
+    { status: 502 },
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object";
 }
@@ -274,24 +298,18 @@ export async function GET(
     }
 
     if (webCheckoutResponse.status !== "ok") {
-      return NextResponse.json(
-        {
-          error:
-            webCheckoutResponse.payload?.message || "WebCheckout API error",
-        },
-        { status: 500 },
-      );
+      return webCheckoutRejection("allocation/search", webCheckoutResponse);
     }
 
     const allocations = Array.isArray(webCheckoutResponse.payload)
       ? webCheckoutResponse.payload
       : [webCheckoutResponse.payload].filter(Boolean);
 
-    if (allocations.length === 0) {
+    const targetAllocation = allocations[0]?.result?.[0];
+    if (!targetAllocation) {
       return NextResponse.json({ error: "Cart not found" }, { status: 404 });
     }
 
-    const targetAllocation = allocations[0].result[0];
     const allocationOid = targetAllocation.oid;
 
     if (!allocationOid) {
@@ -434,14 +452,7 @@ export async function GET(
     }
 
     if (allocationData.status !== "ok") {
-      return NextResponse.json(
-        {
-          error:
-            allocationData.payload?.message ||
-            "WebCheckout allocation/get error",
-        },
-        { status: 500 },
-      );
+      return webCheckoutRejection("allocation/get", allocationData);
     }
 
     const detailedAllocation = allocationData.payload;
