@@ -29,4 +29,12 @@ describe("server/ui", () => {
       "https://flowing-mantis-389917.uc.r.appspot.com/",
     );
   });
+
+  it("uses an explicit branch instead of the process environment", () => {
+    vi.stubEnv("NEXT_PUBLIC_BRANCH_NAME", "production");
+
+    expect(getBookingToolDeployUrl("staging")).toBe(
+      "https://staging-dot-flowing-mantis-389917.uc.r.appspot.com/",
+    );
+  });
 });

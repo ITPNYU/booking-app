@@ -29,6 +29,18 @@ const Title = styled(Typography)`
   margin-bottom: 12px;
 `;
 
+const PolicyBody = styled("div")`
+  ul {
+    list-style-type: disc;
+    margin: 8px 0 0;
+    padding-left: 24px;
+  }
+  li {
+    display: list-item;
+    margin-bottom: 12px;
+  }
+`;
+
 export default function LandingPage() {
   const router = useRouter();
   const { tenant } = useParams();
@@ -64,9 +76,9 @@ export default function LandingPage() {
           <Typography
             sx={{ fontWeight: 500, fontSize: "1rem", lineHeight: "1.5" }}
           >
-            Please read our policy for using the {schema.tenant.nameForPolicy}
+            Please Read our Policy for Using the {schema.tenant.nameForPolicy}
           </Typography>
-          <div dangerouslySetInnerHTML={{ __html: schema.policy }} />
+          <PolicyBody dangerouslySetInnerHTML={{ __html: schema.policy }} />
           <Button
             variant="contained"
             color="primary"
