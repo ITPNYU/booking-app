@@ -153,7 +153,6 @@ export default function MoreInfoModal({
   );
   const [isUpdating, setIsUpdating] = useState(false);
   const [cartError, setCartError] = useState<string | null>(null);
-  const [webCheckoutUrl, setWebCheckoutUrl] = useState<string | null>(null);
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [webCheckoutData, setWebCheckoutData] = useState<any>(null);
 
@@ -284,16 +283,13 @@ export default function MoreInfoModal({
       const response = await fetch(`/api/webcheckout/cart/${cartNum}`);
       if (response.ok) {
         const data = await response.json();
-        setWebCheckoutUrl(data.webCheckoutUrl);
         setWebCheckoutData(data);
       } else {
         console.error("Failed to fetch WebCheckout URL");
-        setWebCheckoutUrl(null);
         setWebCheckoutData(null);
       }
     } catch (error) {
       console.error("Error fetching WebCheckout URL:", error);
-      setWebCheckoutUrl(null);
       setWebCheckoutData(null);
     } finally {
       setIsLoadingUrl(false);
@@ -413,38 +409,13 @@ export default function MoreInfoModal({
                           webCheckoutData.equipmentGroups &&
                           webCheckoutData.equipmentGroups.length > 0 && (
                             <Box sx={{ marginTop: 1 }}>
-                              <Box
-                                display="flex"
-                                alignItems="center"
-                                gap={1}
-                                sx={{ marginBottom: 1 }}
+                              <Typography
+                                variant="subtitle2"
+                                sx={{ fontWeight: 600, marginBottom: 1 }}
                               >
-                                <Typography
-                                  variant="subtitle2"
-                                  sx={{ fontWeight: 600 }}
-                                >
-                                  Cart: {webCheckoutData.cartNumber} (
-                                  {webCheckoutData.totalItems} items)
-                                </Typography>
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  onClick={() =>
-                                    navigator.clipboard.writeText(
-                                      webCheckoutUrl,
-                                    )
-                                  }
-                                  sx={{
-                                    fontSize: "0.7rem",
-                                    textTransform: "none",
-                                    padding: "2px 6px",
-                                    minWidth: "auto",
-                                    height: "24px",
-                                  }}
-                                >
-                                  Copy Cart URL
-                                </Button>
-                              </Box>
+                                Cart: {webCheckoutData.cartNumber} (
+                                {webCheckoutData.totalItems} items)
+                              </Typography>
 
                               {/* Display notes if available */}
                               {webCheckoutData.notes && (

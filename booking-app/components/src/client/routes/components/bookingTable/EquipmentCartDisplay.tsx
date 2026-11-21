@@ -7,7 +7,6 @@ import { Box, Typography } from "@mui/material";
 import { useContext } from "react";
 import { DatabaseContext } from "../Provider";
 import { useTenantSchema } from "../SchemaProvider";
-import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 
 interface Props {
   booking: BookingRow;
@@ -31,7 +30,8 @@ export default function EquipmentCartDisplay({
     isWebCheckoutContextAllowed(detailsModal, pageContext, "view") &&
     canAccessWebCheckoutCart(detailsModal, pagePermission, "view");
 
-  // If the caller can see the cart and there's a cart number, display it as clickable text
+  // The column shows the WebCheckout cart number, clickable to open the
+  // booking, and stays empty when there is none or the caller can't see it.
   if (canShowCartNumber && booking.webcheckoutCartNumber) {
     return (
       <Box sx={{ display: "flex", alignItems: "center" }}>
@@ -48,11 +48,5 @@ export default function EquipmentCartDisplay({
     );
   }
 
-  // For all other cases, display the equipment checkout toggle
-  return (
-    <EquipmentCheckoutToggle
-      booking={booking}
-      status={booking.equipmentCheckedOut}
-    />
-  );
+  return null;
 }
