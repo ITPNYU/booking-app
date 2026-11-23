@@ -42,15 +42,20 @@ export function pathPrefix(sel: Selection): string {
   }
 }
 
+/** True when `path` is the prefix or a field nested under it. */
+export function pathIsUnder(path: string, prefix: string): boolean {
+  if (prefix === "") return true;
+  return (
+    path === prefix ||
+    path.startsWith(`${prefix}.`) ||
+    path.startsWith(`${prefix}[`)
+  );
+}
+
 /** True when any diff entry falls under the selection's path prefix. */
 export function isDirtyUnder(diffs: DiffEntry[], prefix: string): boolean {
   if (prefix === "") return diffs.length > 0;
-  return diffs.some(
-    (d) =>
-      d.path === prefix ||
-      d.path.startsWith(`${prefix}.`) ||
-      d.path.startsWith(`${prefix}[`),
-  );
+  return diffs.some((d) => pathIsUnder(d.path, prefix));
 }
 
 type AnyRecord = Record<string, unknown>;

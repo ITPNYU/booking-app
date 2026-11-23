@@ -2,74 +2,46 @@ import { describe, expect, it } from "vitest";
 import {
   defaultResource,
   defaultScheme,
-} from "../../components/src/client/routes/components/SchemaProvider";
-
-/**
- * This list must match every key in SchemaContextType (including optional fields).
- * When you add a new field to SchemaContextType, add it here too — this test
- * will fail and remind you to also add a default value in defaultScheme.
- *
- * Note: "tenantId" is omitted because defaultScheme is typed as
- * Omit<SchemaContextType, "tenantId"> — tenantId is set at runtime.
- */
-const ALL_SCHEMA_KEYS = [
-  "tenant",
-  "policy",
-  "mappings",
-  "roles",
-  "form",
-  "detailsModal",
-  "attestations",
-  "resources",
-  "origins",
-  "training",
-  "supportPA",
-  "supportLiaison",
-  "resourceName",
-  "declinedGracePeriod",
-  "interimHighlightThresholdHours",
-  "autoCancel",
-  "termConfig",
-  "calendarConfig",
-  "ccEmails",
-  "emailNotifications",
-];
+  generateDefaultSchema,
+  resourceSchema,
+  tenantSchema,
+} from "../../components/src/client/routes/components/schemaTypes";
 
 describe("Schema completeness", () => {
-  const defaultKeys = Object.keys(defaultScheme);
-
-  it("defaultScheme includes all SchemaContextType fields", () => {
-    const missingFromDefaults = ALL_SCHEMA_KEYS.filter(
-      (key) => !defaultKeys.includes(key),
-    );
-
-    expect(
-      missingFromDefaults,
-      `These SchemaContextType fields are missing from defaultScheme. ` +
-        `Add a default value in SchemaProvider.tsx defaultScheme: ${missingFromDefaults.join(", ")}`,
-    ).toEqual([]);
+  it("an empty object fills every tenant field from the schema", () => {
+    const parsed = tenantSchema.omit({ tenantId: true }).parse({});
+    expect(parsed).toEqual(defaultScheme);
   });
 
-  it("ALL_SCHEMA_KEYS list is up to date with defaultScheme", () => {
-    const missingFromList = defaultKeys.filter(
-      (key) => !ALL_SCHEMA_KEYS.includes(key),
-    );
-
-    expect(
-      missingFromList,
-      `These defaultScheme keys are not in ALL_SCHEMA_KEYS. ` +
-        `Add them to the list in schema-completeness.unit.test.ts: ${missingFromList.join(", ")}`,
-    ).toEqual([]);
+  it("resourceSchema.parse({}) is the new room", () => {
+    const resource = resourceSchema.parse({});
+    expect(resource).toEqual(defaultResource);
+    expect(resource.resourceId).toBe("");
+    expect(resource.capacity).toBe(0);
+    expect(resource.requestLimits.perDay.admin).toBe(-1);
+    expect(resource).not.toHaveProperty("roomId");
+    expect(resource.staffingSections).not.toHaveProperty("__defaults__");
   });
 
-  it("defaultResource template uses resourceId string, not legacy roomId", () => {
-    expect(defaultResource).toHaveProperty("resourceId");
-    expect(typeof defaultResource.resourceId).toBe("string");
-    expect(defaultResource).not.toHaveProperty("roomId");
+  it("generateDefaultSchema passes and an empty resource id fails", () => {
+    const schema = generateDefaultSchema("mc");
+    const ok = tenantSchema.safeParse(schema);
+    expect("error" in ok).toBe(false);
+    expect(schema.form.productionSchedule.enabled).toBe(true);
 
-    const itemDefaults = (defaultScheme.resources as { __defaults__?: typeof defaultResource })
-      .__defaults__;
-    expect(itemDefaults?.resourceId).toBe("");
-    expect(itemDefaults).not.toHaveProperty("roomId");
+    const itp = generateDefaultSchema("itp");
+    expect(itp.tenant.contextLabels.worker).toBe("ER");
+    expect(itp.form.productionSchedule.enabled).toBe(false);
+
+    const bad = tenantSchema.safeParse({
+      ...schema,
+      resources: [{ ...defaultResource, resourceId: "" }],
+    });
+    expect("error" in bad).toBe(true);
+    if ("error" in bad) {
+      expect(
+        bad.error.issues.some((issue) => issue.path.includes("resourceId")),
+      ).toBe(true);
+    }
   });
 });

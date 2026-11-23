@@ -10,12 +10,8 @@ import { isValidTenant } from "@/components/src/constants/tenants";
 import admin from "@/lib/firebase/server/firebaseAdmin";
 import { requireSession } from "@/lib/api/requireSession";
 import { requireSuperAdmin } from "@/lib/api/requireSuperAdmin";
-import {
-  isTemplateSchemaId,
-  plainResource,
-  plainResourceDefault,
-  TEMPLATE_SCHEMA_ID,
-} from "@/lib/tenant/resourceDefault";
+import { validateTenantDocument } from "@/lib/tenant/validateTenantSchema";
+import { TEMPLATE_SCHEMA_ID } from "@/lib/tenant/resourceDefault";
 import { isCreatableTenantSlug } from "@/lib/tenant/tenantSlug";
 
 async function writeSchemaDocument(
@@ -42,6 +38,10 @@ async function writeSchemaDocument(
   return backupCreated;
 }
 
+function templateGone(): NextResponse {
+  return NextResponse.json({ error: "Not found" }, { status: 404 });
+}
+
 async function backupSchemaDocument(
   tenant: string,
   existingSchema: Record<string, unknown>,
@@ -60,61 +60,13 @@ async function backupSchemaDocument(
     .set(existingSchema as FirebaseFirestore.DocumentData, { merge: false });
 }
 
-async function getTemplateDocument(): Promise<NextResponse> {
-  const auth = await requireSuperAdmin(TEMPLATE_SCHEMA_ID);
-  if ("error" in auth) return auth.error;
-
-  const rawDoc = await serverGetDocumentById<Record<string, unknown>>(
-    TableNames.TENANT_SCHEMA,
-    TEMPLATE_SCHEMA_ID,
-  );
-  if (!rawDoc) {
-    return NextResponse.json(
-      { error: "Resource default not found" },
-      { status: 404 },
-    );
-  }
-
-  return NextResponse.json(rawDoc);
-}
-
-async function putTemplateDocument(request: NextRequest): Promise<NextResponse> {
-  const auth = await requireSuperAdmin(TEMPLATE_SCHEMA_ID);
-  if ("error" in auth) return auth.error;
-
-  const body = await request.json();
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return NextResponse.json(
-      { error: "Resource default document must be a JSON object" },
-      { status: 400 },
-    );
-  }
-
-  const resourceDefault = plainResource(
-    (body as { resourceDefault?: unknown }).resourceDefault,
-  );
-  if (!resourceDefault) {
-    return NextResponse.json(
-      { error: "resourceDefault must be an object" },
-      { status: 400 },
-    );
-  }
-
-  const backupCreated = await writeSchemaDocument(TEMPLATE_SCHEMA_ID, {
-    resourceDefault,
-  });
-  return NextResponse.json({ success: true, backupCreated });
-}
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> },
 ) {
   try {
     const { tenant } = await params;
-    if (isTemplateSchemaId(tenant)) {
-      return await getTemplateDocument();
-    }
+    if (tenant === TEMPLATE_SCHEMA_ID) return templateGone();
 
     // The schema exposes calendar IDs, email templates, and org mappings, so it
     // requires an authenticated NYU session (the collection is `anyNYU`-read).
@@ -171,9 +123,7 @@ export async function PUT(
 ) {
   try {
     const { tenant } = await params;
-    if (isTemplateSchemaId(tenant)) {
-      return await putTemplateDocument(request);
-    }
+    if (tenant === TEMPLATE_SCHEMA_ID) return templateGone();
 
     // mc and itp stay on the legacy allow-list. Any other slug must already
     // have been created with POST; this route does not create documents.
@@ -226,6 +176,20 @@ export async function PUT(
       );
     }
 
+    const issues = validateTenantDocument(newSchema);
+    if (issues.length > 0) {
+      const detail = issues
+        .slice(0, 8)
+        .map((issue) =>
+          issue.path ? `${issue.path}: ${issue.message}` : issue.message,
+        )
+        .join("; ");
+      return NextResponse.json(
+        { error: `Invalid schema: ${detail}` },
+        { status: 400 },
+      );
+    }
+
     const backupCreated = await writeSchemaDocument(tenant, newSchema);
 
     return NextResponse.json({ success: true, backupCreated });
@@ -233,53 +197,6 @@ export async function PUT(
     console.error("Error updating tenant schema:", error);
     return NextResponse.json(
       { error: "Failed to update tenant schema" },
-      { status: 500 },
-    );
-  }
-}
-
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ tenant: string }> },
-) {
-  try {
-    const { tenant } = await params;
-    if (!isTemplateSchemaId(tenant)) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
-
-    const auth = await requireSuperAdmin(TEMPLATE_SCHEMA_ID);
-    if ("error" in auth) return auth.error;
-
-    const body = await request.json().catch(() => null);
-    if (
-      !body ||
-      typeof body !== "object" ||
-      (body as { action?: unknown }).action !== "initialize-resource-default"
-    ) {
-      return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-    }
-
-    const existing = await serverGetDocumentById<Record<string, unknown>>(
-      TableNames.TENANT_SCHEMA,
-      TEMPLATE_SCHEMA_ID,
-    );
-    if (plainResource(existing?.resourceDefault)) {
-      return NextResponse.json(
-        { error: "Resource default already exists" },
-        { status: 409 },
-      );
-    }
-
-    const backupCreated = await writeSchemaDocument(TEMPLATE_SCHEMA_ID, {
-      ...(existing ?? {}),
-      resourceDefault: plainResourceDefault(),
-    });
-    return NextResponse.json({ success: true, backupCreated });
-  } catch (error) {
-    console.error("Error initializing resource default:", error);
-    return NextResponse.json(
-      { error: "Failed to initialize resource default" },
       { status: 500 },
     );
   }

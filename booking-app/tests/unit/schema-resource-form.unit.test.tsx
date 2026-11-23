@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SchemaContextType } from "@/components/src/client/routes/components/SchemaProvider";
+import { defaultResource } from "@/components/src/client/routes/components/schemaTypes";
 import SchemaResourceForm from "@/components/src/client/routes/super/schemaResourceForm";
 
 const resourceDefault = {
@@ -64,8 +65,12 @@ describe("SchemaResourceForm", () => {
       name: "Studio",
       resourceId: "studio",
       capacity: 12,
-      requestLimits: resourceDefault.requestLimits,
+      isEquipment: false,
+      requestLimits: defaultResource.requestLimits,
     });
+    expect(
+      vi.mocked(fetch).mock.calls.some((call) => String(call[0]).includes("_template")),
+    ).toBe(false);
     expect(vi.mocked(fetch).mock.calls.some((call) => call[1]?.method === "PUT")).toBe(
       false,
     );
@@ -227,37 +232,4 @@ describe("SchemaResourceForm", () => {
     expect(onSchemaChange).not.toHaveBeenCalled();
   });
 
-  it("offers initialize when the database has no resource default", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn((url: string, init?: RequestInit) => {
-        if (init?.method === "POST") {
-          return jsonResponse({ success: true });
-        }
-        if (String(url).includes("_template")) {
-          return jsonResponse({ error: "Resource default not found" }, 404);
-        }
-        return jsonResponse({ error: "unexpected" }, 500);
-      }),
-    );
-    const user = userEvent.setup();
-    const onSchemaChange = vi.fn();
-    render(<SchemaResourceForm schema={schema} onSchemaChange={onSchemaChange} />);
-
-    const addButton = await screen.findByRole("button", { name: "Add resource" });
-    await waitFor(() => expect(addButton).toBeEnabled());
-    await user.click(addButton);
-    expect(screen.getByText(/no resource default is stored/i)).toBeInTheDocument();
-    await user.click(
-      screen.getByRole("button", { name: "Initialize resource default" }),
-    );
-
-    await waitFor(() => {
-      expect(vi.mocked(fetch)).toHaveBeenCalledWith(
-        "/api/tenantSchema/_template",
-        expect.objectContaining({ method: "POST" }),
-      );
-    });
-    expect(onSchemaChange).not.toHaveBeenCalled();
-  });
 });

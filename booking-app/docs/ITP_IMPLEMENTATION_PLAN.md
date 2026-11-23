@@ -126,5 +126,5 @@ Phase 1 (Foundation)
 | `lib/stateMachines/mcBookingMachine.ts` | MC state machine (2165 lines, reference) |
 | `lib/stateMachines/xstateUtilsV5.ts` | Shared XState utilities (2050 lines, needs splitting) |
 | `app/api/bookings/route.ts` | Booking creation path |
-| `scripts/syncTenantSchemas.ts` | Schema sync script |
+| `components/src/client/routes/components/schemaTypes.ts` | Tenant schema (Zod) and defaults |
 | `components/src/client/routes/components/SchemaProvider.tsx` | Default schema definitions |

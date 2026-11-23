@@ -1,6 +1,6 @@
 # Tenant schema backup (CLI)
 
-Backs up Firestore **`tenantSchema`** documents into the **`tenantSchemaBackup`** collection—the same place **`syncTenantSchemas`** and **`copyCollection`** write before mutating schemas.
+Backs up Firestore **`tenantSchema`** documents into the **`tenantSchemaBackup`** collection—the same place **`copyCollection`** writes before mutating schemas.
 
 ## Behavior
 
@@ -12,7 +12,7 @@ Backs up Firestore **`tenantSchema`** documents into the **`tenantSchemaBackup`*
 ## Prerequisites
 
 - Run commands from the `booking-app` directory (where `package.json` lives).
-- `.env.local` must define Firebase Admin credentials (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`), same as `npm run sync:schemas`.
+- `.env.local` must define Firebase Admin credentials (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`).
 
 ## Usage
 
@@ -52,9 +52,7 @@ Real backups use the same id format as other tooling:
 
 ## Related
 
-- [Tenant schema sync guide](./SCHEMA_SYNC_GUIDE.md)
 - `scripts/tenantSchemaBackup.js`
-- `scripts/syncTenantSchemas.ts` — uses backup type `sync-defaults`
 - `scripts/copyCollection.js` — uses backup type `copy`
 
 ## Help

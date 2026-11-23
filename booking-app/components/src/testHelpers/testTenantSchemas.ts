@@ -1,5 +1,6 @@
 import {
   generateDefaultSchema,
+  defaultFormAlerts,
   defaultProductionSchedule,
   type SchemaContextType,
 } from "../client/routes/components/SchemaProvider";
@@ -53,6 +54,7 @@ const baseMediaCommonsSchema: SchemaContextType = {
       ...defaultProductionSchedule,
       enabled: true,
     },
+    alerts: defaultFormAlerts,
   },
   detailsModal: {
     showWebCheckout: true,
