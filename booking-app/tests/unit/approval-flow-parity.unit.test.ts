@@ -139,4 +139,72 @@ describe("approval flow parity", () => {
       valueOf(itpBookingMachine, manual, [{ type: "approve" }, { type: "noShow" }]),
     );
   });
+
+  it("keeps Media Commons hour limits and restore behavior on the legacy machine", () => {
+    const start = new Date("2026-06-01T15:00:00.000Z");
+    const twoHours = {
+      startStr: start.toISOString(),
+      endStr: new Date(start.getTime() + 2 * hour).toISOString(),
+    };
+    const limitedRoom = {
+      roomId: 202,
+      autoApproval: {
+        shouldAutoApprove: true,
+        minHour: { admin: -1, faculty: -1, student: -1 },
+        maxHour: { admin: 8, faculty: 8, student: 1 },
+        conditions: autoRoom.autoApproval.conditions,
+      },
+    };
+    const facultyOverStudentLimit = {
+      tenant: "mc",
+      role: "faculty",
+      selectedRooms: [limitedRoom],
+      bookingCalendarInfo: twoHours,
+    };
+
+    expect(valueOf(mcCompiled, facultyOverStudentLimit)).toBe("Requested");
+    expect(valueOf(mcCompiled, facultyOverStudentLimit)).toEqual(
+      valueOf(mcBookingMachine, facultyOverStudentLimit),
+    );
+
+    const restored = {
+      tenant: "mc",
+      selectedRooms: [autoRoom],
+      bookingCalendarInfo: calendar(),
+      role: "faculty",
+      _restoredFromStatus: true,
+      declineReason: "old",
+      automationReason: "decline",
+      pendingSideEffects: ["sendHTMLEmail"],
+    };
+    expect(valueOf(mcCompiled, restored)).toEqual(
+      valueOf(mcBookingMachine, restored),
+    );
+  });
+
+  it("still uses the passed role for ITP hour limits", () => {
+    const start = new Date("2026-06-01T15:00:00.000Z");
+    const input = {
+      tenant: "itp",
+      role: "faculty",
+      selectedRooms: [
+        {
+          roomId: 1,
+          autoApproval: {
+            shouldAutoApprove: true,
+            minHour: { admin: -1, faculty: -1, student: -1 },
+            maxHour: { admin: 8, faculty: 8, student: 1 },
+            conditions: autoRoom.autoApproval.conditions,
+          },
+        },
+      ],
+      bookingCalendarInfo: {
+        startStr: start.toISOString(),
+        endStr: new Date(start.getTime() + 2 * hour).toISOString(),
+      },
+    };
+
+    expect(valueOf(itpCompiled, input)).toBe("Approved");
+    expect(valueOf(itpCompiled, input)).toEqual(valueOf(itpBookingMachine, input));
+  });
 });

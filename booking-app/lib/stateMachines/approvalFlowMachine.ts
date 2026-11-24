@@ -46,12 +46,12 @@ export function compileApprovalFlow(flow: ApprovalFlow) {
       bookingCalendarInfo: input?.bookingCalendarInfo,
       isWalkIn: input?.isWalkIn || false,
       isVip: input?.isVip || false,
-      role: input?.role,
+      // The Media Commons builder never copies role, so hour limits stay on
+      // the student tier. ITP's builder does copy role.
+      ...(isMediaCommonsTenant(input?.tenant) ? {} : { role: input?.role }),
       origin: input?.origin,
       calendarEventId: input?.calendarEventId,
       email: input?.email,
-      declineReason: input?.declineReason,
-      automationReason: input?.automationReason,
       servicesRequested:
         input?.servicesRequested && typeof input.servicesRequested === "object"
           ? input.servicesRequested
@@ -65,8 +65,6 @@ export function compileApprovalFlow(flow: ApprovalFlow) {
         typeof input.servicesAutoCloseout === "object"
           ? input.servicesAutoCloseout
           : undefined,
-      pendingSideEffects: input?.pendingSideEffects,
-      _restoredFromStatus: input?._restoredFromStatus,
     }),
     states: flow.states as never,
   });
