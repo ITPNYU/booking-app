@@ -43,15 +43,12 @@ export default function ApprovalFlowDiagram({
     if (path.length > 0) setPath([]);
   }
   const activePath = value === source ? path : [];
-  let shownPath = activePath;
-  let diagram = layoutApprovalFlow(value, shownPath);
-  if (!diagram.ok && shownPath.length > 0) {
-    setPath([]);
-    shownPath = [];
-    diagram = layoutApprovalFlow(value, []);
-  }
+  const attempted = layoutApprovalFlow(value, activePath);
+  if (!attempted.ok && activePath.length > 0) setPath([]);
+  const diagram = attempted.ok ? attempted : layoutApprovalFlow(value, []);
+  const shownPath = attempted.ok ? activePath : [];
 
-  if (!diagram.ok) {
+  if ("message" in diagram) {
     return <Alert severity="warning">{diagram.message}</Alert>;
   }
 
