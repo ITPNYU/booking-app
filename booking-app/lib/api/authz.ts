@@ -177,9 +177,9 @@ const POLICY: Record<string, Policy> = {
   // the right next step but out of scope for the SSO regression fix.
   //
   // Writes go through dedicated `/api/bookings/*` routes for the XState
-  // lifecycle, but a few staff UI controls (e.g. `EquipmentCheckoutToggle`
-  // calling `clientUpdateDataByCalendarEventId`) still flip booking fields
-  // directly. Allow PA and above so those controls keep working; further
+  // lifecycle, but a few staff actions (e.g. the traditional decline and
+  // no-show paths in `components/src/server/db.ts` calling
+  // `clientUpdateDataByCalendarEventId`) still flip booking fields directly. Allow PA and above so those controls keep working; further
   // tightening belongs in a followup that routes those mutations through
   // dedicated endpoints.
   [TableNames.BOOKING]: { read: "anyNYU", write: "paOrAbove" },

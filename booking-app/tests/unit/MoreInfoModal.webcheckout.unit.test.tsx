@@ -545,39 +545,18 @@ describe("MoreInfoModal - WebCheckout", () => {
       });
     });
 
-    it("displays Copy Cart URL button next to cart info", async () => {
+    it("does not show a Copy Cart URL button next to the cart info (#1441)", async () => {
       const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
       const context = createMockDatabaseContext(PagePermission.PA);
 
       renderModal(booking, context);
 
       await waitFor(() => {
-        const copyButton = screen.getByText("Copy Cart URL");
-        expect(copyButton).toBeInTheDocument();
+        expect(
+          screen.getByText((content) => content.includes("Cart: CK-2614") && content.includes("items"))
+        ).toBeInTheDocument();
       });
-    });
-
-    it("copies the WebCheckout URL to clipboard when Copy Cart URL is clicked", async () => {
-      const writeTextSpy = vi.fn();
-      Object.defineProperty(navigator, "clipboard", {
-        value: {
-          writeText: writeTextSpy,
-        },
-        configurable: true,
-        writable: true,
-      });
-
-      const booking = createMockBooking({ webcheckoutCartNumber: "CK-2614" });
-      const context = createMockDatabaseContext(PagePermission.PA);
-
-      renderModal(booking, context);
-
-      const copyButton = await screen.findByText("Copy Cart URL");
-      fireEvent.click(copyButton);
-
-      expect(writeTextSpy).toHaveBeenCalledWith(
-        mockWebCheckoutData.webCheckoutUrl
-      );
+      expect(screen.queryByText("Copy Cart URL")).not.toBeInTheDocument();
     });
 
     it("displays equipment groups with proper styling", async () => {

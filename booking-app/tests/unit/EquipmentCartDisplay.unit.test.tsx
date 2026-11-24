@@ -18,13 +18,6 @@ import {
 } from "../../components/src/types";
 
 vi.mock(
-  "../../components/src/client/routes/components/bookingTable/EquipmentCheckoutToggle",
-  () => ({
-    default: () => <div data-testid="equipment-checkout-toggle" />,
-  }),
-);
-
-vi.mock(
   "../../components/src/client/routes/hooks/useSortBookingHistory",
   () => ({ default: () => null }),
 );
@@ -150,9 +143,6 @@ describe("EquipmentCartDisplay", () => {
     (permission, pageContext) => {
       renderCell({ permission, pageContext });
       expect(cartShown()).toBe(true);
-      expect(
-        screen.queryByTestId("equipment-checkout-toggle"),
-      ).not.toBeInTheDocument();
     },
   );
 
@@ -162,11 +152,9 @@ describe("EquipmentCartDisplay", () => {
   ])(
     "hides the cart number from %s under the default roles",
     (permission, pageContext) => {
-      renderCell({ permission, pageContext });
+      const { container } = renderCell({ permission, pageContext });
       expect(cartShown()).toBe(false);
-      expect(
-        screen.getByTestId("equipment-checkout-toggle"),
-      ).toBeInTheDocument();
+      expect(container).toBeEmptyDOMElement();
     },
   );
 
@@ -210,13 +198,13 @@ describe("EquipmentCartDisplay", () => {
   });
 
   it("hides the cart number from every role when showWebCheckout is off", () => {
-    renderCell({
+    const { container } = renderCell({
       permission: PagePermission.SUPER_ADMIN,
       pageContext: PageContextLevel.ADMIN,
       showWebCheckout: false,
     });
     expect(cartShown()).toBe(false);
-    expect(screen.getByTestId("equipment-checkout-toggle")).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
   });
 
   it("never shows the cart number on My Bookings", () => {
@@ -228,13 +216,17 @@ describe("EquipmentCartDisplay", () => {
     expect(cartShown()).toBe(false);
   });
 
-  it("shows the toggle when there is no cart number", () => {
-    renderCell({
+  it("leaves the cell empty when there is no cart number, with no toggle (#1441)", () => {
+    const { container } = renderCell({
       permission: PagePermission.ADMIN,
       pageContext: PageContextLevel.ADMIN,
-      booking: createBooking({ webcheckoutCartNumber: undefined }),
+      booking: createBooking({
+        webcheckoutCartNumber: undefined,
+        equipmentServices: ["Checkout Equipment"] as any,
+      }),
     });
-    expect(screen.getByTestId("equipment-checkout-toggle")).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
   it("opens the booking when the cart number is clicked", () => {

@@ -19,7 +19,6 @@ import { mergeRoomIdsWithAnnex } from "../../../../utils/resourceServicesUtils";
 
 import BookingActions from "../../admin/components/BookingActions";
 import getBookingStatus from "../../hooks/getBookingStatus";
-import EquipmentCheckoutToggle from "./EquipmentCheckoutToggle";
 import StackedTableCell from "./StackedTableCell";
 import StatusChip from "./StatusChip";
 
@@ -149,14 +148,6 @@ export default function BookingTableRow({
           <MoreHoriz />
         </IconButton>
       </TableCell>
-      {!isUserView && (
-        <TableCell>
-          <EquipmentCheckoutToggle
-            status={booking.equipmentCheckedOut}
-            {...{ booking }}
-          />
-        </TableCell>
-      )}
       <TableCell width={100}>
         <BookingActions
           status={actualStatus}
