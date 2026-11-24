@@ -25,6 +25,8 @@ import {
   MenuItem,
   Select,
   Snackbar,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import type { ChangeEvent, ReactNode } from "react";
@@ -71,6 +73,7 @@ import {
   sortKeysDeep,
   type Selection,
 } from "./schemaEditorNav";
+import ApprovalFlowDiagram from "./approvalFlowDiagramView";
 import SchemaResourceForm from "./schemaResourceForm";
 import { SchemaValueFields } from "./schemaResourceFields";
 import SchemaCreateForm from "./schemaCreateForm";
@@ -581,6 +584,7 @@ export default function SchemaEditor() {
   const [schema, setSchema] = useState<AnyRecord | null>(null);
   const [originalSchema, setOriginalSchema] = useState<string>("");
   const [selected, setSelected] = useState<Selection>(SELECT_ALL);
+  const [approvalView, setApprovalView] = useState<"json" | "diagram">("json");
   // True while the textarea holds text that does not parse. Such text has
   // not reached `schema`, so leaving the slice would discard it.
   const [hasParseError, setHasParseError] = useState(false);
@@ -668,7 +672,8 @@ export default function SchemaEditor() {
   );
 
   const handleSaveClick = () => {
-    if (!schema || !original || hasParseError || documentErrors.length > 0) return;
+    if (!schema || !original || hasParseError || documentErrors.length > 0)
+      return;
     setDiffDialogOpen(true);
   };
 
@@ -741,10 +746,13 @@ export default function SchemaEditor() {
 
   const handleConfirmDelete = async () => {
     const target = deleteTarget;
-    if (!target || !isCreatableTenantSlug(target) || isValidTenant(target)) return;
+    if (!target || !isCreatableTenantSlug(target) || isValidTenant(target))
+      return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/tenantSchema/${target}`, { method: "DELETE" });
+      const res = await fetch(`/api/tenantSchema/${target}`, {
+        method: "DELETE",
+      });
       const result = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(result.error || `Failed: ${res.status}`);
@@ -816,6 +824,10 @@ export default function SchemaEditor() {
       (effectiveSelected.kind === "section" &&
         effectiveSelected.key === "resources"));
   const showFieldForm = effectiveSelected.kind !== "all" && !showResourceForm;
+  const approvalFlowSelected =
+    effectiveSelected.kind === "section" &&
+    effectiveSelected.key === "approvalFlow";
+  const showDiagram = approvalFlowSelected && approvalView === "diagram";
   const sliceFieldKey =
     effectiveSelected.kind === "section" ? effectiveSelected.key : "schema";
 
@@ -1015,8 +1027,27 @@ export default function SchemaEditor() {
                 onSchemaChange={(updated) => setSchema(updated)}
               />
             )}
-            {showFieldForm && (
-              <Box component="section" aria-label="Schema fields" sx={{ mb: 2 }}>
+            {approvalFlowSelected && (
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={approvalView}
+                aria-label="Approval flow view"
+                sx={{ mb: 1 }}
+                onChange={(_, next: "json" | "diagram" | null) => {
+                  if (next) setApprovalView(next);
+                }}
+              >
+                <ToggleButton value="json">JSON</ToggleButton>
+                <ToggleButton value="diagram">Diagram</ToggleButton>
+              </ToggleButtonGroup>
+            )}
+            {showFieldForm && !showDiagram && (
+              <Box
+                component="section"
+                aria-label="Schema fields"
+                sx={{ mb: 2 }}
+              >
                 <SchemaValueFields
                   fieldKey={sliceFieldKey}
                   value={sliceValue}
@@ -1025,14 +1056,25 @@ export default function SchemaEditor() {
               </Box>
             )}
 
-            <JsonEditor
-              key={`${tenant}:${selectionId(effectiveSelected)}`}
-              value={sliceValue}
-              onChange={writeSlice}
-              onParseErrorChange={setHasParseError}
-              schemaErrors={visibleSchemaErrors}
-              minHeight={effectiveSelected.kind === "all" ? 600 : 400}
-            />
+            {showDiagram && (
+              <Box sx={{ mb: 1 }}>
+                <SchemaIssueAlert issues={visibleSchemaErrors} />
+                <ApprovalFlowDiagram
+                  value={sliceValue}
+                  invalidText={hasParseError}
+                />
+              </Box>
+            )}
+            <Box sx={{ display: showDiagram ? "none" : "block" }}>
+              <JsonEditor
+                key={`${tenant}:${selectionId(effectiveSelected)}`}
+                value={sliceValue}
+                onChange={writeSlice}
+                onParseErrorChange={setHasParseError}
+                schemaErrors={visibleSchemaErrors}
+                minHeight={effectiveSelected.kind === "all" ? 600 : 400}
+              />
+            </Box>
           </Box>
         </Box>
       )}
@@ -1050,7 +1092,9 @@ export default function SchemaEditor() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={(tenantId) => {
-          setSchemaTargets((current) => mergeSchemaTargets([...current, tenantId]));
+          setSchemaTargets((current) =>
+            mergeSchemaTargets([...current, tenantId]),
+          );
           setCreateOpen(false);
           handleTenantChange(tenantId);
         }}
