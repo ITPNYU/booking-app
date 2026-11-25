@@ -14,7 +14,10 @@ export default defineConfig({
     "process.env.NODE_ENV": JSON.stringify("development"),
   },
   test: {
-    include: ["tests/**/*.unit.test.{ts,tsx}"],
+    include: [
+      "tests/**/*.unit.test.{ts,tsx}",
+      "tests/invariants/**/*.invariant.test.ts",
+    ],
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     globals: true,
