@@ -48,6 +48,10 @@ const comparable = (value: unknown): unknown => {
   return value;
 };
 
+/** Keys that would reach an object's prototype instead of its own fields. */
+const isUnsafeKey = (key: string) =>
+  key === "__proto__" || key === "constructor" || key === "prototype";
+
 const getPath = (data: Data | undefined, path: string): unknown =>
   path
     .split(".")
@@ -58,6 +62,7 @@ const getPath = (data: Data | undefined, path: string): unknown =>
 
 const setPath = (data: Data, path: string, value: unknown) => {
   const keys = path.split(".");
+  if (keys.some(isUnsafeKey)) return;
   let current = data;
   keys.slice(0, -1).forEach((key) => {
     if (!isPlainObject(current[key])) current[key] = {};
@@ -80,6 +85,7 @@ const stripSentinels = (data: Data): Data => {
 
 const mergeInto = (target: Data, source: Data) => {
   for (const [key, value] of Object.entries(source)) {
+    if (isUnsafeKey(key)) continue;
     if (isDeleteSentinel(value)) delete target[key];
     else if (isPlainObject(value)) {
       if (!isPlainObject(target[key])) target[key] = {};
