@@ -18,6 +18,7 @@ import { styled } from "@mui/system";
 import { PagePermission } from "../../../types";
 import { PERMISSION_PATH } from "../../../utils/permissions";
 import useHandleStartBooking from "../booking/hooks/useHandleStartBooking";
+import { clearBookingProfiles } from "../booking/utils/bookingProfileCache";
 import ConfirmDialog from "./ConfirmDialog";
 import getEnvironmentTitle from "./getEnvironmentTitle";
 import { DatabaseContext } from "./Provider";
@@ -169,6 +170,7 @@ export default function NavBar() {
   const handleSignOut = async () => {
     try {
       sessionStorage.removeItem("hasRedirectedToDefaultContext");
+      clearBookingProfiles();
       setUserEmail(null);
       await signOut({ callbackUrl: tenant ? `/${tenant}/signin` : "/signin" });
     } catch (error) {

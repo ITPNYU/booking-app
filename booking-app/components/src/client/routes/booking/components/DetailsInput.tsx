@@ -1,6 +1,13 @@
 import { Button, Typography } from "@mui/material";
 import { ChevronRight } from "@mui/icons-material";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -52,7 +59,7 @@ export default function DetailsInput({
   formContext,
   userApiData,
 }: Props) {
-  const { userEmail, settings } = useContext(DatabaseContext);
+  const { userEmail, netId: ownNetId, settings } = useContext(DatabaseContext);
   const { selectedRooms, formData, setIsDetailsValid, bookingCalendarInfo } =
     useContext(BookingContext);
   const blocked = useRequestBlocked();
@@ -87,6 +94,7 @@ export default function DetailsInput({
     trigger,
     watch,
     reset,
+    getValues,
     setValue,
     clearErrors,
     formState: { errors, isValid },
@@ -249,6 +257,18 @@ export default function DetailsInput({
       }));
     }
   }, [userApiData, reset, isFullForm]);
+
+  // The signed-in Net ID fills an empty field on the first visit to this
+  // step only. Name and phone are not restored from a previous booking.
+  // Once the step has been seen, the answer set already holds the field,
+  // cleared ones included.
+  const formDataOnMount = useRef(formData);
+  useEffect(() => {
+    if (!isFullForm || !ownNetId) return;
+    if (formDataOnMount.current?.netId !== undefined) return;
+    if (getValues("netId")) return;
+    setValue("netId", ownNetId, { shouldValidate: false });
+  }, [isFullForm, ownNetId, getValues, setValue]);
 
   // Next is gated by the same rule Submit uses: modifications need a valid
   // form; other requests are blocked by bans, safety training and blackouts.
