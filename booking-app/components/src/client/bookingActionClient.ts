@@ -163,35 +163,18 @@ export const decline = async (
   reason?: string,
   tenant?: string,
 ) => {
-  if (shouldUseXState(tenant)) {
-    const xstateResult = await callXStateTransitionAPI(
-      id,
-      "decline",
-      email,
-      tenant,
-      reason,
-    );
+  const xstateResult = await callXStateTransitionAPI(
+    id,
+    "decline",
+    email,
+    tenant,
+    reason,
+  );
 
-    if (xstateResult.success) {
-      const doc = await clientGetDataByCalendarEventId<{
-        id: string;
-        requestNumber: number;
-      }>(TableNames.BOOKING, id, tenant);
-
-      if (doc) {
-        await logClientBookingChange({
-          bookingId: doc.id,
-          calendarEventId: id,
-          status: BookingStatusLabel.DECLINED,
-          changedBy: email,
-          requestNumber: doc.requestNumber,
-          note: reason,
-          tenant,
-        });
-      }
-      return;
-    }
-    // The fallback applies the same check, so do not retry a refusal.
+  // The machine decides whether a booking can be declined. When it refuses,
+  // or the request fails, nothing was declined: report that instead of
+  // stamping declinedAt and emailing the guest through a second endpoint.
+  if (!xstateResult.success) {
     if (xstateResult.status === 403) {
       throw new NotAnApproverError(
         xstateResult.error || "You are not authorized to decline this booking",
@@ -200,33 +183,24 @@ export const decline = async (
     if (xstateResult.status === 401) {
       throw new Error(xstateResult.error || "Unauthorized");
     }
+    throw new Error(xstateResult.error || "Failed to decline booking");
   }
 
-  // Full traditional fallback (Firestore + email + calendar) via server route
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/decline-processing`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify({
-        calendarEventId: id,
-        email,
-        reason,
-        tenant,
-      }),
-    },
-  );
-  if (!response.ok) {
-    const result = await response.json().catch(() => ({}));
-    if (response.status === 403) {
-      throw new NotAnApproverError(
-        result.error || "You are not authorized to decline this booking",
-      );
-    }
-    throw new Error(result.error || "Failed to decline booking");
+  const doc = await clientGetDataByCalendarEventId<{
+    id: string;
+    requestNumber: number;
+  }>(TableNames.BOOKING, id, tenant);
+
+  if (doc) {
+    await logClientBookingChange({
+      bookingId: doc.id,
+      calendarEventId: id,
+      status: BookingStatusLabel.DECLINED,
+      changedBy: email,
+      requestNumber: doc.requestNumber,
+      note: reason,
+      tenant,
+    });
   }
 };
 
