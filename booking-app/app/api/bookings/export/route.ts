@@ -99,15 +99,69 @@ const parseExportDate = (value: string | null): Date | null => {
     : date;
 };
 
+/**
+ * Lifecycle timestamps that decide "End Event Status", in ascending
+ * precedence. The most recent stamp wins; the order here only breaks exact
+ * ties (e.g. auto-approval writes requestedAt / firstApprovedAt /
+ * finalApprovedAt in the same instant).
+ *
+ * `closedAt` is deliberately excluded: every terminal state auto-closes,
+ * so it would hide whether the booking was canceled, a no-show, or
+ * checked out. It has its own column.
+ */
+const STATUS_TIMESTAMPS: ReadonlyArray<{
+  field: keyof Booking;
+  label: string;
+}> = [
+  { field: "requestedAt", label: "Requested" },
+  { field: "firstApprovedAt", label: "Pending" },
+  { field: "finalApprovedAt", label: "Approved" },
+  { field: "checkedInAt", label: "Checked in" },
+  { field: "checkedOutAt", label: "Checked out" },
+  { field: "noShowedAt", label: "No Show" },
+  { field: "declinedAt", label: "Declined" },
+  { field: "canceledAt", label: "Canceled" },
+];
+
+/**
+ * Outcomes the System follows up with its own cancel: moments later for a
+ * no-show, 24 hours later for a decline. That follow-up must not hide the
+ * real outcome, so a cancel stamped right after one of these is ignored.
+ */
+const OUTCOMES_KEPT_OVER_CANCEL: ReadonlySet<keyof Booking> = new Set([
+  "noShowedAt",
+  "declinedAt",
+]);
+
 const getBookingStatus = (booking: Booking): string => {
-  if (booking.finalApprovedAt) return "Approved";
-  if (booking.declinedAt) return "Declined";
-  if (booking.canceledAt) return "Canceled";
-  if (booking.checkedOutAt) return "Checked out";
-  if (booking.checkedInAt) return "Checked in";
-  if (booking.noShowedAt) return "No Show";
-  if (booking.firstApprovedAt) return "Pending";
-  return "Requested";
+  type Stamp = { field: keyof Booking; label: string; time: number };
+  let latest: Stamp | null = null;
+  let latestBeforeCancel: Stamp | null = null;
+
+  // Ascending precedence, so `>=` lets the later entry win an exact tie.
+  STATUS_TIMESTAMPS.forEach(({ field, label }) => {
+    const date = toDate(booking[field]);
+    if (!date) return;
+    const stamp: Stamp = { field, label, time: date.getTime() };
+    if (!latest || stamp.time >= latest.time) latest = stamp;
+    if (
+      field !== "canceledAt" &&
+      (!latestBeforeCancel || stamp.time >= latestBeforeCancel.time)
+    ) {
+      latestBeforeCancel = stamp;
+    }
+  });
+
+  const winner = latest as Stamp | null;
+  const beforeCancel = latestBeforeCancel as Stamp | null;
+  if (
+    winner?.field === "canceledAt" &&
+    beforeCancel &&
+    OUTCOMES_KEPT_OVER_CANCEL.has(beforeCancel.field)
+  ) {
+    return beforeCancel.label;
+  }
+  return winner?.label ?? "Requested";
 };
 
 const calculateTimeInUse = (startDate: unknown, endDate: unknown): number => {

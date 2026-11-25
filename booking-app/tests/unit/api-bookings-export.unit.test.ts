@@ -12,10 +12,9 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@/lib/firebase/server/firebaseAdmin", () => ({
   default: {
-    firestore: Object.assign(
-      () => ({ collection: mocks.collection }),
-      { Timestamp: { fromDate: mocks.fromDate } },
-    ),
+    firestore: Object.assign(() => ({ collection: mocks.collection }), {
+      Timestamp: { fromDate: mocks.fromDate },
+    }),
   },
 }));
 
@@ -177,5 +176,139 @@ describe("GET /api/bookings/export", () => {
     expect(cell("Catering Rooms")).toBe("");
     expect(cell("Catering Chart Field")).toBe("");
     expect(cell("Hire Security Rooms")).toBe("");
+  });
+});
+
+describe("GET /api/bookings/export — End Event Status", () => {
+  const exportStatus = async (fields: Record<string, unknown>) => {
+    const handlers = streamHandlers();
+    const response = await GET(
+      new Request(
+        "http://localhost/api/bookings/export?startDate=2026-09-01&endDate=2026-10-31",
+      ) as any,
+    );
+    handlers.data({
+      id: "b1",
+      data: () => ({ requestNumber: 7517, roomId: "1201", ...fields }),
+    });
+    handlers.end();
+    return (await readRow(response)).cell("End Event Status");
+  };
+
+  it("reports a user cancellation after final approval as Canceled", async () => {
+    // Prod #7517: approved 8/31, canceled by the requester 9/1, auto-closed.
+    expect(
+      await exportStatus({
+        requestedAt: "2026-08-31T14:19:52Z",
+        firstApprovedAt: "2026-08-31T18:01:58Z",
+        finalApprovedAt: "2026-08-31T18:04:20Z",
+        canceledAt: "2026-09-01T15:21:08Z",
+        closedAt: "2026-09-01T15:21:13Z",
+      }),
+    ).toBe("Canceled");
+  });
+
+  it("reports a no-show as No Show even though auto-cancel stamps canceledAt afterwards", async () => {
+    // Prod #7854: no-show stamped, then System cancel 0.2s later.
+    expect(
+      await exportStatus({
+        finalApprovedAt: "2026-10-14T19:46:13Z",
+        noShowedAt: "2026-10-14T20:42:51.244Z",
+        canceledAt: "2026-10-14T20:42:51.435Z",
+        closedAt: "2026-10-14T20:42:55Z",
+      }),
+    ).toBe("No Show");
+  });
+
+  it("reports a no-show without a follow-up cancel as No Show", async () => {
+    expect(
+      await exportStatus({
+        finalApprovedAt: "2026-10-14T19:46:13Z",
+        noShowedAt: "2026-10-14T20:42:51Z",
+      }),
+    ).toBe("No Show");
+  });
+
+  it("lets a later check-in/check-out override an earlier no-show", async () => {
+    // Prod #7733: flagged no-show, arrived late, checked in and out.
+    expect(
+      await exportStatus({
+        finalApprovedAt: "2026-10-01T13:16:40Z",
+        noShowedAt: "2026-10-01T17:38:49Z",
+        checkedInAt: "2026-10-01T18:43:25Z",
+        checkedOutAt: "2026-10-01T23:05:44Z",
+      }),
+    ).toBe("Checked out");
+  });
+
+  it("reports a decline after pre-approval as Declined", async () => {
+    expect(
+      await exportStatus({
+        requestedAt: "2026-10-01T10:00:00Z",
+        firstApprovedAt: "2026-10-01T11:00:00Z",
+        declinedAt: "2026-10-02T09:00:00Z",
+      }),
+    ).toBe("Declined");
+  });
+
+  it("reports a decline as Declined even though auto-cancel stamps canceledAt 24h later", async () => {
+    expect(
+      await exportStatus({
+        requestedAt: "2026-10-01T10:00:00Z",
+        firstApprovedAt: "2026-10-01T11:00:00Z",
+        declinedAt: "2026-10-02T09:00:00Z",
+        canceledAt: "2026-10-03T09:00:05Z",
+        closedAt: "2026-10-03T09:00:09Z",
+      }),
+    ).toBe("Declined");
+  });
+
+  it("reports Canceled when an old no-show was overridden before the cancel", async () => {
+    // The no-show is no longer the latest outcome, so the cancel counts.
+    expect(
+      await exportStatus({
+        finalApprovedAt: "2026-10-01T13:16:40Z",
+        noShowedAt: "2026-10-01T17:38:49Z",
+        checkedInAt: "2026-10-01T18:43:25Z",
+        canceledAt: "2026-10-01T19:00:00Z",
+      }),
+    ).toBe("Canceled");
+  });
+
+  it("keeps Approved after staff modify an approved booking", async () => {
+    // The modification route re-stamps requestedAt, then finalApprove
+    // re-stamps finalApprovedAt later in the same request.
+    expect(
+      await exportStatus({
+        requestedAt: "2026-10-05T15:00:00.100Z",
+        firstApprovedAt: "2026-10-01T11:00:00Z",
+        finalApprovedAt: "2026-10-05T15:00:00.900Z",
+      }),
+    ).toBe("Approved");
+  });
+
+  it("still reports Approved when nothing happened after final approval", async () => {
+    expect(
+      await exportStatus({
+        requestedAt: "2026-10-01T10:00:00Z",
+        firstApprovedAt: "2026-10-01T11:00:00Z",
+        finalApprovedAt: "2026-10-01T12:00:00Z",
+      }),
+    ).toBe("Approved");
+  });
+
+  it("breaks same-instant auto-approval stamps toward Approved", async () => {
+    const t = "2026-10-01T10:00:00Z";
+    expect(
+      await exportStatus({
+        requestedAt: t,
+        firstApprovedAt: t,
+        finalApprovedAt: t,
+      }),
+    ).toBe("Approved");
+  });
+
+  it("falls back to Requested when no lifecycle timestamps are set", async () => {
+    expect(await exportStatus({})).toBe("Requested");
   });
 });
