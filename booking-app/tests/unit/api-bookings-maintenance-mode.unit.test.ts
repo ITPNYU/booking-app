@@ -61,9 +61,13 @@ vi.mock("@/lib/stateMachines/mcBookingMachine", () => ({
   mcBookingMachine: { id: "mc" },
 }));
 
-vi.mock("xstate", () => ({
-  createActor: vi.fn(),
-}));
+vi.mock("xstate", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("xstate")>();
+  return {
+    ...actual,
+    createActor: vi.fn(),
+  };
+});
 
 vi.mock("@/app/lib/sendHTMLEmail", () => ({
   sendHTMLEmail: vi.fn(),

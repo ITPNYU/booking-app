@@ -17,9 +17,10 @@ const MACHINE_FILE = path.resolve(
   __dirname,
   "../../lib/stateMachines/mcBookingMachine.ts",
 );
-const ALLOWED_IDENTIFIER_VALUES: Record<string, string> = {
-  context: "buildMcInitialContext",
-};
+const ITP_MACHINE_FILE = path.resolve(
+  __dirname,
+  "../../lib/stateMachines/itpBookingMachine.ts",
+);
 
 type Violation = { line: number; kind: string; text: string };
 
@@ -42,7 +43,11 @@ function findCreateMachineArgument(source: ts.SourceFile): ts.Node | undefined {
   return found;
 }
 
-function collectViolations(source: ts.SourceFile, root: ts.Node): Violation[] {
+function collectViolations(
+  source: ts.SourceFile,
+  root: ts.Node,
+  allowedIdentifiers: Record<string, string>,
+): Violation[] {
   const violations: Violation[] = [];
   const report = (node: ts.Node, kind: string) => {
     const { line } = source.getLineAndCharacterOfPosition(
@@ -90,7 +95,7 @@ function collectViolations(source: ts.SourceFile, root: ts.Node): Violation[] {
     }
     if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.initializer)) {
       const key = node.name.getText(source).replace(/^["']|["']$/g, "");
-      const allowed = ALLOWED_IDENTIFIER_VALUES[key];
+      const allowed = allowedIdentifiers[key];
       if (allowed !== node.initializer.text) {
         report(node, "identifier value");
       }
@@ -118,7 +123,9 @@ describe("mcBookingMachine stays importable by Stately Studio", () => {
   });
 
   it("contains no functions, calls, spreads, template strings, or computed keys", () => {
-    const violations = collectViolations(source, argument!);
+    const violations = collectViolations(source, argument!, {
+      context: "buildMcInitialContext",
+    });
     expect(
       violations,
       violations.map((v) => `line ${v.line} (${v.kind}): ${v.text}`).join("\n"),
@@ -132,5 +139,31 @@ describe("mcBookingMachine stays importable by Stately Studio", () => {
     const text = source.getFullText();
     expect(text).toMatch(/actions:\s*mcBookingActions/);
     expect(text).toMatch(/guards:\s*mcBookingGuards/);
+  });
+});
+
+describe("itpBookingMachine stays importable by Stately Studio", () => {
+  const source = ts.createSourceFile(
+    ITP_MACHINE_FILE,
+    readFileSync(ITP_MACHINE_FILE, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const argument = findCreateMachineArgument(source);
+
+  it("passes a single object literal to createMachine()", () => {
+    expect(argument).toBeDefined();
+    expect(ts.isObjectLiteralExpression(argument!)).toBe(true);
+  });
+
+  it("contains no functions, calls, spreads, template strings, or computed keys", () => {
+    const violations = collectViolations(source, argument!, {
+      context: "buildItpInitialContext",
+    });
+    expect(
+      violations,
+      violations.map((v) => `line ${v.line} (${v.kind}): ${v.text}`).join("\n"),
+    ).toEqual([]);
   });
 });
