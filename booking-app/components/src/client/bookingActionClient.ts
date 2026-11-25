@@ -1,7 +1,6 @@
 import { DEFAULT_TENANT } from "@/components/src/constants/tenants";
 import { TableNames } from "@/components/src/policy";
 import { BookingStatusLabel } from "@/components/src/types";
-import { shouldUseXState } from "@/components/src/utils/tenantUtils";
 import { clientGetDataByCalendarEventId } from "@/lib/firebase/firebase";
 
 export async function callXStateTransitionAPI(
@@ -273,53 +272,24 @@ export const noShow = async (
   tenant?: string,
   note?: string,
 ) => {
-  if (shouldUseXState(tenant)) {
-    const xstateResult = await callXStateTransitionAPI(
-      id,
-      "noShow",
-      email,
-      tenant,
-      note,
-      netId,
-    );
-
-    if (xstateResult.success) {
-      if (xstateResult.newState === "Closed") {
-        await postCloseProcessing(id, email, tenant);
-      }
-      return;
-    }
-
-    // Authentication failures are not transition failures. Falling back on
-    // them would hide an expired session and attempt the same mutation through
-    // a second endpoint.
-    if (xstateResult.status === 401 || xstateResult.status === 403) {
-      throw new Error(`XState no-show failed: ${xstateResult.error}`);
-    }
-  }
-
-  // Full traditional fallback (Firestore + pre-ban + emails + calendar)
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/noshow-processing`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant": tenant || DEFAULT_TENANT,
-      },
-      body: JSON.stringify({
-        calendarEventId: id,
-        email,
-        netId,
-        tenant,
-        note,
-      }),
-    },
+  const xstateResult = await callXStateTransitionAPI(
+    id,
+    "noShow",
+    email,
+    tenant,
+    note,
+    netId,
   );
 
-  if (!response.ok) {
-    const result = await response.json().catch(() => ({}));
-    throw new Error(result.error || "Traditional no-show processing failed");
+  // The machine decides whether a booking can be marked no-show. When it
+  // refuses, or the request fails, nothing happened: report that instead of
+  // stamping noShowedAt and penalizing the guest through a second endpoint.
+  if (!xstateResult.success) {
+    throw new Error(`XState no-show failed: ${xstateResult.error}`);
+  }
+
+  if (xstateResult.newState === "Closed") {
+    await postCloseProcessing(id, email, tenant);
   }
 };
 
