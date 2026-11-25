@@ -126,50 +126,42 @@ describe("decline", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to decline-processing when the XState decline fails", async () => {
+  // The machine is the authority on whether a booking can be declined. The
+  // old fallback stamped declinedAt, emailed the guest and retitled the
+  // calendar event even though the booking's state had not changed (#1636).
+  it("throws without a fallback when the machine refuses the decline", async () => {
+    const error =
+      "Invalid transition: Cannot execute 'decline' from state 'Closed'";
+    const fetchMock = vi.fn().mockResolvedValue(response(400, { error }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = decline("calendar-1", "admin@nyu.edu", "No staff", "mc");
+    await expect(result).rejects.toThrow(error);
+    await expect(result).rejects.not.toBeInstanceOf(NotAnApproverError);
+    expect(calledUrls(fetchMock)).toEqual([
+      expect.stringContaining("/api/xstate-transition"),
+    ]);
+  });
+
+  it("throws without a fallback when the transition request errors", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(response(400, { error: "Transition not allowed" }))
-      .mockResolvedValueOnce(response(200, { success: true }));
+      .mockResolvedValue(response(500, { error: "Firestore unavailable" }));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
       decline("calendar-1", "admin@nyu.edu", "No staff", "itp"),
-    ).resolves.toBeUndefined();
-    expect(calledUrls(fetchMock)).toEqual([
-      expect.stringContaining("/api/xstate-transition"),
-      expect.stringContaining("/api/decline-processing"),
-    ]);
+    ).rejects.toThrow("Firestore unavailable");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("throws NotAnApproverError when the fallback refuses the caller", async () => {
-    const error = "You are not authorized to decline this booking";
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValueOnce(response(400, { error: "Transition not allowed" }))
-        .mockResolvedValueOnce(response(403, { error })),
-    );
+  it("throws without a fallback when the transition request cannot be sent", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("Failed to fetch"));
+    vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      decline("calendar-1", "approver@nyu.edu", "No staff", "itp"),
-    ).rejects.toBeInstanceOf(NotAnApproverError);
-  });
-
-  it("throws the server's message when the fallback fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValueOnce(response(400, { error: "Transition not allowed" }))
-        .mockResolvedValueOnce(
-          response(500, { success: false, error: "Booking not found" }),
-        ),
-    );
-
-    const result = decline("calendar-1", "admin@nyu.edu", "No staff", "itp");
-    await expect(result).rejects.toThrow("Booking not found");
-    await expect(result).rejects.not.toBeInstanceOf(NotAnApproverError);
+      decline("calendar-1", "admin@nyu.edu", "No staff", "itp"),
+    ).rejects.toThrow("Failed to fetch");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
