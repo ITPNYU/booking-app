@@ -17,7 +17,6 @@
     "refused, but calendar changed: DECLINED -> PRE-APPROVED",
     "calendar says PRE-APPROVED, table says DECLINED"
   ],
-  "mc, no services | Declined | decline": ["refused, but an email was sent"],
   "mc, no services | Declined | noShow": [
     "refused, but stamps changed: +[noShowedAt] -[]",
     "refused, but calendar changed: DECLINED -> NO-SHOW",
@@ -28,12 +27,6 @@
     "refused, but calendar changed: CHECKED-IN -> APPROVED",
     "refused, but an email was sent",
     "calendar says APPROVED, table says CHECKED-IN"
-  ],
-  "mc, no services | Checked In | decline": [
-    "refused, but stamps changed: +[declinedAt] -[]",
-    "refused, but calendar changed: CHECKED-IN -> DECLINED",
-    "refused, but an email was sent",
-    "calendar says DECLINED, table says CHECKED-IN"
   ],
   "mc, no services | Checked In | cancel": [
     "refused, but stamps changed: +[canceledAt] -[]",
@@ -52,12 +45,6 @@
     "refused, but an email was sent",
     "calendar says APPROVED, table says CLOSED"
   ],
-  "mc, no services | Closed (checked out) | decline": [
-    "refused, but stamps changed: +[declinedAt] -[]",
-    "refused, but calendar changed: CLOSED -> DECLINED",
-    "refused, but an email was sent",
-    "calendar says DECLINED, table says CLOSED"
-  ],
   "mc, no services | Closed (checked out) | cancel": [
     "refused, but stamps changed: +[canceledAt] -[]",
     "refused, but calendar changed: CLOSED -> null",
@@ -72,10 +59,6 @@
   "mc, no services | Closed (canceled) | approve": [
     "refused, but stamps changed: +[firstApprovedAt] -[]"
   ],
-  "mc, no services | Closed (canceled) | decline": [
-    "refused, but stamps changed: +[declinedAt] -[]",
-    "refused, but an email was sent"
-  ],
   "mc, no services | Closed (canceled) | cancel": [
     "refused, but an email was sent"
   ],
@@ -84,10 +67,6 @@
     "refused, but an email was sent"
   ],
   "mc, no services | Closed (no show) | approve": [
-    "refused, but an email was sent"
-  ],
-  "mc, no services | Closed (no show) | decline": [
-    "refused, but stamps changed: +[declinedAt] -[]",
     "refused, but an email was sent"
   ],
   "mc, no services | Closed (no show) | cancel": [
@@ -107,18 +86,11 @@
     "refused, but calendar changed: APPROVED -> PRE-APPROVED",
     "calendar says PRE-APPROVED, table says APPROVED"
   ],
-  "itp | Approved | decline": [
-    "refused, but stamps changed: +[declinedAt] -[]",
-    "refused, but calendar changed: APPROVED -> DECLINED",
-    "refused, but an email was sent",
-    "calendar says DECLINED, table says APPROVED"
-  ],
   "itp | Declined | approve": [
     "refused, but stamps changed: +[firstApprovedAt] -[]",
     "refused, but calendar changed: DECLINED -> PRE-APPROVED",
     "calendar says PRE-APPROVED, table says DECLINED"
   ],
-  "itp | Declined | decline": ["refused, but an email was sent"],
   "itp | Declined | cancel": [
     "refused, but stamps changed: +[canceledAt] -[]",
     "refused, but calendar changed: DECLINED -> null",
@@ -134,12 +106,6 @@
     "refused, but stamps changed: +[firstApprovedAt] -[]",
     "refused, but calendar changed: CHECKED-IN -> PRE-APPROVED",
     "calendar says PRE-APPROVED, table says CHECKED-IN"
-  ],
-  "itp | Checked In | decline": [
-    "refused, but stamps changed: +[declinedAt] -[]",
-    "refused, but calendar changed: CHECKED-IN -> DECLINED",
-    "refused, but an email was sent",
-    "calendar says DECLINED, table says CHECKED-IN"
   ],
   "itp | Checked In | cancel": [
     "refused, but stamps changed: +[canceledAt] -[]",
@@ -158,12 +124,6 @@
     "refused, but calendar changed: CLOSED -> PRE-APPROVED",
     "calendar says PRE-APPROVED, table says CLOSED"
   ],
-  "itp | Closed (checked out) | decline": [
-    "refused, but stamps changed: +[declinedAt] -[]",
-    "refused, but calendar changed: CLOSED -> DECLINED",
-    "refused, but an email was sent",
-    "calendar says DECLINED, table says CLOSED"
-  ],
   "itp | Closed (checked out) | cancel": [
     "refused, but stamps changed: +[canceledAt] -[]",
     "refused, but calendar changed: CLOSED -> null",
@@ -178,10 +138,6 @@
   "itp | Closed (canceled) | approve": [
     "refused, but stamps changed: +[firstApprovedAt] -[]"
   ],
-  "itp | Closed (canceled) | decline": [
-    "refused, but stamps changed: +[declinedAt] -[]",
-    "refused, but an email was sent"
-  ],
   "itp | Closed (canceled) | cancel": ["refused, but an email was sent"],
   "itp | Closed (canceled) | noShow": [
     "refused, but stamps changed: +[noShowedAt] -[]",
@@ -189,10 +145,6 @@
   ],
   "itp | Closed (no show) | approve": [
     "refused, but stamps changed: +[firstApprovedAt] -[]"
-  ],
-  "itp | Closed (no show) | decline": [
-    "refused, but stamps changed: +[declinedAt] -[]",
-    "refused, but an email was sent"
   ],
   "itp | Closed (no show) | cancel": ["refused, but an email was sent"],
   "itp | Closed (no show) | noShow": ["refused, but an email was sent"]
