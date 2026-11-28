@@ -88,24 +88,22 @@ export default function WalkInLandingPage({
             </div>
           </>
         ) : (
-          <>
-            <Typography fontWeight={700} marginTop={3}>
-              Audio Lab (230) has different hours for Walk-Ins
-            </Typography>
+          <div style={{ marginTop: 3 }}>
             <Bulleted>
               <ListItem>
-                M-F 10am - 6pm staffed hours (audio engineer on site)
+                Walk in reservations are only available to members from our
+                primary stakeholder departments.
               </ListItem>
               <ListItem>
-                M-F 6pm - 9pm playback hours (no staff, multichannel speakers
-                and RME)
+                Always ask the reservation holder how they plan to use our
+                production spaces and mark it in the reservation details.
               </ListItem>
               <ListItem>
-                Sa 11am - 6pm playback hours (no staff, multichannel speakers
-                and RME)
+                If you are unsure if the walk in request follows studio policy,
+                reach out to a full time employee.
               </ListItem>
             </Bulleted>
-          </>
+          </div>
         )}
         <Button
           variant="contained"
